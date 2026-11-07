@@ -32,6 +32,7 @@
     "nuxt": "^4.6.2",
     "pinia": "^4.1.0",
     "primevue": "^4.5.5",
+    "sortablejs": "^1.15.7",
     "vue": "^3.5.44",
     "vue-router": "^5.4.0"
   },
@@ -42,6 +43,7 @@
     "@nuxt/test-utils": "^4.3.4",
     "@primevue/nuxt-module": "^4.5.5",
     "@tailwindcss/vite": "^4.3.3",
+    "@types/sortablejs": "^1.15.9",
     "@vue/test-utils": "^2.5.1",
     "eslint": "^10.13.0",
     "happy-dom": "^21.0.4",

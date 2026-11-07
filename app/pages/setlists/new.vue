@@ -1,5 +1,4 @@
 <script setup lang="ts">
-definePageMeta({ hideNav: true })
 useTelegramBackButton(true)
 
 const workspace = useWorkspaceStore()

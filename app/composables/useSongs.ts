@@ -62,6 +62,7 @@ export function useSongs() {
         workspace_id: workspace.workspace.id,
         title: input.title.trim(),
         key: input.key,
+        capo: Math.max(0, Math.min(11, Math.round(input.capo ?? 0))),
         chords: input.chords?.trim() || null,
         lyrics: input.lyrics?.trim() || null,
         youtube_url: input.youtubeUrl?.trim() || null,
@@ -82,6 +83,7 @@ export function useSongs() {
       .update({
         title: input.title.trim(),
         key: input.key,
+        capo: Math.max(0, Math.min(11, Math.round(input.capo ?? 0))),
         chords: input.chords?.trim() || null,
         lyrics: input.lyrics?.trim() || null,
         youtube_url: input.youtubeUrl?.trim() || null,

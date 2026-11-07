@@ -95,8 +95,8 @@ function displayName(m: { displayName: string | null; userId: string }) {
       <p class="invite-card__code">{{ workspace.workspace?.inviteCode }}</p>
       <div class="invite-card__actions">
         <button type="button" class="invite-card__btn invite-card__btn--ghost" @click="copyInviteCode">
-          <AppIcon :name="icons.copy" />
-          Копировать код
+          <AppIcon :name="icons.copy" size="1.15rem" />
+          Копировать
         </button>
         <button
           type="button"
@@ -104,7 +104,7 @@ function displayName(m: { displayName: string | null; userId: string }) {
           :disabled="!botUsername"
           @click="inviteViaTelegram"
         >
-          <AppIcon :name="icons.share" />
+          <AppIcon :name="icons.share" size="1.15rem" />
           Пригласить в Telegram
         </button>
       </div>
@@ -122,9 +122,13 @@ function displayName(m: { displayName: string | null; userId: string }) {
             {{ MEMBER_ROLE_LABELS[member.role] }}
           </p>
         </div>
-        <div class="member__controls">
+        <div
+          v-if="workspace.canEditMembers"
+          class="member__controls"
+          :class="{ 'member__controls--solo': member.userId === auth.user?.id }"
+        >
           <Select
-            v-if="workspace.canEditMembers"
+            class="member__role-select"
             :model-value="member.role"
             :options="roleOptions"
             option-label="label"
@@ -133,13 +137,13 @@ function displayName(m: { displayName: string | null; userId: string }) {
             @update:model-value="onRoleChange(member.id, $event as MemberRole)"
           />
           <button
-            v-if="workspace.canEditMembers && member.userId !== auth.user?.id"
+            v-if="member.userId !== auth.user?.id"
             type="button"
             class="member__remove"
             aria-label="Удалить"
             @click="confirmRemove(member.id, displayName(member))"
           >
-            <AppIcon :name="icons.trash" />
+            <AppIcon :name="icons.trash" size="1.25rem" />
           </button>
         </div>
       </article>
@@ -176,8 +180,8 @@ function displayName(m: { displayName: string | null; userId: string }) {
 
 .invite-card__actions {
   margin-top: var(--app-space-2);
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
   gap: var(--app-space-2);
 }
 
@@ -187,12 +191,15 @@ function displayName(m: { displayName: string | null; userId: string }) {
   justify-content: center;
   gap: var(--app-space-2);
   min-height: 2.5rem;
-  padding: 0 0.9rem;
+  width: 100%;
+  padding: 0 0.75rem;
   border: 0;
   border-radius: var(--app-radius-sm);
   background: var(--app-accent);
   color: var(--app-accent-contrast);
   font-weight: 600;
+  font-size: var(--app-text-sm);
+  white-space: nowrap;
   cursor: pointer;
 }
 
@@ -216,7 +223,6 @@ function displayName(m: { displayName: string | null; userId: string }) {
 .member {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--app-space-3);
   padding: var(--app-space-3) var(--app-space-4);
   border-radius: var(--app-radius);
@@ -224,9 +230,17 @@ function displayName(m: { displayName: string | null; userId: string }) {
   border: 1px solid var(--app-border);
 }
 
+.member__info {
+  min-width: 0;
+  flex: 1;
+}
+
 .member__name {
   margin: 0;
   font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .member__role {
@@ -236,9 +250,42 @@ function displayName(m: { displayName: string | null; userId: string }) {
 }
 
 .member__controls {
-  display: flex;
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: 10.75rem 2.5rem;
   align-items: center;
-  gap: var(--app-space-2);
+  gap: var(--app-space-1);
+  width: calc(10.75rem + 2.5rem + var(--app-space-1));
+}
+
+.member__controls--solo {
+  grid-template-columns: 1fr;
+}
+
+.member__role-select,
+.member__controls :deep(.p-select) {
+  width: 100%;
+  min-width: 0;
+}
+
+.member__controls :deep(.p-select-label) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-inline-end: 0.15rem;
+}
+
+.member__controls :deep(.p-select-dropdown) {
+  width: 1.75rem;
+  flex: 0 0 1.75rem;
+  justify-content: center;
+}
+
+.member__controls :deep(.p-select-dropdown-icon),
+.member__controls :deep(.p-select-dropdown svg) {
+  width: 0.75rem !important;
+  height: 0.75rem !important;
+  opacity: 0.72;
 }
 
 .member__remove {

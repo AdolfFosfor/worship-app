@@ -8,6 +8,8 @@ export interface Song extends Timestamps {
   workspaceId: EntityId
   title: string
   key: SongKey
+  /** Capo fret (0 = none). Chords are written as shapes with this capo. */
+  capo: number
   chords: string | null
   lyrics: string | null
   youtubeUrl: string | null
@@ -17,6 +19,7 @@ export interface Song extends Timestamps {
 export interface SongInput {
   title: string
   key: SongKey
+  capo?: number
   chords?: string | null
   lyrics?: string | null
   youtubeUrl?: string | null

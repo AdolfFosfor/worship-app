@@ -270,4 +270,70 @@ const hideNav = computed(() => {
 .p-multiselect .p-multiselect-label.p-placeholder {
   color: var(--app-muted) !important;
 }
+
+/* DatePicker — force app tokens (input + dropdown + panel) */
+.p-datepicker {
+  background: var(--app-bg) !important;
+  border-color: var(--app-border) !important;
+  color: var(--app-ink) !important;
+}
+
+.p-datepicker .p-datepicker-input,
+.p-datepicker .p-inputtext {
+  background: transparent !important;
+  color: var(--app-ink) !important;
+  border: 0 !important;
+}
+
+.p-datepicker .p-datepicker-dropdown {
+  background: var(--app-accent-muted) !important;
+  color: var(--app-accent-text) !important;
+  border: 0 !important;
+  border-inline-start: 1px solid var(--app-border) !important;
+  width: 2.75rem !important;
+}
+
+.p-datepicker .p-datepicker-dropdown:hover {
+  background: color-mix(in srgb, var(--app-accent) 22%, var(--app-surface)) !important;
+  color: var(--app-accent-text) !important;
+}
+
+.p-datepicker-panel {
+  background: var(--app-surface) !important;
+  color: var(--app-ink) !important;
+  border: 1px solid var(--app-border) !important;
+}
+
+.p-datepicker-panel .p-datepicker-header,
+.p-datepicker-panel .p-datepicker-title,
+.p-datepicker-panel .p-datepicker-select-month,
+.p-datepicker-panel .p-datepicker-select-year,
+.p-datepicker-panel .p-datepicker-weekday,
+.p-datepicker-panel .p-datepicker-day {
+  color: var(--app-ink) !important;
+}
+
+.p-datepicker-panel .p-datepicker-header {
+  background: var(--app-surface) !important;
+  border-bottom: 1px solid var(--app-border) !important;
+}
+
+.p-datepicker-panel .p-datepicker-day:not(.p-datepicker-day-selected):not(.p-disabled):hover {
+  background: var(--app-hover) !important;
+}
+
+.p-datepicker-panel .p-datepicker-day-selected {
+  background: var(--app-accent) !important;
+  color: var(--app-accent-contrast) !important;
+}
+
+.p-datepicker-panel .p-datepicker-today > .p-datepicker-day:not(.p-datepicker-day-selected) {
+  background: var(--app-accent-muted) !important;
+  color: var(--app-accent-text) !important;
+}
+
+.p-datepicker-panel .p-datepicker-prev-button,
+.p-datepicker-panel .p-datepicker-next-button {
+  color: var(--app-accent-text) !important;
+}
 </style>

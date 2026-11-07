@@ -46,8 +46,8 @@ function subtitle(s: Setlist) {
   <div class="app-page">
     <AppHeader title="Сет-листы">
       <template v-if="workspace.canEditSetlists" #trailing>
-        <NuxtLink to="/setlists/new" class="setlists-add" aria-label="Создать сет-лист">
-          <AppIcon :name="icons.add" />
+        <NuxtLink to="/setlists/new" class="app-header-action" aria-label="Создать сет-лист">
+          <AppIcon :name="icons.add" size="1.65rem" />
         </NuxtLink>
       </template>
     </AppHeader>
@@ -97,15 +97,6 @@ function subtitle(s: Setlist) {
 </template>
 
 <style scoped>
-.setlists-add {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.75rem;
-  height: 2.75rem;
-  color: var(--app-accent-text);
-}
-
 .setlists-section {
   display: flex;
   flex-direction: column;

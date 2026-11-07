@@ -43,8 +43,8 @@ function formatDate(iso: string) {
       :subtitle="workspace.membership?.displayName ?? undefined"
     >
       <template #trailing>
-        <NuxtLink to="/account" class="home-account" aria-label="Аккаунт">
-          <AppIcon :name="icons.settings" />
+        <NuxtLink to="/account" class="app-header-action" aria-label="Аккаунт">
+          <AppIcon :name="icons.settings" size="1.55rem" />
         </NuxtLink>
       </template>
     </AppHeader>
@@ -164,20 +164,4 @@ function formatDate(iso: string) {
   text-decoration: none;
 }
 
-.home-account {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.75rem;
-  height: 2.75rem;
-  margin-right: -0.35rem;
-  border-radius: var(--app-radius-sm);
-  color: var(--app-accent-text);
-  text-decoration: none;
-}
-
-.home-account :deep(svg) {
-  width: 1.35rem;
-  height: 1.35rem;
-}
 </style>

@@ -39,6 +39,7 @@ export function mapSong(row: DbSong): Song {
     workspaceId: row.workspace_id,
     title: row.title,
     key: row.key,
+    capo: Number.isFinite(row.capo) ? Math.max(0, Math.min(11, row.capo)) : 0,
     chords: row.chords,
     lyrics: row.lyrics,
     youtubeUrl: row.youtube_url,

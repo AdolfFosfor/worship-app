@@ -34,6 +34,8 @@ export interface DbSong {
   workspace_id: string
   title: string
   key: string
+  /** Capo fret; chords are shapes played with this capo. */
+  capo: number
   chords: string | null
   lyrics: string | null
   youtube_url: string | null
@@ -110,6 +112,7 @@ export interface Database {
           workspace_id: string
           title: string
           key?: string
+          capo?: number
           chords?: string | null
           lyrics?: string | null
           youtube_url?: string | null
@@ -122,6 +125,7 @@ export interface Database {
           workspace_id?: string
           title?: string
           key?: string
+          capo?: number
           chords?: string | null
           lyrics?: string | null
           youtube_url?: string | null
@@ -205,6 +209,12 @@ export interface Database {
           p_display_name?: string | null
         }
         Returns: DbWorkspace
+      }
+      update_my_display_name: {
+        Args: {
+          p_name: string
+        }
+        Returns: string
       }
     }
     Enums: {

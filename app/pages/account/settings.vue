@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import { authErrorMessage } from '~/utils/authError'
+import { resolveAuthDisplayName } from '~/stores/auth'
 
 const auth = useAuthStore()
+const workspace = useWorkspaceStore()
 const telegram = useTelegramApp()
 const toast = useToast()
 
+const displayNameInput = ref('')
 const emailInput = ref('')
+const busyName = ref(false)
 const busyEmail = ref(false)
 const busyTelegram = ref(false)
 const lastError = ref<string | null>(null)
@@ -16,9 +20,56 @@ const canLinkTelegramNow = computed(
   () => Boolean(telegram.getInitDataRaw()) || telegram.isMocked.value,
 )
 
-onMounted(() => {
-  void auth.refreshUser()
+const nameHint = computed(() => {
+  if (!auth.user) return ''
+  if (auth.user.displayName) return 'Это имя видят в команде и на главной'
+  const fromTg = [auth.user.firstName, auth.user.lastName].filter(Boolean).join(' ')
+  if (fromTg) return `Сейчас из Telegram: ${fromTg}`
+  return 'Это имя видят в команде и на главной'
 })
+
+const nameDirty = computed(() => {
+  const next = displayNameInput.value.trim()
+  const current = resolveAuthDisplayName(auth.user)
+  return Boolean(next) && next !== current
+})
+
+onMounted(async () => {
+  await auth.refreshUser()
+  displayNameInput.value = resolveAuthDisplayName(auth.user)
+})
+
+async function submitDisplayName() {
+  if (!nameDirty.value) return
+  busyName.value = true
+  lastError.value = null
+  try {
+    const saved = await auth.updateDisplayName(displayNameInput.value)
+    displayNameInput.value = saved
+    if (workspace.membership && workspace.membership.userId === auth.user?.id) {
+      workspace.membership = {
+        ...workspace.membership,
+        displayName: saved,
+      }
+    }
+    toast.add({
+      severity: 'success',
+      summary: 'Имя сохранено',
+      life: 2500,
+    })
+  } catch (e) {
+    const detail = authErrorMessage(e, 'Не удалось сохранить имя')
+    lastError.value = detail
+    toast.add({
+      severity: 'error',
+      summary: 'Имя',
+      detail,
+      life: 6000,
+    })
+  } finally {
+    busyName.value = false
+  }
+}
 
 async function submitEmail() {
   if (!emailInput.value.trim()) return
@@ -91,6 +142,30 @@ async function submitTelegram() {
       Привяжите email и Telegram к одному аккаунту — тогда браузер (Magic Link) и Mini App
       открывают одни и те же песни и сет-листы.
     </p>
+
+    <section class="settings-block">
+      <h2 class="settings-block__title">Отображаемое имя</h2>
+      <form class="settings-form" @submit.prevent="submitDisplayName">
+        <label class="settings-field">
+          <span>Как вас видят в команде</span>
+          <InputText
+            v-model="displayNameInput"
+            class="w-full"
+            placeholder="Иван Иванов"
+            maxlength="80"
+            autocomplete="nickname"
+          />
+        </label>
+        <p class="settings-block__hint">{{ nameHint }}</p>
+        <Button
+          type="submit"
+          label="Сохранить имя"
+          class="w-full"
+          :loading="busyName"
+          :disabled="!nameDirty"
+        />
+      </form>
+    </section>
 
     <section class="settings-block">
       <h2 class="settings-block__title">Email</h2>

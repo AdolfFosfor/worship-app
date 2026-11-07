@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { SongInput } from '~~/shared/types'
 
-definePageMeta({ hideNav: true })
 useTelegramBackButton(true)
 
 const route = useRoute()
@@ -13,6 +12,7 @@ const id = computed(() => String(route.params.id))
 const form = ref<SongInput>({
   title: '',
   key: 'G',
+  capo: 0,
   chords: '',
   lyrics: '',
   youtubeUrl: '',
@@ -31,6 +31,7 @@ onMounted(async () => {
     form.value = {
       title: song.title,
       key: song.key,
+      capo: song.capo,
       chords: song.chords,
       lyrics: song.lyrics,
       youtubeUrl: song.youtubeUrl,

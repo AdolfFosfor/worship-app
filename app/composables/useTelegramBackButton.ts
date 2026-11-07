@@ -2,8 +2,12 @@ import { backButton } from '@tma.js/sdk-vue'
 
 /**
  * Shows Telegram BackButton on nested routes and navigates back on click.
+ * Optional `fallbackTo` prefers an explicit in-app path (e.g. return to setlist).
  */
-export function useTelegramBackButton(enabled: MaybeRefOrGetter<boolean> = true) {
+export function useTelegramBackButton(
+  enabled: MaybeRefOrGetter<boolean> = true,
+  fallbackTo?: MaybeRefOrGetter<string | undefined>,
+) {
   const router = useRouter()
 
   function sync() {
@@ -20,13 +24,24 @@ export function useTelegramBackButton(enabled: MaybeRefOrGetter<boolean> = true)
     }
   }
 
+  function goBack() {
+    const to = toValue(fallbackTo)
+    if (to) {
+      void router.push(to)
+      return
+    }
+    if (window.history.length > 1) {
+      router.back()
+      return
+    }
+    void router.push('/')
+  }
+
   onMounted(() => {
     sync()
     try {
       if (backButton.isSupported()) {
-        backButton.onClick(() => {
-          router.back()
-        })
+        backButton.onClick(goBack)
       }
     } catch {
       // ignore

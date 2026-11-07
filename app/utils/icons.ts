@@ -25,6 +25,7 @@ export const icons = {
   youtube: 'play-circle-bold',
   up: 'alt-arrow-up-linear',
   down: 'alt-arrow-down-linear',
+  grip: 'hamburger-menu-linear',
   minus: 'minus-circle-linear',
   plus: 'add-circle-linear',
 } as const

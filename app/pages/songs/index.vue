@@ -1,8 +1,13 @@
 <script setup lang="ts">
 import { icons } from '~/utils/icons'
+import { soundingKey } from '~/utils/music/capo'
 
 const workspace = useWorkspaceStore()
 const { songs, loading, error, fetchSongs } = useSongs()
+
+function songMeta(song: { key: string; capo: number }) {
+  return soundingKey(song.key, song.capo)
+}
 
 const query = ref('')
 const debouncedSearch = useDebounceFn(() => {
@@ -22,8 +27,8 @@ onMounted(() => {
   <div class="app-page">
     <AppHeader title="Песни">
       <template v-if="workspace.canEditSongs" #trailing>
-        <NuxtLink to="/songs/new" class="songs-add" aria-label="Добавить песню">
-          <AppIcon :name="icons.add" />
+        <NuxtLink to="/songs/new" class="app-header-action" aria-label="Добавить песню">
+          <AppIcon :name="icons.add" size="1.65rem" />
         </NuxtLink>
       </template>
     </AppHeader>
@@ -50,7 +55,7 @@ onMounted(() => {
         :key="song.id"
         :to="`/songs/${song.id}`"
         :title="song.title"
-        :meta="song.key"
+        :meta="songMeta(song)"
         chevron
       />
     </AppSurfaceList>
@@ -77,15 +82,6 @@ onMounted(() => {
 
 .songs-search :deep(input) {
   padding-left: 2.4rem;
-}
-
-.songs-add {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.75rem;
-  height: 2.75rem;
-  color: var(--app-accent-text);
 }
 
 .songs-cta {

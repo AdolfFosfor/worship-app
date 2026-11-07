@@ -37,17 +37,34 @@ const canSubmit = computed(() => props.modelValue.title.trim().length > 0 && Boo
       />
     </label>
 
-    <label class="song-form__field">
-      <span>Тональность</span>
-      <Select
-        :model-value="form.key"
-        :options="KEY_OPTIONS"
-        option-label="label"
-        option-value="value"
-        class="w-full"
-        @update:model-value="patch('key', String($event))"
-      />
-    </label>
+    <div class="song-form__row">
+      <label class="song-form__field">
+        <span>Тональность (формы)</span>
+        <Select
+          :model-value="form.key"
+          :options="KEY_OPTIONS"
+          option-label="label"
+          option-value="value"
+          class="w-full"
+          @update:model-value="patch('key', String($event))"
+        />
+      </label>
+      <label class="song-form__field">
+        <span>Капо (лад)</span>
+        <InputNumber
+          :model-value="form.capo ?? 0"
+          class="w-full"
+          :min="0"
+          :max="11"
+          show-buttons
+          button-layout="horizontal"
+          @update:model-value="patch('capo', Number($event ?? 0))"
+        />
+      </label>
+    </div>
+    <p class="song-form__hint">
+      Аккорды пишите как на грифе с капо. 0 — без каподастра.
+    </p>
 
     <label class="song-form__field">
       <span>Аккорды / прогрессия</span>
@@ -100,6 +117,12 @@ const canSubmit = computed(() => props.modelValue.title.trim().length > 0 && Boo
   gap: var(--app-space-4);
 }
 
+.song-form__row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: var(--app-space-3);
+}
+
 .song-form__field {
   display: flex;
   flex-direction: column;
@@ -109,9 +132,18 @@ const canSubmit = computed(() => props.modelValue.title.trim().length > 0 && Boo
   color: var(--app-section-header);
 }
 
+.song-form__hint {
+  margin: calc(-1 * var(--app-space-2)) 0 0;
+  font-size: var(--app-text-sm);
+  font-weight: 400;
+  color: var(--app-muted);
+  line-height: 1.35;
+}
+
 .song-form__field :deep(input),
 .song-form__field :deep(textarea),
-.song-form__field :deep(.p-select) {
+.song-form__field :deep(.p-select),
+.song-form__field :deep(.p-inputnumber) {
   font-weight: 400;
   color: var(--app-ink);
 }

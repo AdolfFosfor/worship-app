@@ -234,3 +234,24 @@ body {
   letter-spacing: -0.02em;
   color: var(--app-ink);
 }
+
+/* Header trailing actions — large touch target + readable icon */
+.app-header-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin-right: -0.2rem;
+  border: 0;
+  border-radius: var(--app-radius-sm);
+  background: transparent;
+  color: var(--app-accent-text);
+  text-decoration: none;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.app-header-action--danger {
+  color: var(--app-destructive);
+}

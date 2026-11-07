@@ -14,7 +14,7 @@ import {
 import { mapMember, mapWorkspace } from '~/utils/mappers'
 import { readActiveWorkspaceId, writeActiveWorkspaceId } from '~/utils/activeWorkspace'
 import { getSupabaseBrowserClient } from '~/utils/supabase/client'
-import { useAuthStore } from '~/stores/auth'
+import { resolveAuthDisplayName, useAuthStore } from '~/stores/auth'
 
 export const useWorkspaceStore = defineStore('workspace', () => {
   const workspace = ref<Workspace | null>(null)
@@ -115,11 +115,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     error.value = null
     try {
       const supabase = getSupabaseBrowserClient()
-      const displayName =
-        [auth.user.firstName, auth.user.lastName].filter(Boolean).join(' ') ||
-        auth.user.username ||
-        auth.user.email ||
-        'Участник'
+      const displayName = resolveAuthDisplayName(auth.user)
 
       const { data: ws, error: rpcError } = await supabase.rpc('create_workspace', {
         p_name: name.trim(),
@@ -153,11 +149,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     error.value = null
     try {
       const supabase = getSupabaseBrowserClient()
-      const displayName =
-        [auth.user.firstName, auth.user.lastName].filter(Boolean).join(' ') ||
-        auth.user.username ||
-        auth.user.email ||
-        'Участник'
+      const displayName = resolveAuthDisplayName(auth.user)
 
       const { data: ws, error: rpcError } = await supabase.rpc('join_workspace_by_invite', {
         p_code: code.trim().toUpperCase(),

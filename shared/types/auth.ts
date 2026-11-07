@@ -6,6 +6,8 @@ export interface AuthUser {
   email?: string | null
   /** Pending email change (confirmation not finished). */
   pendingEmail?: string | null
+  /** Preferred display name (overrides Telegram first/last). */
+  displayName?: string | null
   firstName?: string | null
   lastName?: string | null
   username?: string | null

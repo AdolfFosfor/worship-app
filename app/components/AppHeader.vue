@@ -43,7 +43,7 @@ function onBack() {
       @click="onBack"
     >
       <slot name="leading">
-        <AppIcon :name="icons.arrowLeft" />
+        <AppIcon :name="icons.arrowLeft" size="1.45rem" />
       </slot>
     </button>
     <div class="app-header__text">
