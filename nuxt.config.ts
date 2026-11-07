@@ -73,8 +73,12 @@ export default defineNuxtConfig({
         '',
       // Explicit opt-in only — production Cloudflare must not enable this by default
       allowTelegramDevMock: process.env.NUXT_PUBLIC_ALLOW_TELEGRAM_DEV_MOCK === 'true',
+      // Bot username without @ — for t.me/?startapp= invite links (not secret)
+      telegramBotUsername:
+        process.env.NUXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'worship_team_helper_bot',
     },
   },
+
 
   primevue: {
     options: {

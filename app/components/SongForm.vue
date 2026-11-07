@@ -33,7 +33,6 @@ const canSubmit = computed(() => props.modelValue.title.trim().length > 0 && Boo
         :model-value="form.title"
         class="w-full"
         placeholder="Название песни"
-        autofocus
         @update:model-value="patch('title', String($event ?? ''))"
       />
     </label>

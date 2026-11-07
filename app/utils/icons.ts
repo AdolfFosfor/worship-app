@@ -20,6 +20,7 @@ export const icons = {
   trash: 'trash-bin-trash-linear',
   edit: 'pen-linear',
   copy: 'copy-linear',
+  share: 'share-bold',
   link: 'link-round-linear',
   youtube: 'play-circle-bold',
   up: 'alt-arrow-up-linear',

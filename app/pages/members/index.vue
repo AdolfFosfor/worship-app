@@ -9,29 +9,38 @@ const { members, loading, error, fetchMembers, updateRole, removeMember } = useM
 const toast = useToast()
 const confirm = useConfirm()
 const { copy, copied } = useClipboard()
+const { shareInvite, botUsername } = useInviteShare()
 
 const roleOptions = (
   Object.entries(MEMBER_ROLE_LABELS) as [MemberRole, string][]
 ).map(([value, label]) => ({ value, label }))
 
-const inviteUrl = computed(() => {
-  if (!workspace.workspace || !import.meta.client) return ''
-  return `${window.location.origin}/invite/${workspace.workspace.inviteCode}`
-})
-
 onMounted(() => {
   void fetchMembers()
 })
 
-async function copyInvite() {
+async function copyInviteCode() {
   if (!workspace.workspace) return
-  const text = `${workspace.workspace.inviteCode}\n${inviteUrl.value}`
-  await copy(text)
+  await copy(workspace.workspace.inviteCode)
   toast.add({
     severity: 'success',
-    summary: copied.value ? 'Скопировано' : 'Код скопирован',
+    summary: copied.value ? 'Код скопирован' : 'Скопировано',
     life: 2000,
   })
+}
+
+function inviteViaTelegram() {
+  if (!workspace.workspace) return
+  try {
+    shareInvite(workspace.workspace.inviteCode, workspace.workspace.name)
+  } catch (e) {
+    toast.add({
+      severity: 'error',
+      summary: 'Приглашение',
+      detail: e instanceof Error ? e.message : 'Не удалось открыть Telegram',
+      life: 4000,
+    })
+  }
 }
 
 async function onRoleChange(memberId: string, role: MemberRole) {
@@ -85,9 +94,18 @@ function displayName(m: { displayName: string | null; userId: string }) {
       <p class="invite-card__label">Приглашение</p>
       <p class="invite-card__code">{{ workspace.workspace?.inviteCode }}</p>
       <div class="invite-card__actions">
-        <button type="button" class="invite-card__btn" @click="copyInvite">
+        <button type="button" class="invite-card__btn invite-card__btn--ghost" @click="copyInviteCode">
           <AppIcon :name="icons.copy" />
           Копировать код
+        </button>
+        <button
+          type="button"
+          class="invite-card__btn"
+          :disabled="!botUsername"
+          @click="inviteViaTelegram"
+        >
+          <AppIcon :name="icons.share" />
+          Пригласить в Telegram
         </button>
       </div>
     </section>
@@ -158,11 +176,15 @@ function displayName(m: { displayName: string | null; userId: string }) {
 
 .invite-card__actions {
   margin-top: var(--app-space-2);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-2);
 }
 
 .invite-card__btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: var(--app-space-2);
   min-height: 2.5rem;
   padding: 0 0.9rem;
@@ -172,6 +194,17 @@ function displayName(m: { displayName: string | null; userId: string }) {
   color: var(--app-accent-contrast);
   font-weight: 600;
   cursor: pointer;
+}
+
+.invite-card__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.invite-card__btn--ghost {
+  background: transparent;
+  color: var(--app-ink);
+  border: 1px solid var(--app-border);
 }
 
 .members {

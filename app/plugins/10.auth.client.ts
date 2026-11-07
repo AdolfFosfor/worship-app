@@ -1,11 +1,15 @@
 import { useAuthStore } from '~/stores/auth'
 import { useWorkspaceStore } from '~/stores/workspace'
 import { useTelegramApp } from '~/composables/useTelegramApp'
+import { useInviteShare } from '~/composables/useInviteShare'
 
 export default defineNuxtPlugin(async () => {
   const auth = useAuthStore()
   const workspace = useWorkspaceStore()
   const telegram = useTelegramApp()
+  const inviteShare = useInviteShare()
+
+  inviteShare.capturePendingInviteFromStartParam()
 
   await auth.init()
 
@@ -30,11 +34,24 @@ export default defineNuxtPlugin(async () => {
     }
   }
 
+  async function openPendingInvite() {
+    if (!auth.isAuthenticated) return
+    const code = inviteShare.takePendingInvite()
+    if (!code) return
+    const path = `/invite/${encodeURIComponent(code)}`
+    const current = useRouter().currentRoute.value.path
+    if (current === path || current === `/invite/${code}`) return
+    await navigateTo(path)
+  }
+
+  await openPendingInvite()
+
   watch(
     () => auth.isAuthenticated,
     async (ok) => {
       if (ok) {
         await workspace.loadCurrent()
+        await openPendingInvite()
       } else {
         workspace.clear()
       }
