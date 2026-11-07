@@ -14,7 +14,35 @@ import { useWorkspaceStore } from '~/stores/workspace'
 
 type SetlistItemJoinRow = DbSetlistItem & { songs: DbSong | null }
 
+/** KeepAlive-страницы подтягивают данные, когда revision изменился. */
+export function useSetlistsRevision() {
+  const revision = useState('setlists-data-revision', () => 0)
+
+  function bumpSetlistsRevision() {
+    revision.value += 1
+  }
+
+  function syncSetlistsOnActivate(reload: () => void | Promise<void>) {
+    const seen = ref(revision.value)
+
+    onActivated(() => {
+      if (seen.value === revision.value) return
+      seen.value = revision.value
+      void reload()
+    })
+
+    return {
+      markSetlistsSynced() {
+        seen.value = revision.value
+      },
+    }
+  }
+
+  return { setlistsRevision: revision, bumpSetlistsRevision, syncSetlistsOnActivate }
+}
+
 export function useSetlists() {
+  const { bumpSetlistsRevision } = useSetlistsRevision()
   const setlists = ref<Setlist[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
@@ -113,6 +141,7 @@ export function useSetlists() {
     if (qError) throw qError
     const setlist = mapSetlist(data as DbSetlist)
     setlists.value = [setlist, ...setlists.value]
+    bumpSetlistsRevision()
     return setlist
   }
 
@@ -130,6 +159,7 @@ export function useSetlists() {
     if (qError) throw qError
     const setlist = mapSetlist(data as DbSetlist)
     setlists.value = setlists.value.map((s) => (s.id === id ? setlist : s))
+    bumpSetlistsRevision()
     return setlist
   }
 
@@ -138,9 +168,27 @@ export function useSetlists() {
     const { error: qError } = await supabase.from('setlists').delete().eq('id', id)
     if (qError) throw qError
     setlists.value = setlists.value.filter((s) => s.id !== id)
+    bumpSetlistsRevision()
   }
 
-  async function addSongToSetlist(setlistId: string, songId: string) {
+  async function songInSetlist(setlistId: string, songId: string) {
+    const supabase = getSupabaseBrowserClient()
+    const { data, error: qError } = await supabase
+      .from('setlist_items')
+      .select('id')
+      .eq('setlist_id', setlistId)
+      .eq('song_id', songId)
+      .limit(1)
+      .maybeSingle()
+    if (qError) throw qError
+    return Boolean(data)
+  }
+
+  async function addSongToSetlist(
+    setlistId: string,
+    songId: string,
+    key: string | null = null,
+  ) {
     const supabase = getSupabaseBrowserClient()
     const { data: existing, error: existingError } = await supabase
       .from('setlist_items')
@@ -157,7 +205,7 @@ export function useSetlists() {
         setlist_id: setlistId,
         song_id: songId,
         position: nextPos,
-        key: null,
+        key,
       })
       .select('*, songs(*)')
       .single()
@@ -166,6 +214,7 @@ export function useSetlists() {
     const row = data as SetlistItemJoinRow
     if (!row.songs) throw new Error('Песня не найдена')
 
+    bumpSetlistsRevision()
     return {
       ...mapSetlistItem(row),
       song: mapSong(row.songs),
@@ -179,12 +228,14 @@ export function useSetlists() {
       .update({ key })
       .eq('id', itemId)
     if (qError) throw qError
+    bumpSetlistsRevision()
   }
 
   async function removeItem(itemId: string) {
     const supabase = getSupabaseBrowserClient()
     const { error: qError } = await supabase.from('setlist_items').delete().eq('id', itemId)
     if (qError) throw qError
+    bumpSetlistsRevision()
   }
 
   async function reorderItems(setlistId: string, orderedIds: string[]) {
@@ -205,6 +256,7 @@ export function useSetlists() {
         .eq('setlist_id', setlistId)
       if (e2) throw e2
     }
+    bumpSetlistsRevision()
   }
 
   return {
@@ -217,6 +269,7 @@ export function useSetlists() {
     createSetlist,
     updateSetlist,
     deleteSetlist,
+    songInSetlist,
     addSongToSetlist,
     updateItemKey,
     removeItem,

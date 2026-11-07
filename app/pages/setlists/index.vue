@@ -4,9 +4,31 @@ import { icons } from '~/utils/icons'
 
 const workspace = useWorkspaceStore()
 const { setlists, loading, error, fetchSetlists } = useSetlists()
+const { syncSetlistsOnActivate } = useSetlistsRevision()
+
+async function load(opts?: { quiet?: boolean }) {
+  // quiet: KeepAlive-возврат — без полноэкранного лоадера
+  if (opts?.quiet && setlists.value.length) {
+    try {
+      await fetchSetlists()
+      markSetlistsSynced()
+    } catch {
+      /* ошибка уже в composable */
+    }
+    return
+  }
+  try {
+    await fetchSetlists()
+    markSetlistsSynced()
+  } catch {
+    /* ошибка уже в composable */
+  }
+}
+
+const { markSetlistsSynced } = syncSetlistsOnActivate(() => load({ quiet: true }))
 
 onMounted(() => {
-  void fetchSetlists()
+  void load()
 })
 
 const today = new Date().toISOString().slice(0, 10)

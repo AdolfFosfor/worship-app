@@ -4,16 +4,18 @@ import { icons } from '~/utils/icons'
 
 const workspace = useWorkspaceStore()
 const { getUpcoming } = useSetlists()
+const { syncSetlistsOnActivate } = useSetlistsRevision()
 
 const upcoming = ref<Setlist | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 
-async function load() {
-  loading.value = true
+async function load(opts?: { quiet?: boolean }) {
+  if (!opts?.quiet) loading.value = true
   error.value = null
   try {
     upcoming.value = await getUpcoming()
+    markSetlistsSynced()
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Ошибка загрузки'
   } finally {
@@ -21,7 +23,10 @@ async function load() {
   }
 }
 
-onMounted(load)
+const { markSetlistsSynced } = syncSetlistsOnActivate(() => load({ quiet: true }))
+onMounted(() => {
+  void load()
+})
 
 function formatDate(iso: string) {
   try {

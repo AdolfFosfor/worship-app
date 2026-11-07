@@ -38,8 +38,8 @@ const canSubmit = computed(() => props.modelValue.title.trim().length > 0 && Boo
     </label>
 
     <div class="song-form__row">
-      <label class="song-form__field">
-        <span>Тональность (формы)</span>
+      <label class="song-form__field song-form__field--key">
+        <span>Тональность</span>
         <Select
           :model-value="form.key"
           :options="KEY_OPTIONS"
@@ -49,21 +49,16 @@ const canSubmit = computed(() => props.modelValue.title.trim().length > 0 && Boo
           @update:model-value="patch('key', String($event))"
         />
       </label>
-      <label class="song-form__field">
-        <span>Капо (лад)</span>
-        <InputNumber
+      <div class="song-form__field song-form__field--capo">
+        <span>Капо</span>
+        <CapoStepper
           :model-value="form.capo ?? 0"
-          class="w-full"
-          :min="0"
-          :max="11"
-          show-buttons
-          button-layout="horizontal"
-          @update:model-value="patch('capo', Number($event ?? 0))"
+          @update:model-value="patch('capo', $event)"
         />
-      </label>
+      </div>
     </div>
     <p class="song-form__hint">
-      Аккорды пишите как на грифе с капо. 0 — без каподастра.
+      Аккорды — формы на грифе с капо. «Без» = без каподастра.
     </p>
 
     <label class="song-form__field">
@@ -119,7 +114,8 @@ const canSubmit = computed(() => props.modelValue.title.trim().length > 0 && Boo
 
 .song-form__row {
   display: grid;
-  grid-template-columns: 1.4fr 1fr;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
   gap: var(--app-space-3);
 }
 
@@ -127,9 +123,14 @@ const canSubmit = computed(() => props.modelValue.title.trim().length > 0 && Boo
   display: flex;
   flex-direction: column;
   gap: var(--app-space-2);
+  min-width: 0;
   font-size: var(--app-text-sm);
   font-weight: 600;
   color: var(--app-section-header);
+}
+
+.song-form__field--capo {
+  align-items: flex-start;
 }
 
 .song-form__hint {
@@ -142,8 +143,7 @@ const canSubmit = computed(() => props.modelValue.title.trim().length > 0 && Boo
 
 .song-form__field :deep(input),
 .song-form__field :deep(textarea),
-.song-form__field :deep(.p-select),
-.song-form__field :deep(.p-inputnumber) {
+.song-form__field :deep(.p-select) {
   font-weight: 400;
   color: var(--app-ink);
 }

@@ -15,6 +15,7 @@ const {
   removeItem,
   reorderItems,
 } = useSetlists()
+const { syncSetlistsOnActivate } = useSetlistsRevision()
 const { fetchSongs, songs } = useSongs()
 const toast = useToast()
 const confirm = useConfirm()
@@ -29,11 +30,12 @@ const listEl = ref<HTMLElement | null>(null)
 
 let sortable: Sortable | null = null
 
-async function load() {
-  loading.value = true
+async function load(opts?: { quiet?: boolean }) {
+  if (!opts?.quiet) loading.value = true
   error.value = null
   try {
     setlist.value = await getSetlist(id.value)
+    markSetlistsSynced()
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Не найдено'
   } finally {
@@ -41,7 +43,10 @@ async function load() {
   }
 }
 
-onMounted(load)
+const { markSetlistsSynced } = syncSetlistsOnActivate(() => load({ quiet: true }))
+onMounted(() => {
+  void load()
+})
 
 function effectiveKey(item: SetlistItemWithSong) {
   return item.key ?? item.song.key
