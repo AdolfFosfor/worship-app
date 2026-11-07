@@ -1,0 +1,31 @@
+# Commit messages
+
+When generating a git commit message (including Source Control "Generate Commit Message"):
+
+## Format
+- One short line only, usually 3–8 words (max ~50–60 characters)
+- Russian, matching this repo
+- No bullet lists, no Summary/Test plan, no conventional-commit prefixes (`feat:`, `fix:`)
+- No trailing period
+- No second paragraph / commit body
+
+## Be concrete
+- Name the specific UI/feature that changed (свайп назад, словарь финансов, popover создать, статус проекта…)
+- Prefer the concrete what/why over vague polish words
+- Look at the actual diff; do not invent a generic summary
+
+Avoid abstract phrasing like:
+- Улучшить стили и анимацию
+- Обновить стили и улучшить функционал
+- Фиксы UI
+- Мелкие правки
+- Improve UX / update styles
+
+Prefer specific phrasing like:
+- Затемнить подложку свайпа назад
+- Словарь подсказок в настройках
+- Кламп popover к колонке на ПК
+- Статус и цвет в конец проекта
+- Заблокировать landscape в TMA
+
+If several unrelated changes are staged, name the main user-facing one (still one short line).

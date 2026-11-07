@@ -1,0 +1,55 @@
+{
+  "name": "worship-app",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22.22.3"
+  },
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "nuxt typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "icons:extract": "node scripts/extract-solar-icons.mjs"
+  },
+  "dependencies": {
+    "@iconify/vue": "^5.0.4",
+    "@pinia/nuxt": "^1.0.3",
+    "@primeuix/themes": "^2.0.3",
+    "@supabase/supabase-js": "^2.119.0",
+    "@tma.js/sdk": "^3.3.0",
+    "@tma.js/sdk-vue": "^1.0.23",
+    "@vueuse/core": "^15.0.0",
+    "@vueuse/nuxt": "^15.0.0",
+    "nuxt": "^4.6.2",
+    "pinia": "^4.1.0",
+    "primevue": "^4.5.5",
+    "vue": "^3.5.44",
+    "vue-router": "^5.4.0"
+  },
+  "devDependencies": {
+    "@iconify-json/solar": "^1.2.13",
+    "@iconify/types": "^2.0.0",
+    "@nuxt/eslint": "^1.17.0",
+    "@nuxt/test-utils": "^4.3.4",
+    "@primevue/nuxt-module": "^4.5.5",
+    "@tailwindcss/vite": "^4.3.3",
+    "@vue/test-utils": "^2.5.1",
+    "eslint": "^10.13.0",
+    "happy-dom": "^21.0.4",
+    "prettier": "^3.9.10",
+    "supabase": "^3.0.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.5",
+    "vue-tsc": "^3.3.13"
+  }
+}

@@ -1,0 +1,13 @@
+# Minimal Supabase CLI config for migrations.
+# Create a free project at https://supabase.com and link with:
+#   npx supabase link --project-ref YOUR_REF
+# Apply migrations:
+#   npx supabase db push
+
+project_id = "worship-app"
+
+[api]
+enabled = true
+
+[db]
+major_version = 15
