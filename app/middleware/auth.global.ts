@@ -23,13 +23,12 @@ export default defineNuxtRouteMiddleware(async (to) => {
     })
   }
 
+  // Always reload membership when store is incomplete (workspace without member used to skip this)
   if (auth.isAuthenticated && !workspace.hasWorkspace && !workspace.loading) {
-    if (!workspace.workspace) {
-      try {
-        await workspace.loadCurrent()
-      } catch {
-        // continue
-      }
+    try {
+      await workspace.loadCurrent()
+    } catch {
+      // continue; pages / onboarding handle empty state
     }
   }
 

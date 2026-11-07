@@ -8,20 +8,37 @@ const route = useRoute()
 const auth = useAuthStore()
 const workspace = useWorkspaceStore()
 const toast = useToast()
-const code = computed(() => String(route.params.code ?? ''))
+const code = computed(() => String(route.params.code ?? '').trim())
 
 const busy = ref(false)
+const done = ref(false)
+
+async function goHome() {
+  await navigateTo('/')
+}
 
 async function accept() {
+  if (busy.value || done.value) return
+  if (!code.value) {
+    toast.add({
+      severity: 'error',
+      summary: 'Приглашение',
+      detail: 'Нет кода приглашения',
+      life: 4000,
+    })
+    return
+  }
   if (!auth.isAuthenticated) {
     await navigateTo({ path: '/login', query: { redirect: `/invite/${code.value}` } })
     return
   }
+
   busy.value = true
   try {
     await workspace.joinByInviteCode(code.value)
+    done.value = true
     toast.add({ severity: 'success', summary: 'Готово', detail: 'Вы в команде', life: 2500 })
-    await navigateTo('/')
+    await goHome()
   } catch (e) {
     toast.add({
       severity: 'error',
@@ -37,13 +54,26 @@ async function accept() {
 onMounted(() => {
   if (auth.isAuthenticated) void accept()
 })
+
+watch(
+  () => auth.isAuthenticated,
+  (ok) => {
+    if (ok && !done.value && !busy.value) void accept()
+  },
+)
 </script>
 
 <template>
   <div class="app-page">
     <AppHeader title="Приглашение" :back-to="'/'" />
     <p class="invite__code">Код: {{ code }}</p>
-    <Button label="Присоединиться" class="w-full" :loading="busy" @click="accept" />
+    <Button
+      label="Присоединиться"
+      class="w-full"
+      :loading="busy"
+      :disabled="done"
+      @click="accept"
+    />
   </div>
 </template>
 

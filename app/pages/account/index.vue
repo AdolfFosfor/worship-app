@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { MEMBER_ROLE_LABELS } from '~~/shared/types'
 import { icons } from '~/utils/icons'
 
 const auth = useAuthStore()
+const workspace = useWorkspaceStore()
 const toast = useToast()
 const confirm = useConfirm()
 
@@ -17,6 +19,42 @@ const telegramLabel = computed(() => {
   if (auth.user.username) return `@${auth.user.username}`
   return `ID ${auth.user.telegramId}`
 })
+
+const teamSubtitle = computed(() => {
+  if (!workspace.workspace || !workspace.membership) return 'Нет команды'
+  const role = MEMBER_ROLE_LABELS[workspace.membership.role]
+  return `${workspace.workspace.name} · ${role}`
+})
+
+function confirmLeaveTeam() {
+  const name = workspace.workspace?.name ?? 'команду'
+  confirm.require({
+    message: `Выйти из «${name}»? Песни и сет-листы команды останутся у других участников.`,
+    header: 'Выход из команды',
+    rejectLabel: 'Отмена',
+    acceptLabel: 'Выйти из команды',
+    acceptClass: 'p-button-danger',
+    accept: async () => {
+      try {
+        const result = await workspace.leaveWorkspace()
+        toast.add({
+          severity: 'success',
+          summary: 'Готово',
+          detail: result.hasWorkspace ? 'Переключились на другую команду' : 'Вы вышли из команды',
+          life: 2500,
+        })
+        await navigateTo(result.hasWorkspace ? '/' : '/onboarding')
+      } catch (e) {
+        toast.add({
+          severity: 'error',
+          summary: 'Команда',
+          detail: e instanceof Error ? e.message : 'Ошибка',
+          life: 4000,
+        })
+      }
+    },
+  })
+}
 
 function confirmSignOut() {
   confirm.require({
@@ -52,6 +90,7 @@ function confirmSignOut() {
     </section>
 
     <AppSurfaceList>
+      <AppListRow title="Команда" :subtitle="teamSubtitle" to="/members" chevron />
       <AppListRow title="Email" :subtitle="emailLabel" />
       <AppListRow title="Telegram" :subtitle="telegramLabel" />
       <AppListRow
@@ -62,10 +101,22 @@ function confirmSignOut() {
       />
     </AppSurfaceList>
 
-    <button type="button" class="account-signout" @click="confirmSignOut">
-      <AppIcon :name="icons.close" class="account-signout__icon" />
-      Выйти
-    </button>
+    <div class="account-actions">
+      <button
+        v-if="workspace.hasWorkspace"
+        type="button"
+        class="account-signout"
+        @click="confirmLeaveTeam"
+      >
+        <AppIcon :name="icons.users" class="account-signout__icon" />
+        Выйти из команды
+      </button>
+
+      <button type="button" class="account-signout" @click="confirmSignOut">
+        <AppIcon :name="icons.close" class="account-signout__icon" />
+        Выйти из аккаунта
+      </button>
+    </div>
   </div>
 </template>
 
@@ -89,6 +140,12 @@ function confirmSignOut() {
   font-size: var(--app-text-sm);
   color: var(--app-muted);
   word-break: break-all;
+}
+
+.account-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
 }
 
 .account-signout {
