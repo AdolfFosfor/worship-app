@@ -2,37 +2,38 @@
 import { icons } from '~/utils/icons'
 
 const route = useRoute()
+const { t } = useAppLocale()
 
-const tabs = [
+const tabs = computed(() => [
   {
     to: '/',
-    label: 'Главная',
+    label: t('nav.home'),
     icon: icons.homeLinear,
     iconActive: icons.home,
     match: (path: string) => path === '/',
   },
   {
     to: '/songs',
-    label: 'Песни',
+    label: t('nav.songs'),
     icon: icons.musicLinear,
     iconActive: icons.music,
     match: (path: string) => path.startsWith('/songs'),
   },
   {
     to: '/setlists',
-    label: 'Сеты',
+    label: t('nav.setlists'),
     icon: icons.playlistLinear,
     iconActive: icons.playlist,
     match: (path: string) => path.startsWith('/setlists'),
   },
   {
     to: '/account',
-    label: 'Настройки',
+    label: t('nav.settings'),
     icon: icons.settingsLinear,
     iconActive: icons.settings,
     match: (path: string) => path.startsWith('/account') || path.startsWith('/members'),
   },
-] as const
+])
 </script>
 
 <template>

@@ -7,6 +7,7 @@ const workspace = useWorkspaceStore()
 const telegram = useTelegramApp()
 const toast = useToast()
 const confirm = useConfirm()
+const { t } = useAppLocale()
 
 const emailLabel = computed(() => {
   if (!auth.user) return '—'
@@ -27,7 +28,9 @@ const teamSubtitle = computed(() => {
   return `${workspace.workspace.name} · ${role}`
 })
 
-const photoUrl = computed(() => telegram.user.value?.photo_url || null)
+const photoUrl = computed(
+  () => auth.user?.photoUrl || telegram.user.value?.photo_url || null,
+)
 
 const avatarInitials = computed(() => {
   const name = auth.displayLabel.trim()
@@ -98,7 +101,7 @@ function confirmSignOut() {
 
 <template>
   <div class="app-page">
-    <AppHeader title="Аккаунт" />
+    <AppHeader :title="t('account.title')" />
 
     <section class="account-hero">
       <div class="account-hero__avatar" aria-hidden="true">
@@ -127,12 +130,12 @@ function confirmSignOut() {
     </section>
 
     <AppSurfaceList>
-      <AppListRow title="Команда" :subtitle="teamSubtitle" to="/members" chevron />
+      <AppListRow :title="t('account.team')" :subtitle="teamSubtitle" to="/members" chevron />
       <AppListRow title="Email" :subtitle="emailLabel" />
       <AppListRow title="Telegram" :subtitle="telegramLabel" />
       <AppListRow
-        title="Настройки"
-        subtitle="Привязка email и Telegram"
+        :title="t('account.settings')"
+        :subtitle="t('account.settingsSubtitle')"
         to="/account/settings"
         chevron
       />

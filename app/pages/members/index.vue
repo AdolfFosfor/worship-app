@@ -129,7 +129,14 @@ function initials(name: string) {
       <div class="members-list">
         <article v-for="member in members" :key="member.id" class="member-card">
           <div class="member-card__avatar" aria-hidden="true">
-            {{ initials(displayName(member)) }}
+            <img
+              v-if="member.avatarUrl"
+              :src="member.avatarUrl"
+              alt=""
+              class="member-card__photo"
+              referrerpolicy="no-referrer"
+            >
+            <template v-else>{{ initials(displayName(member)) }}</template>
           </div>
 
           <div class="member-card__info">
@@ -284,12 +291,20 @@ function initials(name: string) {
   width: 2.5rem;
   height: 2.5rem;
   flex-shrink: 0;
+  overflow: hidden;
   border-radius: 999px;
   background: var(--app-accent-muted);
   color: var(--app-accent-text);
   font-size: var(--app-text-sm);
   font-weight: 700;
   letter-spacing: 0.02em;
+}
+
+.member-card__photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .member-card__info {

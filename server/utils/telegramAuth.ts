@@ -7,6 +7,8 @@ export interface TelegramWebAppUser {
   username?: string
   language_code?: string
   is_premium?: boolean
+  /** Rare: only for Mini Apps from attachment menu. */
+  photo_url?: string
 }
 
 export interface ValidatedTelegramInitData {

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { AppLocale } from '~~/shared/i18n/locales'
 import { authErrorMessage } from '~/utils/authError'
 import { resolveAuthDisplayName } from '~/stores/auth'
 
@@ -6,6 +7,7 @@ const auth = useAuthStore()
 const workspace = useWorkspaceStore()
 const telegram = useTelegramApp()
 const toast = useToast()
+const { locale, localeOptions, setLocale, t } = useAppLocale()
 
 const displayNameInput = ref('')
 const emailInput = ref('')
@@ -22,10 +24,10 @@ const canLinkTelegramNow = computed(
 
 const nameHint = computed(() => {
   if (!auth.user) return ''
-  if (auth.user.displayName) return 'Это имя видят в команде и на главной'
+  if (auth.user.displayName) return t('settings.displayNameHint')
   const fromTg = [auth.user.firstName, auth.user.lastName].filter(Boolean).join(' ')
-  if (fromTg) return `Сейчас из Telegram: ${fromTg}`
-  return 'Это имя видят в команде и на главной'
+  if (fromTg) return t('settings.displayNameHintTelegram', { name: fromTg })
+  return t('settings.displayNameHint')
 })
 
 const nameDirty = computed(() => {
@@ -38,6 +40,10 @@ onMounted(async () => {
   await auth.refreshUser()
   displayNameInput.value = resolveAuthDisplayName(auth.user)
 })
+
+function onLocaleChange(next: AppLocale) {
+  setLocale(next)
+}
 
 async function submitDisplayName() {
   if (!nameDirty.value) return
@@ -54,7 +60,7 @@ async function submitDisplayName() {
     }
     toast.add({
       severity: 'success',
-      summary: 'Имя сохранено',
+      summary: t('settings.displayNameSaved'),
       life: 2500,
     })
   } catch (e) {
@@ -62,7 +68,7 @@ async function submitDisplayName() {
     lastError.value = detail
     toast.add({
       severity: 'error',
-      summary: 'Имя',
+      summary: t('settings.displayName'),
       detail,
       life: 6000,
     })
@@ -80,8 +86,8 @@ async function submitEmail() {
     emailInput.value = ''
     toast.add({
       severity: 'success',
-      summary: 'Email привязан',
-      detail: 'Можно входить из браузера этим адресом (Magic Link)',
+      summary: t('settings.emailBound'),
+      detail: t('settings.emailBoundDetail'),
       life: 5000,
     })
   } catch (e) {
@@ -89,7 +95,7 @@ async function submitEmail() {
     lastError.value = detail
     toast.add({
       severity: 'error',
-      summary: 'Email',
+      summary: t('settings.email'),
       detail,
       life: 8000,
     })
@@ -103,8 +109,8 @@ async function submitTelegram() {
   if (!raw) {
     toast.add({
       severity: 'warn',
-      summary: 'Telegram',
-      detail: 'Откройте приложение внутри Telegram, чтобы привязать аккаунт',
+      summary: t('settings.telegram'),
+      detail: t('settings.telegramNeedClient'),
       life: 5000,
     })
     return
@@ -115,8 +121,8 @@ async function submitTelegram() {
     await auth.linkTelegram(raw)
     toast.add({
       severity: 'success',
-      summary: 'Telegram',
-      detail: 'Аккаунт привязан — вход из Mini App и по email ведут в одни данные',
+      summary: t('settings.telegram'),
+      detail: t('settings.telegramBoundDetail'),
       life: 5000,
     })
   } catch (e) {
@@ -124,7 +130,7 @@ async function submitTelegram() {
     lastError.value = detail
     toast.add({
       severity: 'error',
-      summary: 'Telegram',
+      summary: t('settings.telegram'),
       detail,
       life: 8000,
     })
@@ -136,18 +142,17 @@ async function submitTelegram() {
 
 <template>
   <div class="app-page">
-    <AppHeader title="Настройки" show-back back-to="/account" />
+    <AppHeader :title="t('settings.title')" show-back back-to="/account" />
 
     <p class="settings-lead">
-      Привяжите email и Telegram к одному аккаунту — тогда браузер (Magic Link) и Mini App
-      открывают одни и те же песни и сет-листы.
+      {{ t('settings.lead') }}
     </p>
 
     <section class="settings-block">
-      <h2 class="settings-block__title">Отображаемое имя</h2>
+      <h2 class="settings-block__title">{{ t('settings.displayName') }}</h2>
       <form class="settings-form" @submit.prevent="submitDisplayName">
         <label class="settings-field">
-          <span>Как вас видят в команде</span>
+          <span>{{ t('settings.displayNameLabel') }}</span>
           <InputText
             v-model="displayNameInput"
             class="w-full"
@@ -159,7 +164,7 @@ async function submitTelegram() {
         <p class="settings-block__hint">{{ nameHint }}</p>
         <Button
           type="submit"
-          label="Сохранить имя"
+          :label="t('settings.displayNameSave')"
           class="w-full"
           :loading="busyName"
           :disabled="!nameDirty"
@@ -168,21 +173,21 @@ async function submitTelegram() {
     </section>
 
     <section class="settings-block">
-      <h2 class="settings-block__title">Email</h2>
+      <h2 class="settings-block__title">{{ t('settings.email') }}</h2>
       <template v-if="auth.user?.pendingEmail">
         <p class="settings-block__status">
-          Ожидает подтверждения: <strong>{{ auth.user.pendingEmail }}</strong>
+          {{ t('settings.emailPending', { email: auth.user.pendingEmail }) }}
         </p>
-        <p class="settings-block__hint">Проверьте почту и откройте ссылку на этом устройстве.</p>
+        <p class="settings-block__hint">{{ t('settings.emailPendingHint') }}</p>
       </template>
       <template v-else-if="auth.user?.hasRealEmail">
         <p class="settings-block__status">
-          Привязан: <strong>{{ auth.user.email }}</strong>
+          {{ t('settings.emailLinked', { email: auth.user.email ?? '' }) }}
         </p>
       </template>
       <form v-else class="settings-form" @submit.prevent="submitEmail">
         <label class="settings-field">
-          <span>Рабочий email</span>
+          <span>{{ t('settings.emailLabel') }}</span>
           <InputText
             v-model="emailInput"
             type="email"
@@ -193,24 +198,23 @@ async function submitTelegram() {
         </label>
         <Button
           type="submit"
-          label="Привязать email"
+          :label="t('settings.emailBind')"
           class="w-full"
           :loading="busyEmail"
           :disabled="!emailInput.trim()"
         />
         <p class="settings-block__hint">
-          Письмо для привязки не отправляется (лимит Supabase Free). Адрес сразу становится вашим
-          логином: дальше в браузере — Magic Link на этот email.
+          {{ t('settings.emailHint') }}
         </p>
       </form>
       <p v-if="lastError" class="settings-block__error">{{ lastError }}</p>
     </section>
 
     <section class="settings-block">
-      <h2 class="settings-block__title">Telegram</h2>
+      <h2 class="settings-block__title">{{ t('settings.telegram') }}</h2>
       <template v-if="auth.user?.telegramId">
         <p class="settings-block__status">
-          Привязан:
+          {{ t('settings.telegramLinked') }}
           <strong>
             <template v-if="auth.user.username">@{{ auth.user.username }}</template>
             <template v-else>ID {{ auth.user.telegramId }}</template>
@@ -219,20 +223,32 @@ async function submitTelegram() {
       </template>
       <template v-else>
         <p v-if="!canLinkTelegramNow" class="settings-block__hint">
-          Чтобы привязать Telegram, откройте это приложение внутри Telegram и нажмите кнопку ниже.
+          {{ t('settings.telegramOpenHint') }}
         </p>
         <Button
-          label="Привязать Telegram"
+          :label="t('settings.telegramBind')"
           class="w-full"
           :loading="busyTelegram"
           :disabled="!canLinkTelegramNow"
           @click="submitTelegram"
         />
         <p v-if="needsEmail && needsTelegram" class="settings-block__hint">
-          Если вы уже работали в Mini App под другим входом — сначала войдите там и привяжите email,
-          либо привяжите Telegram здесь после входа по почте.
+          {{ t('settings.telegramBothHint') }}
         </p>
       </template>
+    </section>
+
+    <section class="settings-block">
+      <h2 class="settings-block__title">{{ t('settings.language') }}</h2>
+      <Select
+        :model-value="locale"
+        class="w-full settings-locale"
+        :options="localeOptions"
+        option-label="label"
+        option-value="value"
+        @update:model-value="onLocaleChange($event as AppLocale)"
+      />
+      <p class="settings-block__hint">{{ t('settings.languageHint') }}</p>
     </section>
   </div>
 </template>
@@ -304,5 +320,18 @@ async function submitTelegram() {
   font-size: var(--app-text-sm);
   font-weight: 600;
   color: var(--app-section-header);
+}
+
+.settings-locale :deep(.p-select-label) {
+  display: flex;
+  align-items: center;
+  font-weight: 400;
+  color: var(--app-ink);
+  padding-block: 0.75rem;
+  line-height: 1.25;
+}
+
+.settings-locale :deep(.p-select-dropdown) {
+  width: 2.75rem;
 }
 </style>

@@ -154,6 +154,17 @@ textarea {
   min-height: 3rem;
 }
 
+.p-select {
+  align-items: center;
+}
+
+.p-select .p-select-label {
+  display: flex;
+  align-items: center;
+  padding-block: 0.75rem;
+  line-height: 1.25;
+}
+
 .p-inputtext,
 .p-datepicker-input,
 .p-inputnumber-input {

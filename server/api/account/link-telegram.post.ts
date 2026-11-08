@@ -5,6 +5,7 @@ import {
   mergeAuthUserInto,
   upsertTelegramAccount,
 } from '../../utils/telegramAccounts'
+import { syncTelegramAvatar } from '../../utils/telegramAvatar'
 import { telegramEmail, validateTelegramInitData } from '../../utils/telegramAuth'
 import { telegramPassword } from '../../utils/telegramPassword'
 
@@ -69,6 +70,19 @@ export default defineEventHandler(async (event) => {
   }
 
   await upsertTelegramAccount(supabase, telegramId, user.id)
+
+  if (botToken) {
+    try {
+      await syncTelegramAvatar(supabase, {
+        botToken,
+        telegramId,
+        userId: user.id,
+        initPhotoUrl: validated.user.photo_url,
+      })
+    } catch (e) {
+      console.error('[avatar] sync failed', e)
+    }
+  }
 
   return {
     ok: true,

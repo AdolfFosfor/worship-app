@@ -29,6 +29,7 @@ export const icons = {
   grip: 'hamburger-menu-linear',
   minus: 'minus-circle-linear',
   plus: 'add-circle-linear',
+  capo: 'tuning-2-bold',
 } as const
 
 export type AppIconName = (typeof icons)[keyof typeof icons]

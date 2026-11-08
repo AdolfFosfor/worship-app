@@ -15,6 +15,7 @@ export interface WorkspaceMember {
   userId: EntityId
   role: MemberRole
   displayName: string | null
+  avatarUrl: string | null
   createdAt: IsoDateTime
 }
 

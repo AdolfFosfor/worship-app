@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import type { SetlistItemWithSong } from '~~/shared/types'
 import { icons } from '~/utils/icons'
 
 const workspace = useWorkspaceStore()
-const { setlists, loading, error, fetchSetlists, getSetlist } = useSetlists()
+const { setlists, loading, error, fetchSetlists, getUpcoming, upcoming } = useSetlists()
 const { syncSetlistsOnActivate } = useSetlistsRevision()
 
-const heroItems = ref<SetlistItemWithSong[]>([])
+/** Пока нет кэша — не показываем hero без пиллов. */
+const pageReady = ref(Boolean(setlists.value.length || upcoming.value))
 
 const today = new Date().toISOString().slice(0, 10)
 
-const upcoming = computed(() =>
+const upcomingList = computed(() =>
   setlists.value
     .filter((s) => s.serviceDate >= today)
     .slice()
@@ -24,40 +24,28 @@ const past = computed(() =>
     .sort((a, b) => b.serviceDate.localeCompare(a.serviceDate)),
 )
 
-const nextUpcoming = computed(() => upcoming.value[0] ?? null)
-const otherUpcoming = computed(() => upcoming.value.slice(1))
+const nextUpcoming = computed(() => upcomingList.value[0] ?? null)
+const otherUpcoming = computed(() => upcomingList.value.slice(1))
 
-async function loadHeroSongs(setlistId: string | null) {
-  if (!setlistId) {
-    heroItems.value = []
-    return
-  }
-  try {
-    const full = await getSetlist(setlistId)
-    heroItems.value = full.items
-  } catch {
-    heroItems.value = []
-  }
-}
+const heroItems = computed(() => {
+  const next = nextUpcoming.value
+  const cached = upcoming.value
+  if (!next || !cached || cached.id !== next.id) return []
+  return cached.items
+})
 
 async function load(opts?: { quiet?: boolean }) {
-  // quiet: KeepAlive-возврат — без полноэкранного лоадера
-  if (opts?.quiet && setlists.value.length) {
-    try {
-      await fetchSetlists()
-      markSetlistsSynced()
-      await loadHeroSongs(nextUpcoming.value?.id ?? null)
-    } catch {
-      /* ошибка уже в composable */
-    }
-    return
+  // quiet: KeepAlive-возврат — без полноэкранного лоадера, пиллы не сбрасываем
+  if (!opts?.quiet && !setlists.value.length) {
+    pageReady.value = false
   }
   try {
-    await fetchSetlists()
+    await Promise.all([fetchSetlists(), getUpcoming()])
     markSetlistsSynced()
-    await loadHeroSongs(nextUpcoming.value?.id ?? null)
   } catch {
     /* ошибка уже в composable */
+  } finally {
+    pageReady.value = true
   }
 }
 
@@ -90,8 +78,8 @@ function formatDatePill(iso: string) {
       </template>
     </AppHeader>
 
-    <AppLoading v-if="loading && !setlists.length" />
-    <AppError v-else-if="error" :message="error" @retry="fetchSetlists" />
+    <AppLoading v-if="!pageReady || (loading && !setlists.length)" />
+    <AppError v-else-if="error" :message="error" @retry="load" />
     <AppEmptyState
       v-else-if="!setlists.length"
       title="Нет сет-листов"

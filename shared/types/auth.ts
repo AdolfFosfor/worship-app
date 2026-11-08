@@ -13,6 +13,8 @@ export interface AuthUser {
   username?: string | null
   telegramId?: number | null
   languageCode?: string | null
+  /** Public avatar URL (Supabase Storage), synced from Telegram. */
+  photoUrl?: string | null
   /** True when email is a real inbox (not tg_*@telegram.local). */
   hasRealEmail?: boolean
 }

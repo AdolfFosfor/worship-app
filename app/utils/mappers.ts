@@ -29,6 +29,7 @@ export function mapMember(row: DbWorkspaceMember): WorkspaceMember {
     userId: row.user_id,
     role: row.role,
     displayName: row.display_name,
+    avatarUrl: row.avatar_url ?? null,
     createdAt: row.created_at,
   }
 }

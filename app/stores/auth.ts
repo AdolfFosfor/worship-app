@@ -26,6 +26,7 @@ function mapUser(user: User | null): AppAuthUser | null {
     username: (meta.username as string | undefined) ?? null,
     telegramId: (meta.telegram_id as number | undefined) ?? null,
     languageCode: (meta.language_code as string | undefined) ?? null,
+    photoUrl: (meta.photo_url as string | undefined) ?? null,
     hasRealEmail: Boolean(email) && !isSyntheticTelegramEmail(email),
   }
 }

@@ -3,6 +3,7 @@ import {
   findOrCreateTelegramUser,
   upsertTelegramAccount,
 } from '../../utils/telegramAccounts'
+import { syncTelegramAvatar } from '../../utils/telegramAvatar'
 import { validateTelegramInitData } from '../../utils/telegramAuth'
 import { telegramPassword } from '../../utils/telegramPassword'
 
@@ -45,6 +46,20 @@ export default defineEventHandler(async (event) => {
   })
 
   await upsertTelegramAccount(supabase, validated.user.id, user.id)
+
+  // photo_url из initData почти никогда нет — подтягиваем через Bot API → Storage
+  if (botToken) {
+    try {
+      await syncTelegramAvatar(supabase, {
+        botToken,
+        telegramId: validated.user.id,
+        userId: user.id,
+        initPhotoUrl: validated.user.photo_url,
+      })
+    } catch (e) {
+      console.error('[avatar] sync failed', e)
+    }
+  }
 
   const email = user.email
   if (!email) {

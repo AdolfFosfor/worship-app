@@ -26,6 +26,7 @@ export interface DbWorkspaceMember {
   user_id: string
   role: DbMemberRole
   display_name: string | null
+  avatar_url: string | null
   created_at: string
 }
 
@@ -93,6 +94,7 @@ export interface Database {
           user_id: string
           role: DbMemberRole
           display_name?: string | null
+          avatar_url?: string | null
           created_at?: string
         }
         Update: {
@@ -101,6 +103,7 @@ export interface Database {
           user_id?: string
           role?: DbMemberRole
           display_name?: string | null
+          avatar_url?: string | null
           created_at?: string
         }
         Relationships: []

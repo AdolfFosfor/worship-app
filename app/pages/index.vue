@@ -1,14 +1,12 @@
 <script setup lang="ts">
-import type { SetlistWithItems } from '~~/shared/types'
 import type Popover from 'primevue/popover'
 import { icons, type AppIconName } from '~/utils/icons'
 
 const workspace = useWorkspaceStore()
-const { getUpcoming } = useSetlists()
+const { getUpcoming, upcoming } = useSetlists()
 const { syncSetlistsOnActivate } = useSetlistsRevision()
 
-const upcoming = ref<SetlistWithItems | null>(null)
-const loading = ref(true)
+const loading = ref(!upcoming.value)
 const error = ref<string | null>(null)
 
 const createPopover = useTemplateRef<InstanceType<typeof Popover>>('createPopover')
@@ -53,10 +51,10 @@ async function onCreatePick(to: string) {
 }
 
 async function load(opts?: { quiet?: boolean }) {
-  if (!opts?.quiet) loading.value = true
+  if (!opts?.quiet && !upcoming.value) loading.value = true
   error.value = null
   try {
-    upcoming.value = await getUpcoming()
+    await getUpcoming()
     markSetlistsSynced()
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Ошибка загрузки'

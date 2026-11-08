@@ -13,6 +13,19 @@ import { useAuthStore } from '~/stores/auth'
 import { useWorkspaceStore } from '~/stores/workspace'
 
 type SetlistItemJoinRow = DbSetlistItem & { songs: DbSong | null }
+type SetlistJoinRow = DbSetlist & { setlist_items?: SetlistItemJoinRow[] | null }
+
+function mapJoinedItems(rows: SetlistItemJoinRow[] | null | undefined): SetlistItemWithSong[] {
+  return (rows ?? [])
+    .map((row) => {
+      if (!row.songs) throw new Error('Песня в сет-листе не найдена')
+      return {
+        ...mapSetlistItem(row),
+        song: mapSong(row.songs),
+      }
+    })
+    .sort((a, b) => a.position - b.position)
+}
 
 /** KeepAlive-страницы подтягивают данные, когда revision изменился. */
 export function useSetlistsRevision() {
@@ -46,6 +59,8 @@ export function useSetlists() {
   const setlists = ref<Setlist[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
+  /** Общий кэш ближайшего сета с песнями — без второй «вспышки» пиллов на главной/списке. */
+  const upcoming = useState<SetlistWithItems | null>('setlists-upcoming-cache', () => null)
 
   async function fetchSetlists() {
     const workspace = useWorkspaceStore()
@@ -76,70 +91,54 @@ export function useSetlists() {
 
   async function getUpcoming(): Promise<SetlistWithItems | null> {
     const workspace = useWorkspaceStore()
-    if (!workspace.workspace) return null
+    if (!workspace.workspace) {
+      upcoming.value = null
+      return null
+    }
     const today = new Date().toISOString().slice(0, 10)
     const supabase = getSupabaseBrowserClient()
+    // Один запрос: сет + песни — UI не мигает пустым hero.
     const { data, error: qError } = await supabase
       .from('setlists')
-      .select('*')
+      .select('*, setlist_items(*, songs(*))')
       .eq('workspace_id', workspace.workspace.id)
       .gte('service_date', today)
       .order('service_date', { ascending: true })
       .limit(1)
       .maybeSingle()
     if (qError) throw qError
-    if (!data) return null
-
-    const setlist = mapSetlist(data as DbSetlist)
-    const { data: items, error: itemsError } = await supabase
-      .from('setlist_items')
-      .select('*, songs(*)')
-      .eq('setlist_id', setlist.id)
-      .order('position', { ascending: true })
-    if (itemsError) throw itemsError
-
-    const rows = (items ?? []) as SetlistItemJoinRow[]
-    return {
-      ...setlist,
-      items: rows.map((row) => {
-        if (!row.songs) throw new Error('Песня в сет-листе не найдена')
-        return {
-          ...mapSetlistItem(row),
-          song: mapSong(row.songs),
-        }
-      }),
+    if (!data) {
+      upcoming.value = null
+      return null
     }
+
+    const row = data as SetlistJoinRow
+    const result: SetlistWithItems = {
+      ...mapSetlist(row),
+      items: mapJoinedItems(row.setlist_items),
+    }
+    upcoming.value = result
+    return result
   }
 
   async function getSetlist(id: string): Promise<SetlistWithItems> {
     const supabase = getSupabaseBrowserClient()
-    const { data: setlistRow, error: setlistError } = await supabase
+    const { data, error: setlistError } = await supabase
       .from('setlists')
-      .select('*')
+      .select('*, setlist_items(*, songs(*))')
       .eq('id', id)
       .single()
     if (setlistError) throw setlistError
 
-    const { data: items, error: itemsError } = await supabase
-      .from('setlist_items')
-      .select('*, songs(*)')
-      .eq('setlist_id', id)
-      .order('position', { ascending: true })
-    if (itemsError) throw itemsError
-
-    const rows = (items ?? []) as SetlistItemJoinRow[]
-    const mappedItems: SetlistItemWithSong[] = rows.map((row) => {
-      if (!row.songs) throw new Error('Песня в сет-листе не найдена')
-      return {
-        ...mapSetlistItem(row),
-        song: mapSong(row.songs),
-      }
-    })
-
-    return {
-      ...mapSetlist(setlistRow as DbSetlist),
-      items: mappedItems,
+    const row = data as SetlistJoinRow
+    const result: SetlistWithItems = {
+      ...mapSetlist(row),
+      items: mapJoinedItems(row.setlist_items),
     }
+    if (upcoming.value?.id === result.id) {
+      upcoming.value = result
+    }
+    return result
   }
 
   async function createSetlist(input: SetlistInput) {
@@ -283,6 +282,7 @@ export function useSetlists() {
     setlists,
     loading,
     error,
+    upcoming,
     fetchSetlists,
     getUpcoming,
     getSetlist,
