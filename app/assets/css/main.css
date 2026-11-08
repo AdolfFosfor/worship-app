@@ -86,6 +86,12 @@
   /* Общие отступы для absolute/fixed оверлеев внутри .app-shell */
   --app-overlay-gap: 0.75rem;
   --app-toast-offset-top: calc(var(--app-safe-top) + var(--app-overlay-gap));
+
+  /*
+    Высота фрейма TMA: после viewport.bindCssVars() —
+    стабильная высота Telegram WebView (в т.ч. fullscreen).
+  */
+  --app-frame-height: var(--tg-viewport-stable-height, 100svh);
 }
 
 .app-dark {
@@ -123,8 +129,8 @@
 html,
 body,
 #__nuxt {
-  height: var(--app-frame-height, 100%);
-  height: var(--app-frame-height, 100svh);
+  height: 100%;
+  height: var(--app-frame-height);
   overflow: hidden;
   overscroll-behavior-y: none;
 }
@@ -254,4 +260,81 @@ body {
 
 .app-header-action--danger {
   color: var(--app-destructive);
+}
+
+/* Quick-create Popover (home header +) */
+.app-create-popover.p-popover {
+  width: min(14.5rem, calc(100vw - 1rem));
+  max-width: calc(100vw - 1rem);
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  background: var(--app-surface);
+  color: var(--app-ink);
+  box-shadow: 0 12px 32px color-mix(in srgb, #000 28%, transparent);
+}
+
+.app-create-popover.p-popover::before,
+.app-create-popover.p-popover::after {
+  display: none;
+}
+
+.app-create-popover .p-popover-content {
+  padding: 0.35rem;
+}
+
+.app-create-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.app-create-menu__item {
+  --create-tone: var(--app-accent-text);
+
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: var(--app-touch-min);
+  padding: 0.5rem 0.625rem;
+  border: none;
+  border-radius: var(--app-radius-sm);
+  background: transparent;
+  color: var(--app-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+
+.app-create-menu__item:hover,
+.app-create-menu__item:active {
+  background: var(--app-hover);
+}
+
+.app-create-menu__item--song {
+  --create-tone: var(--app-accent-text);
+}
+
+.app-create-menu__item--setlist {
+  --create-tone: var(--app-warn);
+}
+
+.app-create-menu__icon {
+  display: inline-flex;
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--app-radius-sm);
+  background: color-mix(in srgb, var(--create-tone) 14%, transparent);
+  color: var(--create-tone);
+}
+
+.app-create-menu__label {
+  font-size: var(--app-text-sm);
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--app-ink);
 }

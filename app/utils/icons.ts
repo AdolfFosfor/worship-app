@@ -4,6 +4,7 @@
  */
 export const icons = {
   settings: 'settings-bold',
+  settingsLinear: 'settings-linear',
   close: 'close-linear',
   arrowLeft: 'arrow-left-bold',
   chevronRight: 'alt-arrow-right-linear',

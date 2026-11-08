@@ -1,5 +1,7 @@
 <script setup lang="ts">
+const shellRef = ref<HTMLElement | null>(null)
 const scrollRef = ref<HTMLElement | null>(null)
+const { swiping, progressing } = useEdgeSwipeBack(shellRef)
 useShellScrollMemory(scrollRef)
 
 const route = useRoute()
@@ -15,17 +17,35 @@ const hideNav = computed(() => {
     <div class="app-landscape-blocker" role="dialog" aria-live="polite">
       <p class="app-landscape-blocker__text">Поверните устройство вертикально</p>
     </div>
-    <div class="app-shell flex flex-col" :class="{ 'app-shell--with-nav': !hideNav }">
-      <main
-        ref="scrollRef"
-        class="app-shell__content min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-none"
-      >
-        <slot />
-      </main>
-      <AppBottomNav v-if="!hideNav" />
+    <div
+      ref="shellRef"
+      class="app-shell flex flex-col"
+      :class="{
+        'app-shell--with-nav': !hideNav,
+        'app-shell--swiping': swiping,
+        'app-shell--swipe-progress': progressing,
+      }"
+    >
+      <div class="app-shell__swipe-underlay" aria-hidden="true">
+        <div class="app-shell__swipe-underlay-card" />
+      </div>
+
+      <div class="app-shell__swipe-shade" aria-hidden="true" />
+
+      <div class="app-shell__swipe-layer flex min-h-0 flex-1 flex-col">
+        <Toast position="top-center" append-to=".app-shell" />
+        <ConfirmDialog append-to=".app-shell" />
+
+        <main
+          ref="scrollRef"
+          class="app-shell__content min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-none"
+        >
+          <slot />
+        </main>
+      </div>
+
+      <AppBottomNav v-if="!hideNav" class="app-shell__nav" />
     </div>
-    <Toast position="top-center" append-to=".app-shell" />
-    <ConfirmDialog append-to=".app-shell" />
   </div>
 </template>
 
@@ -51,8 +71,59 @@ const hideNav = computed(() => {
   padding-bottom: 0;
 }
 
-.app-shell--with-nav .app-shell__content {
-  padding-bottom: calc(var(--app-nav-height) + var(--app-safe-bottom));
+.app-shell__swipe-underlay {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate3d(-8%, 0, 0) scale(0.94);
+  transform-origin: center left;
+  will-change: transform, opacity;
+}
+
+.app-shell__swipe-underlay-card {
+  flex: 1;
+  margin: 0;
+  border-radius: var(--app-radius, 0.75rem);
+  background: var(--app-bg);
+}
+
+.app-shell__swipe-shade {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: #000;
+  opacity: 0;
+  will-change: opacity;
+}
+
+.app-shell__swipe-layer {
+  position: relative;
+  z-index: 2;
+  min-width: 0;
+  min-height: 0;
+  background: var(--app-bg);
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+.app-shell__nav {
+  z-index: 3;
+  background: var(--app-bottom-bar);
+}
+
+.app-shell--swiping {
+  cursor: grabbing;
+  touch-action: pan-y;
+}
+
+.app-shell--swipe-progress .app-shell__swipe-layer {
+  /* Во время жеста слой над underlay; тень задаётся инлайном по прогрессу */
+  isolation: isolate;
 }
 
 /* On wide screens keep a deliberate phone-width column instead of a tiny island */

@@ -32,6 +32,13 @@ const tabs = [
     iconActive: icons.users,
     match: (path: string) => path.startsWith('/members'),
   },
+  {
+    to: '/account',
+    label: 'Настройки',
+    icon: icons.settingsLinear,
+    iconActive: icons.settings,
+    match: (path: string) => path.startsWith('/account'),
+  },
 ] as const
 </script>
 
@@ -55,13 +62,9 @@ const tabs = [
 
 <style scoped>
 .app-bottom-nav {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 40;
+  flex-shrink: 0;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   height: calc(var(--app-nav-height) + var(--app-safe-bottom));
   padding-bottom: var(--app-safe-bottom);
   background: var(--app-bottom-bar);

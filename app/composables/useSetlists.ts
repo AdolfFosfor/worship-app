@@ -74,7 +74,7 @@ export function useSetlists() {
     }
   }
 
-  async function getUpcoming() {
+  async function getUpcoming(): Promise<SetlistWithItems | null> {
     const workspace = useWorkspaceStore()
     if (!workspace.workspace) return null
     const today = new Date().toISOString().slice(0, 10)
@@ -88,7 +88,27 @@ export function useSetlists() {
       .limit(1)
       .maybeSingle()
     if (qError) throw qError
-    return data ? mapSetlist(data as DbSetlist) : null
+    if (!data) return null
+
+    const setlist = mapSetlist(data as DbSetlist)
+    const { data: items, error: itemsError } = await supabase
+      .from('setlist_items')
+      .select('*, songs(*)')
+      .eq('setlist_id', setlist.id)
+      .order('position', { ascending: true })
+    if (itemsError) throw itemsError
+
+    const rows = (items ?? []) as SetlistItemJoinRow[]
+    return {
+      ...setlist,
+      items: rows.map((row) => {
+        if (!row.songs) throw new Error('Песня в сет-листе не найдена')
+        return {
+          ...mapSetlistItem(row),
+          song: mapSong(row.songs),
+        }
+      }),
+    }
   }
 
   async function getSetlist(id: string): Promise<SetlistWithItems> {

@@ -25,16 +25,19 @@ export function useTelegramBackButton(
   }
 
   function goBack() {
+    const { markPopNavigation } = useNavigationDirection()
+    markPopNavigation()
+
     const to = toValue(fallbackTo)
     if (to) {
-      void router.push(to)
+      void navigateTo(to)
       return
     }
     if (window.history.length > 1) {
       router.back()
       return
     }
-    void router.push('/')
+    void navigateTo('/')
   }
 
   onMounted(() => {

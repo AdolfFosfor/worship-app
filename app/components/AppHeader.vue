@@ -21,15 +21,18 @@ const hasBack = computed(
 
 function onBack() {
   emit('back')
+  const { markPopNavigation } = useNavigationDirection()
+  markPopNavigation()
+
   if (props.backTo) {
-    void router.push(props.backTo)
+    void navigateTo(props.backTo)
     return
   }
   if (import.meta.client && window.history.length > 1) {
     router.back()
     return
   }
-  void router.push('/')
+  void navigateTo('/')
 }
 </script>
 

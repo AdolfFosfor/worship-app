@@ -4,6 +4,7 @@ import { icons } from '~/utils/icons'
 
 const auth = useAuthStore()
 const workspace = useWorkspaceStore()
+const telegram = useTelegramApp()
 const toast = useToast()
 const confirm = useConfirm()
 
@@ -24,6 +25,21 @@ const teamSubtitle = computed(() => {
   if (!workspace.workspace || !workspace.membership) return 'Нет команды'
   const role = MEMBER_ROLE_LABELS[workspace.membership.role]
   return `${workspace.workspace.name} · ${role}`
+})
+
+const photoUrl = computed(() => telegram.user.value?.photo_url || null)
+
+const avatarInitials = computed(() => {
+  const name = auth.displayLabel.trim()
+  const parts = name.split(/\s+/).filter(Boolean)
+  if (!parts.length) return '?'
+  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase()
+  return `${parts[0]!.slice(0, 1)}${parts[1]!.slice(0, 1)}`.toUpperCase()
+})
+
+const rolePill = computed(() => {
+  if (!workspace.membership) return null
+  return MEMBER_ROLE_LABELS[workspace.membership.role]
 })
 
 function confirmLeaveTeam() {
@@ -82,11 +98,32 @@ function confirmSignOut() {
 
 <template>
   <div class="app-page">
-    <AppHeader title="Аккаунт" show-back back-to="/" />
+    <AppHeader title="Аккаунт" />
 
-    <section class="account-card">
-      <p class="account-card__name">{{ auth.displayLabel }}</p>
-      <p class="account-card__meta">{{ emailLabel }}</p>
+    <section class="account-hero">
+      <div class="account-hero__avatar" aria-hidden="true">
+        <img
+          v-if="photoUrl"
+          :src="photoUrl"
+          alt=""
+          class="account-hero__photo"
+          referrerpolicy="no-referrer"
+        >
+        <span v-else>{{ avatarInitials }}</span>
+      </div>
+      <div class="account-hero__body">
+        <p class="account-hero__name">{{ auth.displayLabel }}</p>
+        <p class="account-hero__meta">{{ emailLabel }}</p>
+        <div v-if="rolePill || telegramLabel !== 'Не привязан'" class="account-hero__pills">
+          <span v-if="rolePill" class="account-hero__pill">{{ rolePill }}</span>
+          <span
+            v-if="telegramLabel !== 'Не привязан'"
+            class="account-hero__pill account-hero__pill--muted"
+          >
+            {{ telegramLabel }}
+          </span>
+        </div>
+      </div>
     </section>
 
     <AppSurfaceList>
@@ -105,15 +142,19 @@ function confirmSignOut() {
       <button
         v-if="workspace.hasWorkspace"
         type="button"
-        class="account-signout"
+        class="account-action account-action--leave"
         @click="confirmLeaveTeam"
       >
-        <AppIcon :name="icons.users" class="account-signout__icon" />
+        <AppIcon :name="icons.users" class="account-action__icon" />
         Выйти из команды
       </button>
 
-      <button type="button" class="account-signout" @click="confirmSignOut">
-        <AppIcon :name="icons.close" class="account-signout__icon" />
+      <button
+        type="button"
+        class="account-action account-action--signout"
+        @click="confirmSignOut"
+      >
+        <AppIcon :name="icons.close" class="account-action__icon" />
         Выйти из аккаунта
       </button>
     </div>
@@ -121,51 +162,125 @@ function confirmSignOut() {
 </template>
 
 <style scoped>
-.account-card {
+.account-hero {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-4);
   padding: var(--app-space-5);
   border-radius: var(--app-radius);
   background: var(--app-surface);
   border: 1px solid var(--app-border);
+  border-left: 3px solid var(--app-accent);
 }
 
-.account-card__name {
+.account-hero__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--app-accent-muted);
+  color: var(--app-accent-text);
+  font-size: var(--app-text-md);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.account-hero__photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.account-hero__body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-1);
+}
+
+.account-hero__name {
   margin: 0;
   font-size: var(--app-text-lg);
   font-weight: 700;
+  letter-spacing: -0.02em;
   color: var(--app-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.account-card__meta {
-  margin: var(--app-space-2) 0 0;
+.account-hero__meta {
+  margin: 0;
   font-size: var(--app-text-sm);
   color: var(--app-muted);
   word-break: break-all;
+}
+
+.account-hero__pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-2);
+  margin-top: var(--app-space-1);
+}
+
+.account-hero__pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  padding: 0 0.55rem;
+  border-radius: 999px;
+  background: var(--app-accent-muted);
+  color: var(--app-accent-text);
+  font-size: var(--app-text-xs);
+  font-weight: 700;
+}
+
+.account-hero__pill--muted {
+  background: var(--app-hover);
+  color: var(--app-muted);
 }
 
 .account-actions {
   display: flex;
   flex-direction: column;
   gap: var(--app-space-2);
+  margin-top: auto;
+  padding-top: var(--app-space-4);
 }
 
-.account-signout {
+.account-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--app-space-2);
   min-height: var(--app-touch-min);
   width: 100%;
-  border: 1px solid var(--app-border);
   border-radius: var(--app-radius);
-  background: var(--app-surface);
-  color: var(--app-destructive);
+  font: inherit;
   font-weight: 600;
   font-size: var(--app-text-md);
   cursor: pointer;
 }
 
-.account-signout__icon {
+.account-action__icon {
   width: 1.15rem;
   height: 1.15rem;
+}
+
+.account-action--leave {
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
+  color: var(--app-ink);
+}
+
+.account-action--signout {
+  border: 1px solid color-mix(in srgb, var(--app-destructive) 35%, var(--app-border));
+  background: color-mix(in srgb, var(--app-destructive) 14%, var(--app-surface));
+  color: var(--app-destructive);
 }
 </style>
