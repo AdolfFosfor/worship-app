@@ -224,7 +224,7 @@ const availableSongs = computed(() => {
             aria-label="Удалить"
             @click="confirmDelete"
           >
-            <AppIcon :name="icons.trash" size="1.5rem" />
+            <AppIcon :name="icons.trash" />
           </button>
         </template>
       </AppHeader>

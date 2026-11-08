@@ -41,8 +41,8 @@ defineProps<{
   display: flex;
   align-items: center;
   gap: var(--app-space-3);
-  min-height: var(--app-touch-min);
-  padding: var(--app-space-3) var(--app-space-4);
+  min-height: 3.75rem;
+  padding: var(--app-space-4) var(--app-space-4);
   background: var(--app-surface);
   color: inherit;
   text-decoration: none;
@@ -60,7 +60,9 @@ defineProps<{
 
 .app-list-row__title {
   font-weight: 600;
-  font-size: var(--app-text-md);
+  font-size: var(--app-text-lg);
+  letter-spacing: -0.01em;
+  line-height: 1.25;
   color: var(--app-ink);
   white-space: nowrap;
   overflow: hidden;
@@ -68,7 +70,7 @@ defineProps<{
 }
 
 .app-list-row__subtitle {
-  margin-top: 0.15rem;
+  margin-top: 0.2rem;
   font-size: var(--app-text-sm);
   color: var(--app-muted);
   white-space: nowrap;
@@ -85,14 +87,14 @@ defineProps<{
 }
 
 .app-list-row__meta {
-  font-size: var(--app-text-sm);
-  font-weight: 600;
+  font-size: var(--app-text-md);
+  font-weight: 700;
   color: var(--app-accent-text);
 }
 
 .app-list-row__chevron {
-  width: 1.1rem;
-  height: 1.1rem;
+  width: 1.25rem;
+  height: 1.25rem;
   opacity: 0.7;
 }
 </style>

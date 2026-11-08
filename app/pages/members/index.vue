@@ -95,7 +95,7 @@ function initials(name: string) {
 
 <template>
   <div class="app-page">
-    <AppHeader title="Команда" :subtitle="workspace.workspace?.name" />
+    <AppHeader title="Команда" :subtitle="workspace.workspace?.name" show-back back-to="/account" />
 
     <section v-if="workspace.canEditMembers" class="members-section">
       <h2 class="members-section__title">Приглашение</h2>

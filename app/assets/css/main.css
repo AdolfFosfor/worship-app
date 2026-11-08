@@ -135,6 +135,31 @@ body,
   overscroll-behavior-y: none;
 }
 
+/* iOS: font < 16px → авто-zoom на фокусе input (ломает TMA viewport).
+   Крупнее touch-target для мобильного ввода. */
+.p-inputtext,
+.p-textarea,
+.p-select .p-select-label,
+.p-datepicker-input,
+.p-inputnumber-input,
+input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+textarea {
+  font-size: 16px;
+}
+
+.p-inputtext,
+.p-select,
+.p-datepicker,
+.p-inputnumber-input {
+  min-height: 3rem;
+}
+
+.p-inputtext,
+.p-datepicker-input,
+.p-inputnumber-input {
+  padding-block: 0.75rem;
+}
+
 /* Модалка / sheet открыты — фон приложения не скроллится */
 .app-shell--modal-open .app-shell__content,
 .app-shell__content[data-overlay-scroll-lock='1'] {
@@ -241,7 +266,7 @@ body {
   color: var(--app-ink);
 }
 
-/* Header trailing actions — large touch target + readable icon */
+/* Header trailing actions — large touch target + icon fills the button */
 .app-header-action {
   display: inline-flex;
   align-items: center;
@@ -256,6 +281,11 @@ body {
   text-decoration: none;
   cursor: pointer;
   flex-shrink: 0;
+}
+
+.app-header-action .app-icon {
+  width: 2.5rem !important;
+  height: 2.5rem !important;
 }
 
 .app-header-action--danger {

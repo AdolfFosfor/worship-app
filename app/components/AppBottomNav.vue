@@ -26,18 +26,11 @@ const tabs = [
     match: (path: string) => path.startsWith('/setlists'),
   },
   {
-    to: '/members',
-    label: 'Команда',
-    icon: icons.usersLinear,
-    iconActive: icons.users,
-    match: (path: string) => path.startsWith('/members'),
-  },
-  {
     to: '/account',
     label: 'Настройки',
     icon: icons.settingsLinear,
     iconActive: icons.settings,
-    match: (path: string) => path.startsWith('/account'),
+    match: (path: string) => path.startsWith('/account') || path.startsWith('/members'),
   },
 ] as const
 </script>
@@ -64,7 +57,7 @@ const tabs = [
 .app-bottom-nav {
   flex-shrink: 0;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   height: calc(var(--app-nav-height) + var(--app-safe-bottom));
   padding-bottom: var(--app-safe-bottom);
   background: var(--app-bottom-bar);

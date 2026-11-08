@@ -116,6 +116,15 @@ const hideNav = computed(() => {
   background: var(--app-bottom-bar);
 }
 
+/* Клавиатура открыта — прячем таббар, чтобы не перекрывал и не «прыгал» */
+.app-shell--keyboard-open.app-shell--with-nav {
+  padding-bottom: var(--app-safe-bottom);
+}
+
+.app-shell--keyboard-open .app-shell__nav {
+  display: none;
+}
+
 .app-shell--swiping {
   cursor: grabbing;
   touch-action: pan-y;

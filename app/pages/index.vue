@@ -85,10 +85,7 @@ function formatDatePill(iso: string) {
 
 <template>
   <div class="app-page">
-    <AppHeader
-      :title="workspace.workspace?.name ?? 'Worship'"
-      :subtitle="workspace.membership?.displayName ?? undefined"
-    >
+    <AppHeader :title="workspace.workspace?.name ?? 'Worship'">
       <template v-if="canCreate" #trailing>
         <button
           type="button"
@@ -97,7 +94,7 @@ function formatDatePill(iso: string) {
           aria-haspopup="menu"
           @click="toggleCreateMenu"
         >
-          <AppIcon :name="icons.add" size="2.5rem" />
+          <AppIcon :name="icons.add" />
         </button>
       </template>
     </AppHeader>

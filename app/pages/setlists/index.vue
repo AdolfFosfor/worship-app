@@ -1,34 +1,12 @@
 <script setup lang="ts">
+import type { SetlistItemWithSong } from '~~/shared/types'
 import { icons } from '~/utils/icons'
 
 const workspace = useWorkspaceStore()
-const { setlists, loading, error, fetchSetlists } = useSetlists()
+const { setlists, loading, error, fetchSetlists, getSetlist } = useSetlists()
 const { syncSetlistsOnActivate } = useSetlistsRevision()
 
-async function load(opts?: { quiet?: boolean }) {
-  // quiet: KeepAlive-возврат — без полноэкранного лоадера
-  if (opts?.quiet && setlists.value.length) {
-    try {
-      await fetchSetlists()
-      markSetlistsSynced()
-    } catch {
-      /* ошибка уже в composable */
-    }
-    return
-  }
-  try {
-    await fetchSetlists()
-    markSetlistsSynced()
-  } catch {
-    /* ошибка уже в composable */
-  }
-}
-
-const { markSetlistsSynced } = syncSetlistsOnActivate(() => load({ quiet: true }))
-
-onMounted(() => {
-  void load()
-})
+const heroItems = ref<SetlistItemWithSong[]>([])
 
 const today = new Date().toISOString().slice(0, 10)
 
@@ -49,6 +27,46 @@ const past = computed(() =>
 const nextUpcoming = computed(() => upcoming.value[0] ?? null)
 const otherUpcoming = computed(() => upcoming.value.slice(1))
 
+async function loadHeroSongs(setlistId: string | null) {
+  if (!setlistId) {
+    heroItems.value = []
+    return
+  }
+  try {
+    const full = await getSetlist(setlistId)
+    heroItems.value = full.items
+  } catch {
+    heroItems.value = []
+  }
+}
+
+async function load(opts?: { quiet?: boolean }) {
+  // quiet: KeepAlive-возврат — без полноэкранного лоадера
+  if (opts?.quiet && setlists.value.length) {
+    try {
+      await fetchSetlists()
+      markSetlistsSynced()
+      await loadHeroSongs(nextUpcoming.value?.id ?? null)
+    } catch {
+      /* ошибка уже в composable */
+    }
+    return
+  }
+  try {
+    await fetchSetlists()
+    markSetlistsSynced()
+    await loadHeroSongs(nextUpcoming.value?.id ?? null)
+  } catch {
+    /* ошибка уже в composable */
+  }
+}
+
+const { markSetlistsSynced } = syncSetlistsOnActivate(() => load({ quiet: true }))
+
+onMounted(() => {
+  void load()
+})
+
 function formatDatePill(iso: string) {
   try {
     return new Intl.DateTimeFormat('ru-RU', {
@@ -67,7 +85,7 @@ function formatDatePill(iso: string) {
     <AppHeader title="Сет-листы">
       <template v-if="workspace.canEditSetlists" #trailing>
         <NuxtLink to="/setlists/new" class="app-header-action" aria-label="Создать сет-лист">
-          <AppIcon :name="icons.add" size="1.65rem" />
+          <AppIcon :name="icons.add" />
         </NuxtLink>
       </template>
     </AppHeader>
@@ -88,11 +106,26 @@ function formatDatePill(iso: string) {
       <section v-if="nextUpcoming" class="setlists-section">
         <h2 class="setlists-section__title">Ближайшее</h2>
 
-        <NuxtLink :to="`/setlists/${nextUpcoming.id}`" class="setlists-hero">
-          <span class="setlists-pill">{{ formatDatePill(nextUpcoming.serviceDate) }}</span>
-          <span class="setlists-hero__title">{{ nextUpcoming.title }}</span>
-          <AppIcon :name="icons.chevronRight" class="setlists-hero__chevron" size="1.15rem" />
-        </NuxtLink>
+        <div class="setlists-hero">
+          <NuxtLink :to="`/setlists/${nextUpcoming.id}`" class="setlists-hero__link">
+            <span class="setlists-pill">{{ formatDatePill(nextUpcoming.serviceDate) }}</span>
+            <span class="setlists-hero__title">{{ nextUpcoming.title }}</span>
+            <AppIcon :name="icons.chevronRight" class="setlists-hero__chevron" size="1.15rem" />
+          </NuxtLink>
+          <div
+            v-if="heroItems.length"
+            class="setlists-hero__songs"
+            aria-label="Песни в сет-листе"
+          >
+            <span
+              v-for="item in heroItems"
+              :key="item.id"
+              class="setlists-hero__song-pill"
+            >
+              {{ item.song.title }}
+            </span>
+          </div>
+        </div>
 
         <div v-if="otherUpcoming.length" class="setlists-cards">
           <NuxtLink
@@ -162,18 +195,22 @@ function formatDatePill(iso: string) {
 }
 
 .setlists-hero {
+  border-radius: var(--app-radius);
+  background: var(--app-surface);
+  border: 1px solid var(--app-border);
+  border-left: 3px solid var(--app-accent);
+  overflow: hidden;
+}
+
+.setlists-hero__link {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: var(--app-space-2);
-  min-height: 7rem;
   padding: var(--app-space-5);
+  padding-bottom: var(--app-space-3);
   padding-right: 2.5rem;
-  border-radius: var(--app-radius);
-  background: var(--app-surface);
-  border: 1px solid var(--app-border);
-  border-left: 3px solid var(--app-accent);
   text-decoration: none;
   color: inherit;
 }
@@ -192,6 +229,37 @@ function formatDatePill(iso: string) {
   top: 50%;
   transform: translateY(-50%);
   color: var(--app-muted);
+}
+
+.setlists-hero__songs {
+  display: flex;
+  gap: var(--app-space-2);
+  padding: 0 var(--app-space-5) var(--app-space-5);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.setlists-hero__songs::-webkit-scrollbar {
+  display: none;
+}
+
+.setlists-hero__song-pill {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  max-width: 12rem;
+  min-height: 1.75rem;
+  padding: 0 0.7rem;
+  border-radius: 999px;
+  background: var(--app-hover);
+  color: var(--app-ink);
+  font-size: var(--app-text-xs);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .setlists-cards {

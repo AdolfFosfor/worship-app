@@ -19,7 +19,7 @@ const COMMIT_MS = 280
 const EASE_OUT = 'cubic-bezier(0.32, 0.72, 0, 1)'
 
 /** Корневые вкладки — свайп назад не нужен. */
-const ROOT_PATHS = new Set(['/', '/songs', '/setlists', '/members', '/account'])
+const ROOT_PATHS = new Set(['/', '/songs', '/setlists', '/account'])
 
 let telegramVerticalLocked = false
 
@@ -75,6 +75,9 @@ function fallbackParent(path: string): string {
     return '/setlists'
   }
   if (path.startsWith('/account/')) {
+    return '/account'
+  }
+  if (path.startsWith('/members')) {
     return '/account'
   }
   if (path === '/account') {

@@ -28,7 +28,7 @@ onMounted(() => {
     <AppHeader title="Песни">
       <template v-if="workspace.canEditSongs" #trailing>
         <NuxtLink to="/songs/new" class="app-header-action" aria-label="Добавить песню">
-          <AppIcon :name="icons.add" size="1.65rem" />
+          <AppIcon :name="icons.add" />
         </NuxtLink>
       </template>
     </AppHeader>
@@ -70,18 +70,21 @@ onMounted(() => {
 
 .songs-search__icon {
   position: absolute;
-  left: 0.85rem;
+  left: 0.95rem;
   top: 50%;
   z-index: 1;
-  width: 1.1rem;
-  height: 1.1rem;
+  width: 1.25rem;
+  height: 1.25rem;
   transform: translateY(-50%);
   color: var(--app-muted);
   pointer-events: none;
 }
 
 .songs-search :deep(input) {
-  padding-left: 2.4rem;
+  min-height: 3.25rem;
+  padding-left: 2.75rem;
+  padding-block: 0.85rem;
+  border-radius: var(--app-radius);
 }
 
 .songs-cta {
