@@ -34,7 +34,32 @@ const hideNav = computed(() => {
 
       <div class="app-shell__swipe-layer flex min-h-0 flex-1 flex-col">
         <Toast position="top-center" append-to=".app-shell" />
-        <ConfirmDialog append-to=".app-shell" />
+        <ConfirmDialog :draggable="false" :breakpoints="{ '960px': '100vw' }">
+          <template #container="{ message, acceptCallback, rejectCallback }">
+            <div class="app-confirm">
+              <div class="app-confirm__copy">
+                <p v-if="message.header" class="app-confirm__title">{{ message.header }}</p>
+                <p v-if="message.message" class="app-confirm__message">{{ message.message }}</p>
+              </div>
+              <div class="app-confirm__actions">
+                <button
+                  type="button"
+                  class="app-confirm__btn app-confirm__btn--danger"
+                  @click="acceptCallback"
+                >
+                  {{ message.acceptLabel || 'Удалить' }}
+                </button>
+                <button
+                  type="button"
+                  class="app-confirm__btn app-confirm__btn--cancel"
+                  @click="rejectCallback"
+                >
+                  {{ message.rejectLabel || 'Отмена' }}
+                </button>
+              </div>
+            </div>
+          </template>
+        </ConfirmDialog>
 
         <main
           ref="scrollRef"
@@ -256,7 +281,7 @@ const hideNav = computed(() => {
 }
 
 .p-dialog,
-.p-confirmdialog .p-dialog {
+.p-confirmdialog.p-dialog {
   background: var(--app-surface) !important;
   color: var(--app-ink) !important;
   border: 1px solid var(--app-border) !important;
@@ -266,6 +291,96 @@ const hideNav = computed(() => {
 .p-dialog .p-dialog-content,
 .p-dialog .p-confirm-dialog-message {
   color: var(--app-ink) !important;
+}
+
+/* Confirm — нижний sheet в стиле TMA */
+.p-dialog-mask:has(.p-confirmdialog) {
+  align-items: flex-end !important;
+  justify-content: center !important;
+  padding-bottom: 0;
+  padding-left: 0;
+  padding-right: 0;
+  background: color-mix(in srgb, #000 48%, transparent) !important;
+}
+
+.p-confirmdialog.p-dialog {
+  width: min(28rem, 100%) !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 1.25rem 1.25rem 0 0 !important;
+  box-shadow: 0 -16px 40px color-mix(in srgb, #000 32%, transparent);
+  overflow: hidden;
+}
+
+.app-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-5);
+  padding: var(--app-space-5) var(--app-space-4)
+    calc(var(--app-space-4) + var(--app-safe-bottom));
+}
+
+.app-confirm__copy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+  padding-inline: var(--app-space-1);
+  text-align: center;
+}
+
+.app-confirm__title {
+  margin: 0;
+  font-size: var(--app-text-lg);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+  color: var(--app-ink);
+}
+
+.app-confirm__message {
+  margin: 0;
+  font-size: var(--app-text-md);
+  line-height: 1.4;
+  color: var(--app-muted);
+}
+
+.app-confirm__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+}
+
+.app-confirm__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: var(--app-touch-min);
+  padding: 0.75rem 1rem;
+  border-radius: var(--app-radius);
+  border: 0;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.app-confirm__btn--danger {
+  background: color-mix(in srgb, var(--app-destructive) 16%, var(--app-surface));
+  color: var(--app-destructive);
+}
+
+.app-confirm__btn--danger:active {
+  background: color-mix(in srgb, var(--app-destructive) 24%, var(--app-surface));
+}
+
+.app-confirm__btn--cancel {
+  background: var(--app-hover);
+  color: var(--app-ink);
+}
+
+.app-confirm__btn--cancel:active {
+  background: color-mix(in srgb, var(--app-ink) 12%, var(--app-surface));
 }
 
 /*

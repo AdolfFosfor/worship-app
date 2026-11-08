@@ -11,7 +11,7 @@ const workspace = useWorkspaceStore()
 const { getSong, deleteSong } = useSongs()
 const { fetchSetlists, songInSetlist, addSongToSetlist } = useSetlists()
 const toast = useToast()
-const confirm = useConfirm()
+const { requireDanger } = useAppConfirm()
 
 const song = ref<Song | null>(null)
 const loading = ref(true)
@@ -164,13 +164,10 @@ async function addToSetlist(setlist: Setlist) {
 }
 
 function confirmDelete() {
-  confirm.require({
-    message: 'Удалить песню из библиотеки?',
-    header: 'Удаление',
-    icon: 'pi pi-exclamation-triangle',
-    rejectLabel: 'Отмена',
+  requireDanger({
+    title: 'Удалить песню?',
+    message: 'Песня исчезнет из библиотеки и из всех сет-листов.',
     acceptLabel: 'Удалить',
-    acceptClass: 'p-button-danger',
     accept: async () => {
       try {
         await deleteSong(id.value)

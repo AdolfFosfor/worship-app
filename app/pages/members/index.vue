@@ -7,7 +7,7 @@ const workspace = useWorkspaceStore()
 const auth = useAuthStore()
 const { members, loading, error, fetchMembers, updateRole, removeMember } = useMembers()
 const toast = useToast()
-const confirm = useConfirm()
+const { requireDanger } = useAppConfirm()
 const { copy, copied } = useClipboard()
 const { shareInvite, botUsername } = useInviteShare()
 
@@ -58,12 +58,10 @@ async function onRoleChange(memberId: string, role: MemberRole) {
 }
 
 function confirmRemove(memberId: string, name: string) {
-  confirm.require({
-    message: `Удалить ${name} из команды?`,
-    header: 'Участник',
-    rejectLabel: 'Отмена',
+  requireDanger({
+    title: `Удалить ${name}?`,
+    message: 'Участник потеряет доступ к песням и сет-листам команды.',
     acceptLabel: 'Удалить',
-    acceptClass: 'p-button-danger',
     accept: async () => {
       try {
         await removeMember(memberId)

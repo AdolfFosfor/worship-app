@@ -18,7 +18,7 @@ const {
 const { syncSetlistsOnActivate } = useSetlistsRevision()
 const { fetchSongs, songs } = useSongs()
 const toast = useToast()
-const confirm = useConfirm()
+const { requireDanger } = useAppConfirm()
 
 const id = computed(() => String(route.params.id))
 const setlist = ref<SetlistWithItems | null>(null)
@@ -179,12 +179,10 @@ async function remove(item: SetlistItemWithSong) {
 }
 
 function confirmDelete() {
-  confirm.require({
-    message: 'Удалить сет-лист?',
-    header: 'Удаление',
-    rejectLabel: 'Отмена',
+  requireDanger({
+    title: 'Удалить сет-лист?',
+    message: 'Песни останутся в библиотеке, сам сет-лист исчезнет.',
     acceptLabel: 'Удалить',
-    acceptClass: 'p-button-danger',
     accept: async () => {
       try {
         await deleteSetlist(id.value)
@@ -216,18 +214,7 @@ const availableSongs = computed(() => {
         :title="setlist.title"
         :subtitle="formatDate(setlist.serviceDate)"
         back-to="/setlists"
-      >
-        <template v-if="workspace.canEditSetlists" #trailing>
-          <button
-            type="button"
-            class="app-header-action app-header-action--danger"
-            aria-label="Удалить"
-            @click="confirmDelete"
-          >
-            <AppIcon :name="icons.trash" />
-          </button>
-        </template>
-      </AppHeader>
+      />
 
       <AppEmptyState
         v-if="!setlist.items.length"
@@ -277,13 +264,18 @@ const availableSongs = computed(() => {
         </article>
       </div>
 
-      <Button
-        v-if="workspace.canEditSetlists"
-        label="Добавить песню"
-        class="w-full"
-        :loading="busy"
-        @click="openPicker"
-      />
+      <div v-if="workspace.canEditSetlists" class="setlist-footer">
+        <Button
+          label="Добавить песню"
+          class="w-full"
+          :loading="busy"
+          @click="openPicker"
+        />
+        <button type="button" class="setlist-footer__delete" @click="confirmDelete">
+          <AppIcon :name="icons.trash" size="1.1rem" />
+          Удалить сет-лист
+        </button>
+      </div>
     </template>
 
     <Dialog
@@ -311,6 +303,30 @@ const availableSongs = computed(() => {
 </template>
 
 <style scoped>
+.setlist-footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+  margin-top: auto;
+  padding-top: var(--app-space-4);
+}
+
+.setlist-footer__delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--app-space-2);
+  width: 100%;
+  min-height: var(--app-touch-min);
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  background: var(--app-surface);
+  color: var(--app-destructive);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .setlist-items {
   display: flex;
   flex-direction: column;

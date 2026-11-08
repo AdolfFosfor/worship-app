@@ -6,7 +6,7 @@ const auth = useAuthStore()
 const workspace = useWorkspaceStore()
 const telegram = useTelegramApp()
 const toast = useToast()
-const confirm = useConfirm()
+const { requireDanger } = useAppConfirm()
 const { t } = useAppLocale()
 
 const emailLabel = computed(() => {
@@ -47,12 +47,10 @@ const rolePill = computed(() => {
 
 function confirmLeaveTeam() {
   const name = workspace.workspace?.name ?? 'команду'
-  confirm.require({
-    message: `Выйти из «${name}»? Песни и сет-листы команды останутся у других участников.`,
-    header: 'Выход из команды',
-    rejectLabel: 'Отмена',
+  requireDanger({
+    title: `Выйти из «${name}»?`,
+    message: 'Песни и сет-листы останутся у других участников.',
     acceptLabel: 'Выйти из команды',
-    acceptClass: 'p-button-danger',
     accept: async () => {
       try {
         const result = await workspace.leaveWorkspace()
@@ -76,12 +74,10 @@ function confirmLeaveTeam() {
 }
 
 function confirmSignOut() {
-  confirm.require({
-    message: 'Выйти из аккаунта на этом устройстве?',
-    header: 'Выход',
-    rejectLabel: 'Отмена',
+  requireDanger({
+    title: 'Выйти из аккаунта?',
+    message: 'Сессия на этом устройстве будет завершена.',
     acceptLabel: 'Выйти',
-    acceptClass: 'p-button-danger',
     accept: async () => {
       try {
         await auth.signOut()
