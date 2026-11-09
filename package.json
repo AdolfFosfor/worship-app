@@ -18,7 +18,8 @@
     "test:watch": "vitest",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "icons:extract": "node scripts/extract-solar-icons.mjs"
+    "icons:extract": "node scripts/extract-solar-icons.mjs",
+    "db:push": "node scripts/db-push.mjs"
   },
   "dependencies": {
     "@iconify/vue": "^5.0.4",

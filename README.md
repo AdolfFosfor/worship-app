@@ -26,15 +26,14 @@ cp .env.example .env
 - `NUXT_SUPABASE_SERVICE_ROLE_KEY` (только сервер)
 - `NUXT_TELEGRAM_BOT_TOKEN` (токен бота для проверки initData)
 
-3. Примените миграцию:
+3. Примените миграции на remote:
 
 ```bash
-npx supabase login
-npx supabase link --project-ref YOUR_PROJECT_REF
-npx supabase db push
+# В .env: SUPABASE_DB_PASSWORD или SUPABASE_DB_URL (Session pooler из Dashboard → Connect)
+npm run db:push
 ```
 
-Или вставьте SQL из [`supabase/migrations/001_init.sql`](supabase/migrations/001_init.sql) в SQL Editor в кабинете Supabase.
+Либо SQL Editor в кабинете Supabase. Агент Cursor накатывает миграции автоматически (MCP / `npm run db:push`).
 
 4. Включите Email Auth (Magic Link) в Supabase → Authentication → Providers.
 
