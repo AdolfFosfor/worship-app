@@ -3,8 +3,6 @@
  * снизу параллакс «предыдущего» экрана. На ПК — жест трекпада.
  */
 
-import { swipeBehavior } from '@tma.js/sdk-vue'
-
 const EDGE_PX = 24
 const COMMIT_PX = 72
 const COMMIT_RATIO = 0.22
@@ -20,35 +18,6 @@ const EASE_OUT = 'cubic-bezier(0.32, 0.72, 0, 1)'
 
 /** Корневые вкладки — свайп назад не нужен. */
 const ROOT_PATHS = new Set(['/', '/songs', '/setlists', '/account'])
-
-let telegramVerticalLocked = false
-
-function lockTelegramVerticalSwipe() {
-  if (telegramVerticalLocked) {
-    return
-  }
-  try {
-    if (!swipeBehavior.isMounted()) {
-      swipeBehavior.mount()
-    }
-    swipeBehavior.disableVertical()
-    telegramVerticalLocked = true
-  } catch {
-    // Старые клиенты / вне TMA.
-  }
-}
-
-function unlockTelegramVerticalSwipe() {
-  if (!telegramVerticalLocked) {
-    return
-  }
-  try {
-    swipeBehavior.enableVertical()
-  } catch {
-    // ignore
-  }
-  telegramVerticalLocked = false
-}
 
 function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) {
@@ -251,7 +220,6 @@ export function useEdgeSwipeBack(shellRef: Ref<HTMLElement | null>) {
       settling = false
       swiping.value = false
       progressing.value = false
-      unlockTelegramVerticalSwipe()
     }
 
     const reset = (animate: boolean) => {
@@ -261,7 +229,6 @@ export function useEdgeSwipeBack(shellRef: Ref<HTMLElement | null>) {
       wheelVelocity = 0
       clearWheelIdle()
       clearSettleTimer()
-      unlockTelegramVerticalSwipe()
 
       if (!animate || preferReducedMotion() || offset < 1) {
         hardResetVisual()
@@ -288,7 +255,6 @@ export function useEdgeSwipeBack(shellRef: Ref<HTMLElement | null>) {
       wheelVelocity = 0
       clearWheelIdle()
       clearSettleTimer()
-      unlockTelegramVerticalSwipe()
 
       const width = widthOf()
       const remaining = Math.max(0, width - offset)
@@ -364,8 +330,6 @@ export function useEdgeSwipeBack(shellRef: Ref<HTMLElement | null>) {
         return
       }
 
-      lockTelegramVerticalSwipe()
-
       active = true
       tracking = false
       startX = touch.clientX
@@ -393,7 +357,6 @@ export function useEdgeSwipeBack(shellRef: Ref<HTMLElement | null>) {
         }
         if (Math.abs(dy) > Math.abs(dx) || dx < 0) {
           active = false
-          unlockTelegramVerticalSwipe()
           return
         }
         tracking = true
@@ -422,7 +385,6 @@ export function useEdgeSwipeBack(shellRef: Ref<HTMLElement | null>) {
 
     const onEnd = () => {
       if (!active) {
-        unlockTelegramVerticalSwipe()
         return
       }
       if (!tracking) {
@@ -546,14 +508,12 @@ export function useEdgeSwipeBack(shellRef: Ref<HTMLElement | null>) {
       if (raf) {
         cancelAnimationFrame(raf)
       }
-      unlockTelegramVerticalSwipe()
     }
   })
 
   onUnmounted(() => {
     detach?.()
     detach = null
-    unlockTelegramVerticalSwipe()
   })
 
   return {

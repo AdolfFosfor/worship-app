@@ -6,12 +6,19 @@ defineProps<{
 defineEmits<{
   retry: []
 }>()
+
+const { t } = useAppLocale()
 </script>
 
 <template>
   <div class="app-error" role="alert">
-    <p class="app-error__message">{{ message ?? 'Что-то пошло не так' }}</p>
-    <Button label="Повторить" severity="secondary" size="small" @click="$emit('retry')" />
+    <p class="app-error__message">{{ message ?? t('common.genericError') }}</p>
+    <Button
+      :label="t('common.retry')"
+      severity="secondary"
+      size="small"
+      @click="$emit('retry')"
+    />
   </div>
 </template>
 

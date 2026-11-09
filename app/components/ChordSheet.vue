@@ -12,12 +12,13 @@ defineProps<{
 .chord-sheet {
   margin: 0;
   padding: var(--app-space-4);
-  border-radius: var(--app-radius);
+  border-radius: var(--app-radius-lg);
   background: var(--app-surface);
-  border: 1px solid var(--app-border);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family:
+    ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: var(--app-text-sm);
   line-height: 1.55;
+  letter-spacing: -0.01em;
   white-space: pre-wrap;
   word-break: break-word;
   color: var(--app-ink);

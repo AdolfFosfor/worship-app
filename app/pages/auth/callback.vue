@@ -6,6 +6,7 @@ definePageMeta({
 
 const auth = useAuthStore()
 const workspace = useWorkspaceStore()
+const { t } = useAppLocale()
 
 onMounted(async () => {
   await auth.init()
@@ -20,6 +21,6 @@ onMounted(async () => {
 
 <template>
   <div class="app-page">
-    <AppLoading label="Входим…" />
+    <AppLoading :label="t('auth.signingIn')" />
   </div>
 </template>

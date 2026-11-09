@@ -1,3 +1,4 @@
+import type { ChordChart } from './chordChart'
 import type { EntityId, Timestamps } from './common'
 
 /** Musical key label, e.g. "C", "Am", "F#". */
@@ -10,7 +11,10 @@ export interface Song extends Timestamps {
   key: SongKey
   /** Capo fret (0 = none). Chords are written as shapes with this capo. */
   capo: number
+  /** Legacy / denormalized plain-text chord sheet. */
   chords: string | null
+  /** Structured chord chart (preferred when present). */
+  chordChart: ChordChart | null
   lyrics: string | null
   youtubeUrl: string | null
   createdBy: EntityId | null
@@ -21,6 +25,7 @@ export interface SongInput {
   key: SongKey
   capo?: number
   chords?: string | null
+  chordChart?: ChordChart | null
   lyrics?: string | null
   youtubeUrl?: string | null
 }

@@ -20,6 +20,8 @@ export const icons = {
   search: 'magnifier-linear',
   trash: 'trash-bin-trash-linear',
   edit: 'pen-linear',
+  /** Текст / доп. мета песни — iOS-вес как у add-circle */
+  documentText: 'document-text-bold',
   copy: 'copy-linear',
   share: 'share-bold',
   link: 'link-round-linear',
@@ -30,6 +32,10 @@ export const icons = {
   minus: 'minus-circle-linear',
   plus: 'add-circle-linear',
   capo: 'tuning-2-bold',
+  /** Нет капо / отсутствие значения */
+  none: 'forbidden-circle-linear',
+  undo: 'undo-left-linear',
+  redo: 'undo-right-linear',
 } as const
 
 export type AppIconName = (typeof icons)[keyof typeof icons]

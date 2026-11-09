@@ -38,19 +38,31 @@ defineProps<{
 
 <style scoped>
 .app-list-row {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--app-space-3);
-  min-height: 3.75rem;
-  padding: var(--app-space-4) var(--app-space-4);
-  background: var(--app-surface);
+  min-height: 3.5rem;
+  padding: 0.85rem var(--app-space-4);
+  background: transparent;
   color: inherit;
   text-decoration: none;
-  border-bottom: 1px solid var(--app-border);
+  transition: background-color var(--app-duration) var(--app-ease);
 }
 
 .app-list-row:active {
   background: var(--app-hover);
+}
+
+.app-list-row:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: var(--app-space-4);
+  right: 0;
+  bottom: 0;
+  height: var(--app-hairline);
+  background: var(--app-border);
+  pointer-events: none;
 }
 
 .app-list-row__body {
@@ -61,7 +73,7 @@ defineProps<{
 .app-list-row__title {
   font-weight: 600;
   font-size: var(--app-text-lg);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
   line-height: 1.25;
   color: var(--app-ink);
   white-space: nowrap;
@@ -70,8 +82,9 @@ defineProps<{
 }
 
 .app-list-row__subtitle {
-  margin-top: 0.2rem;
+  margin-top: 0.15rem;
   font-size: var(--app-text-sm);
+  font-weight: 450;
   color: var(--app-muted);
   white-space: nowrap;
   overflow: hidden;
@@ -87,14 +100,21 @@ defineProps<{
 }
 
 .app-list-row__meta {
-  font-size: var(--app-text-md);
-  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  padding: 0 0.55rem;
+  border-radius: var(--app-radius-pill);
+  background: var(--app-accent-muted);
   color: var(--app-accent-text);
+  font-size: var(--app-text-xs);
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .app-list-row__chevron {
-  width: 1.25rem;
-  height: 1.25rem;
-  opacity: 0.7;
+  width: 1.05rem;
+  height: 1.05rem;
+  opacity: 0.45;
 }
 </style>

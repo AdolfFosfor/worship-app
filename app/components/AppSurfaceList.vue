@@ -7,12 +7,11 @@
 <style scoped>
 .app-surface-list {
   overflow: hidden;
-  border-radius: var(--app-radius);
+  border-radius: var(--app-radius-lg);
   background: var(--app-surface);
-  border: 1px solid var(--app-border);
 }
 
-.app-surface-list :deep(.app-list-row:last-child) {
-  border-bottom: 0;
+.app-surface-list :deep(.app-list-row:last-child)::after {
+  display: none;
 }
 </style>

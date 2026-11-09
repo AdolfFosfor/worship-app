@@ -8,6 +8,7 @@ const route = useRoute()
 const auth = useAuthStore()
 const workspace = useWorkspaceStore()
 const toast = useToast()
+const { t } = useAppLocale()
 const code = computed(() => String(route.params.code ?? '').trim())
 
 const busy = ref(false)
@@ -22,8 +23,8 @@ async function accept() {
   if (!code.value) {
     toast.add({
       severity: 'error',
-      summary: 'Приглашение',
-      detail: 'Нет кода приглашения',
+      summary: t('invite.title'),
+      detail: t('invite.noCode'),
       life: 4000,
     })
     return
@@ -37,13 +38,18 @@ async function accept() {
   try {
     await workspace.joinByInviteCode(code.value)
     done.value = true
-    toast.add({ severity: 'success', summary: 'Готово', detail: 'Вы в команде', life: 2500 })
+    toast.add({
+      severity: 'success',
+      summary: t('common.done'),
+      detail: t('invite.joined'),
+      life: 2500,
+    })
     await goHome()
   } catch (e) {
     toast.add({
       severity: 'error',
-      summary: 'Приглашение',
-      detail: e instanceof Error ? e.message : 'Ошибка',
+      summary: t('invite.title'),
+      detail: e instanceof Error ? e.message : t('invite.error'),
       life: 4000,
     })
   } finally {
@@ -65,10 +71,10 @@ watch(
 
 <template>
   <div class="app-page">
-    <AppHeader title="Приглашение" :back-to="'/'" />
-    <p class="invite__code">Код: {{ code }}</p>
+    <AppHeader :title="t('invite.title')" />
+    <p class="invite__code">{{ t('invite.codeLabel') }} {{ code }}</p>
     <Button
-      label="Присоединиться"
+      :label="t('invite.join')"
       class="w-full"
       :loading="busy"
       :disabled="done"

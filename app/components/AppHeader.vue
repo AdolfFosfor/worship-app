@@ -1,54 +1,12 @@
 <script setup lang="ts">
-import { icons } from '~/utils/icons'
-
-const props = defineProps<{
+defineProps<{
   title: string
   subtitle?: string
-  backTo?: string
-  showBack?: boolean
 }>()
-
-const emit = defineEmits<{
-  back: []
-}>()
-
-const slots = useSlots()
-const router = useRouter()
-
-const hasBack = computed(
-  () => Boolean(slots.leading) || props.showBack || props.backTo !== undefined,
-)
-
-function onBack() {
-  emit('back')
-  const { markPopNavigation } = useNavigationDirection()
-  markPopNavigation()
-
-  if (props.backTo) {
-    void navigateTo(props.backTo)
-    return
-  }
-  if (import.meta.client && window.history.length > 1) {
-    router.back()
-    return
-  }
-  void navigateTo('/')
-}
 </script>
 
 <template>
-  <header class="app-header" :class="{ 'app-header--with-back': hasBack }">
-    <button
-      v-if="hasBack"
-      type="button"
-      class="app-header__icon-btn"
-      aria-label="Назад"
-      @click="onBack"
-    >
-      <slot name="leading">
-        <AppIcon :name="icons.arrowLeft" size="1.45rem" />
-      </slot>
-    </button>
+  <header class="app-header">
     <div class="app-header__text">
       <h1 class="app-header__title">{{ title }}</h1>
       <p v-if="subtitle" class="app-header__subtitle">{{ subtitle }}</p>
@@ -68,33 +26,16 @@ function onBack() {
   min-height: 2.75rem;
 }
 
-.app-header--with-back {
-  grid-template-columns: 2.75rem 1fr auto;
-}
-
-.app-header__icon-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.75rem;
-  height: 2.75rem;
-  margin-left: -0.4rem;
-  border: 0;
-  border-radius: var(--app-radius-sm);
-  background: transparent;
-  color: var(--app-accent-text);
-  cursor: pointer;
-}
-
 .app-header__text {
   min-width: 0;
 }
 
 .app-header__title {
   margin: 0;
-  font-size: var(--app-text-xl);
+  font-size: var(--app-text-2xl);
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
   color: var(--app-ink);
   white-space: nowrap;
   overflow: hidden;
@@ -102,8 +43,9 @@ function onBack() {
 }
 
 .app-header__subtitle {
-  margin: 0.1rem 0 0;
+  margin: 0.15rem 0 0;
   font-size: var(--app-text-sm);
+  font-weight: 500;
   color: var(--app-muted);
   white-space: nowrap;
   overflow: hidden;

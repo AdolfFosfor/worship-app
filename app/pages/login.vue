@@ -10,6 +10,7 @@ const auth = useAuthStore()
 const telegram = useTelegramApp()
 const toast = useToast()
 const config = useRuntimeConfig()
+const { t } = useAppLocale()
 
 const email = ref('adolffosfor@gmail.com')
 const sent = ref(false)
@@ -24,15 +25,15 @@ async function loginTelegram() {
   try {
     const raw = telegram.getInitDataRaw()
     if (!raw) {
-      throw new Error('Нет данных Telegram. Откройте приложение в Telegram или войдите по email.')
+      throw new Error(t('auth.noTelegramData'))
     }
     await auth.signInWithTelegram(raw)
     await navigateTo('/')
   } catch (e) {
     toast.add({
       severity: 'error',
-      summary: 'Вход',
-      detail: authErrorMessage(e, 'Ошибка входа'),
+      summary: t('auth.toastTitle'),
+      detail: authErrorMessage(e, 'common.genericError'),
       life: 5000,
     })
   } finally {
@@ -48,15 +49,15 @@ async function loginEmail() {
     sent.value = true
     toast.add({
       severity: 'success',
-      summary: 'Письмо отправлено',
-      detail: 'Откройте ссылку из письма на этом устройстве',
+      summary: t('auth.magicLinkSent'),
+      detail: t('auth.magicLinkDetail'),
       life: 5000,
     })
   } catch (e) {
     toast.add({
       severity: 'error',
-      summary: 'Вход',
-      detail: authErrorMessage(e, 'Ошибка'),
+      summary: t('auth.toastTitle'),
+      detail: authErrorMessage(e, 'common.error'),
       life: 6000,
     })
   } finally {
@@ -75,8 +76,8 @@ async function loginDev() {
   } catch (e) {
     toast.add({
       severity: 'error',
-      summary: 'Dev-вход',
-      detail: authErrorMessage(e, 'Ошибка'),
+      summary: t('auth.devLoginTitle'),
+      detail: authErrorMessage(e, 'common.error'),
       life: 6000,
     })
   } finally {
@@ -99,38 +100,38 @@ onMounted(async () => {
 <template>
   <div class="app-page">
     <div class="login">
-      <h1 class="app-page-title">Worship</h1>
-      <p class="login__lead">Войдите, чтобы открыть библиотеку команды</p>
+      <h1 class="app-page-title">{{ t('app.name') }}</h1>
+      <p class="login__lead">{{ t('auth.lead') }}</p>
 
       <Button
         v-if="showTelegram"
-        label="Войти через Telegram"
+        :label="t('auth.loginTelegram')"
         class="w-full"
         :loading="busy"
         @click="loginTelegram"
       />
 
-      <div v-if="showTelegram" class="login__divider">или email</div>
+      <div v-if="showTelegram" class="login__divider">{{ t('auth.orEmail') }}</div>
 
       <form class="login__email" @submit.prevent="allowDevSession ? loginDev() : loginEmail()">
         <InputText
           v-model="email"
           type="email"
           class="w-full"
-          placeholder="you@church.org"
+          :placeholder="t('settings.emailPlaceholder')"
           autocomplete="email"
         />
         <Button
           v-if="allowDevSession"
           type="submit"
-          label="Войти без письма (dev)"
+          :label="t('auth.devLogin')"
           class="w-full"
           :disabled="!email.trim()"
           :loading="busy"
         />
         <Button
           type="button"
-          label="Отправить Magic Link"
+          :label="t('auth.sendMagicLink')"
           :severity="allowDevSession || showTelegram ? 'secondary' : undefined"
           class="w-full"
           :disabled="!email.trim() || busy"
@@ -140,9 +141,9 @@ onMounted(async () => {
       </form>
 
       <p v-if="allowDevSession" class="login__dev-hint">
-        Dev-режим: вход без письма, пока лимит Supabase Auth не сбросится.
+        {{ t('auth.devHint') }}
       </p>
-      <p v-if="sent" class="login__hint">Проверьте почту — ссылка для входа уже отправлена.</p>
+      <p v-if="sent" class="login__hint">{{ t('auth.checkEmailHint') }}</p>
     </div>
   </div>
 </template>
@@ -151,22 +152,33 @@ onMounted(async () => {
 .login {
   display: flex;
   flex-direction: column;
-  gap: var(--app-space-4);
-  padding-top: var(--app-space-6);
+  gap: var(--app-space-5);
+  padding-top: var(--app-space-8);
+  max-width: 22rem;
+  margin-inline: auto;
+  width: 100%;
+}
+
+.login :deep(.app-page-title),
+.login .app-page-title {
+  font-size: var(--app-text-2xl);
+  letter-spacing: -0.04em;
 }
 
 .login__lead {
-  margin: 0;
+  margin: -0.5rem 0 0;
   color: var(--app-muted);
-  font-size: var(--app-text-sm);
+  font-size: var(--app-text-md);
+  line-height: 1.4;
 }
 
 .login__divider {
   text-align: center;
   color: var(--app-muted);
-  font-size: var(--app-text-xs);
+  font-size: var(--app-text-2xs);
+  font-weight: 650;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
 }
 
 .login__email {

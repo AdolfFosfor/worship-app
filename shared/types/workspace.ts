@@ -14,6 +14,8 @@ export interface WorkspaceMember {
   workspaceId: EntityId
   userId: EntityId
   role: MemberRole
+  /** Кастомный титул поверх роли (обычно для worship_leader). */
+  roleTitle: string | null
   displayName: string | null
   avatarUrl: string | null
   createdAt: IsoDateTime
@@ -28,6 +30,15 @@ export const MEMBER_ROLE_LABELS: Record<MemberRole, string> = {
   administrator: 'Администратор',
   worship_leader: 'Лидер',
   musician: 'Музыкант',
+}
+
+export function memberRoleLabel(member: {
+  role: MemberRole
+  roleTitle?: string | null
+}): string {
+  const title = member.roleTitle?.trim()
+  if (title) return title
+  return MEMBER_ROLE_LABELS[member.role]
 }
 
 export function canManageSongs(role: MemberRole | null | undefined): boolean {

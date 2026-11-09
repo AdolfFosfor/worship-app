@@ -1,26 +1,53 @@
 import { backButton } from '@tma.js/sdk-vue'
+import { safeInternalPath } from '~/utils/safeInternalPath'
+
+/** Корневые вкладки и публичные экраны — без Telegram BackButton. */
+const ROOT_PATHS = new Set([
+  '/',
+  '/songs',
+  '/setlists',
+  '/account',
+  '/login',
+  '/onboarding',
+])
+
+function isRootPath(path: string): boolean {
+  if (ROOT_PATHS.has(path)) return true
+  if (path.startsWith('/auth')) return true
+  return false
+}
+
+function fallbackParent(path: string): string {
+  if (path.startsWith('/songs/')) return '/songs'
+  if (path.startsWith('/setlists/')) return '/setlists'
+  if (path.startsWith('/account/')) return '/account'
+  if (path.startsWith('/members')) return '/account'
+  if (path.startsWith('/invite/')) return '/'
+  return '/'
+}
 
 /**
- * Shows Telegram BackButton on nested routes and navigates back on click.
- * Optional `fallbackTo` prefers an explicit in-app path (e.g. return to setlist).
+ * Нативный Telegram BackButton (fullscreen / header).
+ * Вызывать один раз из layout — без дублирующих кнопок в UI.
  */
-export function useTelegramBackButton(
-  enabled: MaybeRefOrGetter<boolean> = true,
-  fallbackTo?: MaybeRefOrGetter<string | undefined>,
-) {
+export function useTelegramBackButton() {
+  const route = useRoute()
   const router = useRouter()
 
   function sync() {
     if (!import.meta.client) return
     try {
       if (!backButton.isSupported()) return
-      if (toValue(enabled)) {
-        backButton.show()
-      } else {
+      if (!backButton.isMounted()) {
+        backButton.mount()
+      }
+      if (isRootPath(route.path)) {
         backButton.hide()
+      } else {
+        backButton.show()
       }
     } catch {
-      // outside TMA
+      // вне TMA / старый клиент
     }
   }
 
@@ -28,22 +55,32 @@ export function useTelegramBackButton(
     const { markPopNavigation } = useNavigationDirection()
     markPopNavigation()
 
-    const to = toValue(fallbackTo)
-    if (to) {
-      void navigateTo(to)
+    const from = safeInternalPath(route.query.from, '')
+    if (from) {
+      void navigateTo(from)
       return
     }
-    if (window.history.length > 1) {
+
+    const before = route.fullPath
+    const fallback = fallbackParent(route.path)
+    if (import.meta.client && window.history.length > 1) {
       router.back()
+      window.setTimeout(() => {
+        if (useRoute().fullPath === before) {
+          markPopNavigation()
+          void navigateTo(fallback)
+        }
+      }, 120)
       return
     }
-    void navigateTo('/')
+    void navigateTo(fallback)
   }
 
   onMounted(() => {
     sync()
     try {
       if (backButton.isSupported()) {
+        if (!backButton.isMounted()) backButton.mount()
         backButton.onClick(goBack)
       }
     } catch {
@@ -51,11 +88,14 @@ export function useTelegramBackButton(
     }
   })
 
-  watch(() => toValue(enabled), sync)
+  watch(() => route.fullPath, sync)
 
   onBeforeUnmount(() => {
     try {
-      if (backButton.isSupported()) backButton.hide()
+      if (backButton.isSupported()) {
+        backButton.offClick(goBack)
+        backButton.hide()
+      }
     } catch {
       // ignore
     }

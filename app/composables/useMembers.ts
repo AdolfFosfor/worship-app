@@ -35,11 +35,16 @@ export function useMembers() {
     }
   }
 
-  async function updateRole(memberId: string, role: MemberRole) {
+  async function updateRole(
+    memberId: string,
+    role: MemberRole,
+    roleTitle: string | null = null,
+  ) {
     const supabase = getSupabaseBrowserClient()
+    const title = roleTitle?.trim() || null
     const { data, error: qError } = await supabase
       .from('workspace_members')
-      .update({ role })
+      .update({ role, role_title: title })
       .eq('id', memberId)
       .select('*')
       .single()

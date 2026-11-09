@@ -1,11 +1,12 @@
 <script setup lang="ts">
-useTelegramBackButton(true)
+import { localDayKey } from '~/utils/dates'
 
 const workspace = useWorkspaceStore()
+const { t } = useAppLocale()
 const { createSetlist } = useSetlists()
 const toast = useToast()
 
-const title = ref('Воскресное служение')
+const title = ref(t('setlists.defaultTitle'))
 const serviceDate = ref<Date>(new Date())
 const busy = ref(false)
 
@@ -13,28 +14,21 @@ onMounted(() => {
   if (!workspace.canEditSetlists) void navigateTo('/setlists')
 })
 
-function toIsoDate(d: Date) {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
-
 async function save() {
   if (!title.value.trim() || !serviceDate.value) return
   busy.value = true
   try {
     const setlist = await createSetlist({
       title: title.value.trim(),
-      serviceDate: toIsoDate(serviceDate.value),
+      serviceDate: localDayKey(serviceDate.value),
     })
-    toast.add({ severity: 'success', summary: 'Создано', life: 2000 })
+    toast.add({ severity: 'success', summary: t('common.created'), life: 2000 })
     await navigateTo(`/setlists/${setlist.id}`)
   } catch (e) {
     toast.add({
       severity: 'error',
-      summary: 'Ошибка',
-      detail: e instanceof Error ? e.message : 'Не удалось создать',
+      summary: t('common.error'),
+      detail: e instanceof Error ? e.message : t('setlists.createFailed'),
       life: 4000,
     })
   } finally {
@@ -45,17 +39,17 @@ async function save() {
 
 <template>
   <div class="app-page">
-    <AppHeader title="Новый сет-лист" back-to="/setlists" />
+    <AppHeader :title="t('setlists.newTitle')" />
     <form class="setlist-form" @submit.prevent="save">
       <label class="setlist-form__field">
-        <span>Название</span>
+        <span>{{ t('setlists.fieldTitle') }}</span>
         <InputText v-model="title" class="w-full" />
       </label>
       <label class="setlist-form__field">
-        <span>Дата</span>
+        <span>{{ t('setlists.fieldDate') }}</span>
         <DatePicker v-model="serviceDate" date-format="dd.mm.yy" class="w-full" show-icon />
       </label>
-      <Button type="submit" label="Создать" class="w-full" :loading="busy" />
+      <Button type="submit" :label="t('common.create')" class="w-full" :loading="busy" />
     </form>
   </div>
 </template>

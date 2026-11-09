@@ -25,6 +25,7 @@ export interface DbWorkspaceMember {
   workspace_id: string
   user_id: string
   role: DbMemberRole
+  role_title: string | null
   display_name: string | null
   avatar_url: string | null
   created_at: string
@@ -38,6 +39,7 @@ export interface DbSong {
   /** Capo fret; chords are shapes played with this capo. */
   capo: number
   chords: string | null
+  chord_chart?: Json | null
   lyrics: string | null
   youtube_url: string | null
   created_by: string | null
@@ -93,6 +95,7 @@ export interface Database {
           workspace_id: string
           user_id: string
           role: DbMemberRole
+          role_title?: string | null
           display_name?: string | null
           avatar_url?: string | null
           created_at?: string
@@ -102,6 +105,7 @@ export interface Database {
           workspace_id?: string
           user_id?: string
           role?: DbMemberRole
+          role_title?: string | null
           display_name?: string | null
           avatar_url?: string | null
           created_at?: string
@@ -117,6 +121,7 @@ export interface Database {
           key?: string
           capo?: number
           chords?: string | null
+          chord_chart?: Json | null
           lyrics?: string | null
           youtube_url?: string | null
           created_by?: string | null
@@ -130,6 +135,7 @@ export interface Database {
           key?: string
           capo?: number
           chords?: string | null
+          chord_chart?: Json | null
           lyrics?: string | null
           youtube_url?: string | null
           created_by?: string | null

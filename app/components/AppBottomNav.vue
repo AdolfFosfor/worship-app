@@ -37,7 +37,7 @@ const tabs = computed(() => [
 </script>
 
 <template>
-  <nav class="app-bottom-nav" aria-label="Основная навигация">
+  <nav class="app-bottom-nav" :aria-label="t('nav.ariaMain')">
     <NuxtLink
       v-for="tab in tabs"
       :key="tab.to"
@@ -45,10 +45,12 @@ const tabs = computed(() => [
       class="app-bottom-nav__item"
       :class="{ 'app-bottom-nav__item--active': tab.match(route.path) }"
     >
-      <AppIcon
-        :name="tab.match(route.path) ? tab.iconActive : tab.icon"
-        class="app-bottom-nav__icon"
-      />
+      <span class="app-bottom-nav__icon-wrap">
+        <AppIcon
+          :name="tab.match(route.path) ? tab.iconActive : tab.icon"
+          class="app-bottom-nav__icon"
+        />
+      </span>
       <span class="app-bottom-nav__label">{{ tab.label }}</span>
     </NuxtLink>
   </nav>
@@ -61,8 +63,10 @@ const tabs = computed(() => [
   grid-template-columns: repeat(4, 1fr);
   height: calc(var(--app-nav-height) + var(--app-safe-bottom));
   padding-bottom: var(--app-safe-bottom);
-  background: var(--app-bottom-bar);
-  border-top: 1px solid var(--app-border);
+  background: color-mix(in srgb, var(--app-bottom-bar) 92%, transparent);
+  border-top: var(--app-hairline) solid var(--app-border);
+  backdrop-filter: saturate(180%) blur(16px);
+  -webkit-backdrop-filter: saturate(180%) blur(16px);
 }
 
 .app-bottom-nav__item {
@@ -70,22 +74,37 @@ const tabs = computed(() => [
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.15rem;
+  gap: 0.2rem;
   min-height: var(--app-touch-min);
   color: var(--app-muted);
   text-decoration: none;
-  font-size: var(--app-text-xs);
-  font-weight: 500;
+  font-size: var(--app-text-2xs);
+  font-weight: 550;
+  letter-spacing: -0.01em;
   -webkit-tap-highlight-color: transparent;
+  transition: color var(--app-duration) var(--app-ease);
 }
 
 .app-bottom-nav__item--active {
   color: var(--app-accent-text);
 }
 
+.app-bottom-nav__icon-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 1.5rem;
+}
+
 .app-bottom-nav__icon {
-  width: 1.35rem;
-  height: 1.35rem;
+  width: 1.4rem;
+  height: 1.4rem;
+  transition: transform var(--app-duration) var(--app-ease);
+}
+
+.app-bottom-nav__item--active .app-bottom-nav__icon {
+  transform: scale(1.06);
 }
 
 .app-bottom-nav__label {

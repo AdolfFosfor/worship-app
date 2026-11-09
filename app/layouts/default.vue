@@ -3,19 +3,34 @@ const shellRef = ref<HTMLElement | null>(null)
 const scrollRef = ref<HTMLElement | null>(null)
 const { swiping, progressing } = useEdgeSwipeBack(shellRef)
 useShellScrollMemory(scrollRef)
+useTelegramBackButton()
 
 const route = useRoute()
+const confirm = useConfirm()
+const { t } = useAppLocale()
 
 const hideNav = computed(() => {
   const meta = route.meta as { hideNav?: boolean }
   return Boolean(meta.hideNav)
 })
+
+/** ConfirmDialog не пробрасывает dismissableMask — закрываем сами по клику на маску. */
+function onConfirmMaskClick(event: MouseEvent) {
+  if (event.target !== event.currentTarget) return
+  confirm.close()
+}
+
+const confirmPt = {
+  mask: {
+    onClick: onConfirmMaskClick,
+  },
+}
 </script>
 
 <template>
   <div class="app-frame bg-[var(--app-bg)] text-[var(--app-ink)]">
     <div class="app-landscape-blocker" role="dialog" aria-live="polite">
-      <p class="app-landscape-blocker__text">Поверните устройство вертикально</p>
+      <p class="app-landscape-blocker__text">{{ t('layout.landscapeBlock') }}</p>
     </div>
     <div
       ref="shellRef"
@@ -34,7 +49,11 @@ const hideNav = computed(() => {
 
       <div class="app-shell__swipe-layer flex min-h-0 flex-1 flex-col">
         <Toast position="top-center" append-to=".app-shell" />
-        <ConfirmDialog :draggable="false" :breakpoints="{ '960px': '100vw' }">
+        <ConfirmDialog
+          :draggable="false"
+          :breakpoints="{ '960px': '100vw' }"
+          :pt="confirmPt"
+        >
           <template #container="{ message, acceptCallback, rejectCallback }">
             <div class="app-confirm">
               <div class="app-confirm__copy">
@@ -47,14 +66,14 @@ const hideNav = computed(() => {
                   class="app-confirm__btn app-confirm__btn--danger"
                   @click="acceptCallback"
                 >
-                  {{ message.acceptLabel || 'Удалить' }}
+                  {{ message.acceptLabel || t('common.delete') }}
                 </button>
                 <button
                   type="button"
                   class="app-confirm__btn app-confirm__btn--cancel"
                   @click="rejectCallback"
                 >
-                  {{ message.rejectLabel || 'Отмена' }}
+                  {{ message.rejectLabel || t('common.cancel') }}
                 </button>
               </div>
             </div>
@@ -94,6 +113,7 @@ const hideNav = computed(() => {
 
 .app-shell--with-nav {
   padding-bottom: 0;
+  --app-tabbar-clearance: calc(var(--app-nav-height, 3.25rem) + var(--app-safe-bottom));
 }
 
 .app-shell__swipe-underlay {
@@ -131,22 +151,40 @@ const hideNav = computed(() => {
   z-index: 2;
   min-width: 0;
   min-height: 0;
+  /* С absolute-nav слой на всю высоту shell */
+  flex: 1 1 auto;
+  height: 100%;
   background: var(--app-bg);
   will-change: transform;
   backface-visibility: hidden;
 }
 
 .app-shell__nav {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
   z-index: 3;
   background: var(--app-bottom-bar);
+  /* Под OS KB: не display:none — просто уезжает под клавиатуру вместе с низом frame */
 }
 
-/* Клавиатура открыта — прячем таббар, чтобы не перекрывал и не «прыгал» */
-.app-shell--keyboard-open.app-shell--with-nav {
+/* Контент на всю высоту; clearance таббара / KB — только padding scroller */
+.app-shell--with-nav .app-shell__content {
+  padding-bottom: calc(
+    var(--app-tabbar-clearance, 3.75rem) + var(--app-keyboard-inset, 0px)
+  );
+}
+
+/* KB / chord-dock: таббар не должен всплывать над клавиатурой */
+.app-shell--keyboard-open.app-shell--with-nav,
+.app-shell--chord-kb-open.app-shell--with-nav {
+  --app-tabbar-clearance: 0px;
   padding-bottom: var(--app-safe-bottom);
 }
 
-.app-shell--keyboard-open .app-shell__nav {
+.app-shell--keyboard-open .app-shell__nav,
+.app-shell--chord-kb-open .app-shell__nav {
   display: none;
 }
 
@@ -272,8 +310,7 @@ const hideNav = computed(() => {
   color: var(--app-success) !important;
 }
 
-.p-dialog-mask,
-.p-confirmdialog {
+.p-dialog-mask {
   padding-top: var(--app-safe-top);
   padding-bottom: var(--app-safe-bottom);
   padding-left: var(--app-safe-left);
@@ -284,7 +321,9 @@ const hideNav = computed(() => {
 .p-confirmdialog.p-dialog {
   background: var(--app-surface) !important;
   color: var(--app-ink) !important;
-  border: 1px solid var(--app-border) !important;
+  border: 0 !important;
+  border-radius: var(--app-radius-xl) !important;
+  box-shadow: var(--app-shadow-soft) !important;
 }
 
 .p-dialog .p-dialog-title,
@@ -297,20 +336,59 @@ const hideNav = computed(() => {
 .p-dialog-mask:has(.p-confirmdialog) {
   align-items: flex-end !important;
   justify-content: center !important;
-  padding-bottom: 0;
-  padding-left: 0;
-  padding-right: 0;
+  /* sheet сам учитывает safe-bottom; маске safe-area не нужны */
+  padding: 0 !important;
+  /* свой цвет + !important: иначе leave прыгает на dt(mask.background) и мигает */
   background: color-mix(in srgb, #000 48%, transparent) !important;
+  cursor: pointer;
+}
+
+/* Enter: без анимации фона. Leave: только opacity всего слоя (без смены background). */
+.p-dialog-mask:has(.p-confirmdialog).p-overlay-mask-enter-active {
+  animation: none !important;
+}
+
+.p-dialog-mask:has(.p-confirmdialog).p-overlay-mask-leave-active {
+  animation: app-confirm-mask-leave 120ms linear forwards !important;
 }
 
 .p-confirmdialog.p-dialog {
   width: min(28rem, 100%) !important;
   max-width: 100% !important;
   margin: 0 !important;
+  padding: 0 !important;
   border: 0 !important;
   border-radius: 1.25rem 1.25rem 0 0 !important;
   box-shadow: 0 -16px 40px color-mix(in srgb, #000 32%, transparent);
   overflow: hidden;
+  cursor: default;
+  will-change: transform;
+}
+
+.p-confirmdialog.p-dialog-enter-active {
+  animation: app-confirm-enter 160ms cubic-bezier(0.32, 0.72, 0, 1) !important;
+}
+
+.p-confirmdialog.p-dialog-leave-active {
+  animation: app-confirm-leave 120ms cubic-bezier(0.4, 0, 1, 1) !important;
+}
+
+@keyframes app-confirm-enter {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes app-confirm-leave {
+  to {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes app-confirm-mask-leave {
+  to {
+    opacity: 0;
+  }
 }
 
 .app-confirm {
@@ -358,11 +436,19 @@ const hideNav = computed(() => {
   width: 100%;
   min-height: var(--app-touch-min);
   padding: 0.75rem 1rem;
-  border-radius: var(--app-radius);
+  border-radius: var(--app-radius-lg);
   border: 0;
   font: inherit;
   font-weight: 650;
+  letter-spacing: -0.01em;
   cursor: pointer;
+  transition:
+    background-color var(--app-duration) var(--app-ease),
+    transform var(--app-duration) var(--app-ease);
+}
+
+.app-confirm__btn:active {
+  transform: scale(0.985);
 }
 
 .app-confirm__btn--danger {
@@ -449,9 +535,9 @@ const hideNav = computed(() => {
 
 .p-select,
 .p-multiselect {
-  background: var(--app-bg) !important;
+  background: var(--app-surface) !important;
   color: var(--app-ink) !important;
-  border-color: var(--app-border) !important;
+  border: 1px solid var(--app-border) !important;
 }
 
 .p-select .p-select-label,
@@ -468,9 +554,15 @@ const hideNav = computed(() => {
 
 /* DatePicker — force app tokens (input + dropdown + panel) */
 .p-datepicker {
-  background: var(--app-bg) !important;
-  border-color: var(--app-border) !important;
+  background: var(--app-surface) !important;
+  border: 1px solid var(--app-border) !important;
+  border-radius: var(--app-radius) !important;
   color: var(--app-ink) !important;
+  overflow: hidden;
+}
+
+.p-datepicker:not(.p-disabled):hover {
+  border-color: var(--app-border-strong) !important;
 }
 
 .p-datepicker .p-datepicker-input,
@@ -478,6 +570,7 @@ const hideNav = computed(() => {
   background: transparent !important;
   color: var(--app-ink) !important;
   border: 0 !important;
+  box-shadow: none !important;
 }
 
 .p-datepicker .p-datepicker-dropdown {

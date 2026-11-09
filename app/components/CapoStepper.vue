@@ -2,6 +2,8 @@
 import { icons } from '~/utils/icons'
 import { clampCapo } from '~/utils/music/capo'
 
+const { t } = useAppLocale()
+
 const props = defineProps<{
   modelValue: number
 }>()
@@ -14,10 +16,8 @@ function shift(delta: number) {
   emit('update:modelValue', clampCapo(props.modelValue + delta))
 }
 
-const label = computed(() => {
-  const fret = clampCapo(props.modelValue)
-  return fret === 0 ? 'без' : String(fret)
-})
+const fret = computed(() => clampCapo(props.modelValue))
+const isNone = computed(() => fret.value === 0)
 </script>
 
 <template>
@@ -25,21 +25,28 @@ const label = computed(() => {
     <button
       type="button"
       class="capo-stepper__btn"
-      aria-label="Капо ниже"
-      :disabled="clampCapo(modelValue) <= 0"
+      :aria-label="t('capo.ariaDown')"
+      :disabled="fret <= 0"
       @click="shift(-1)"
     >
-      <AppIcon :name="icons.minus" />
+      <AppIcon :name="icons.minus" size="1.25rem" />
     </button>
-    <span class="capo-stepper__value">{{ label }}</span>
+    <span
+      class="capo-stepper__value"
+      :class="{ 'capo-stepper__value--none': isNone }"
+      :aria-label="isNone ? t('capo.none') : undefined"
+    >
+      <AppIcon v-if="isNone" :name="icons.none" size="1.15rem" />
+      <template v-else>{{ fret }}</template>
+    </span>
     <button
       type="button"
       class="capo-stepper__btn"
-      aria-label="Капо выше"
-      :disabled="clampCapo(modelValue) >= 11"
+      :aria-label="t('capo.ariaUp')"
+      :disabled="fret >= 11"
       @click="shift(1)"
     >
-      <AppIcon :name="icons.plus" />
+      <AppIcon :name="icons.plus" size="1.25rem" />
     </button>
   </div>
 </template>
@@ -47,25 +54,34 @@ const label = computed(() => {
 <style scoped>
 .capo-stepper {
   display: inline-flex;
-  align-items: center;
-  gap: var(--app-space-2);
-  padding: 0.2rem;
-  border-radius: 999px;
-  background: var(--app-surface);
+  align-items: stretch;
+  min-width: 8.5rem;
+  min-height: 2.875rem;
   border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  background: var(--app-surface);
+  overflow: hidden;
 }
 
 .capo-stepper__btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
+  width: 2.75rem;
+  flex-shrink: 0;
   border: 0;
-  border-radius: 999px;
   background: transparent;
   color: var(--app-accent-text);
   cursor: pointer;
+  transition: background-color var(--app-duration) var(--app-ease);
+}
+
+.capo-stepper__btn:hover:not(:disabled) {
+  background: var(--app-hover);
+}
+
+.capo-stepper__btn:active:not(:disabled) {
+  background: var(--app-press);
 }
 
 .capo-stepper__btn:disabled {
@@ -74,11 +90,23 @@ const label = computed(() => {
 }
 
 .capo-stepper__value {
-  min-width: 2.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-width: 2.75rem;
+  padding: 0 0.35rem;
+  border-inline: 1px solid var(--app-border);
   text-align: center;
   font-weight: 700;
-  font-size: var(--app-text-md);
+  font-size: 1rem;
+  letter-spacing: -0.02em;
   color: var(--app-ink);
   font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.capo-stepper__value--none {
+  color: var(--app-muted);
 }
 </style>

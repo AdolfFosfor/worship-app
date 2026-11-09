@@ -5,7 +5,7 @@ import {
   normalizeAppLocale,
   type AppLocale,
 } from '~~/shared/i18n/locales'
-import { translate } from '~~/shared/i18n/messages'
+import { localizeSessionTitle, translate } from '~~/shared/i18n/messages'
 
 const DEFAULT_LOCALE: AppLocale = 'en'
 
@@ -74,6 +74,11 @@ export function useAppLocale() {
     return translate(locale.value, key, vars)
   }
 
+  /** Локализует шаблон названия сессии (не названия песен). */
+  function sessionTitle(title: string) {
+    return localizeSessionTitle(title, locale.value)
+  }
+
   return {
     locale,
     ready,
@@ -81,5 +86,6 @@ export function useAppLocale() {
     setLocale,
     initLocale,
     t,
+    sessionTitle,
   }
 }

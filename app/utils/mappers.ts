@@ -10,6 +10,7 @@ import type {
   Workspace,
   WorkspaceMember,
 } from '~~/shared/types'
+import { normalizeChordChart } from '~/utils/music/chart'
 
 export function mapWorkspace(row: DbWorkspace): Workspace {
   return {
@@ -28,6 +29,7 @@ export function mapMember(row: DbWorkspaceMember): WorkspaceMember {
     workspaceId: row.workspace_id,
     userId: row.user_id,
     role: row.role,
+    roleTitle: row.role_title ?? null,
     displayName: row.display_name,
     avatarUrl: row.avatar_url ?? null,
     createdAt: row.created_at,
@@ -42,6 +44,7 @@ export function mapSong(row: DbSong): Song {
     key: row.key,
     capo: Number.isFinite(row.capo) ? Math.max(0, Math.min(11, row.capo)) : 0,
     chords: row.chords,
+    chordChart: normalizeChordChart(row.chord_chart),
     lyrics: row.lyrics,
     youtubeUrl: row.youtube_url,
     createdBy: row.created_by,

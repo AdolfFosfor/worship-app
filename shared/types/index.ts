@@ -1,4 +1,5 @@
 export * from './auth'
+export * from './chordChart'
 export * from './common'
 export * from './database'
 export * from './setlist'

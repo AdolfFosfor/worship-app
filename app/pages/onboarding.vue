@@ -5,6 +5,7 @@ definePageMeta({
 
 const workspace = useWorkspaceStore()
 const toast = useToast()
+const { t } = useAppLocale()
 
 const mode = ref<'create' | 'join'>('create')
 const name = ref('')
@@ -46,8 +47,8 @@ async function create() {
   } catch (e) {
     toast.add({
       severity: 'error',
-      summary: 'Команда',
-      detail: e instanceof Error ? e.message : 'Ошибка',
+      summary: t('onboarding.teamToast'),
+      detail: e instanceof Error ? e.message : t('common.error'),
       life: 4000,
     })
   } finally {
@@ -64,8 +65,8 @@ async function join() {
   } catch (e) {
     toast.add({
       severity: 'error',
-      summary: 'Приглашение',
-      detail: e instanceof Error ? e.message : 'Ошибка',
+      summary: t('onboarding.inviteToast'),
+      detail: e instanceof Error ? e.message : t('common.error'),
       life: 4000,
     })
   } finally {
@@ -76,7 +77,7 @@ async function join() {
 
 <template>
   <div class="app-page">
-    <AppHeader title="Ваша команда" />
+    <AppHeader :title="t('onboarding.title')" />
 
     <input
       ref="focusProxy"
@@ -95,7 +96,7 @@ async function join() {
         :class="{ 'onboarding__tab--active': mode === 'create' }"
         @click="setMode('create')"
       >
-        Создать
+        {{ t('onboarding.tabCreate') }}
       </button>
       <button
         type="button"
@@ -103,27 +104,43 @@ async function join() {
         :class="{ 'onboarding__tab--active': mode === 'join' }"
         @click="setMode('join')"
       >
-        Присоединиться
+        {{ t('onboarding.tabJoin') }}
       </button>
     </div>
 
     <!-- v-show: keep both inputs mounted so focus handoff stays in the gesture chain -->
     <form v-show="mode === 'create'" class="onboarding__form" @submit.prevent="create">
       <label class="onboarding__field">
-        <span>Название команды</span>
-        <InputText ref="nameInput" v-model="name" class="w-full" placeholder="Worship Team" />
+        <span>{{ t('onboarding.teamNameLabel') }}</span>
+        <InputText
+          ref="nameInput"
+          v-model="name"
+          class="w-full"
+          :placeholder="t('onboarding.teamNamePlaceholder')"
+        />
       </label>
-      <Button type="submit" label="Создать" class="w-full" :loading="busy" :disabled="!name.trim()" />
+      <Button
+        type="submit"
+        :label="t('common.create')"
+        class="w-full"
+        :loading="busy"
+        :disabled="!name.trim()"
+      />
     </form>
 
     <form v-show="mode === 'join'" class="onboarding__form" @submit.prevent="join">
       <label class="onboarding__field">
-        <span>Код приглашения</span>
-        <InputText ref="inviteInput" v-model="inviteCode" class="w-full" placeholder="ABCD1234" />
+        <span>{{ t('onboarding.inviteCodeLabel') }}</span>
+        <InputText
+          ref="inviteInput"
+          v-model="inviteCode"
+          class="w-full"
+          :placeholder="t('onboarding.inviteCodePlaceholder')"
+        />
       </label>
       <Button
         type="submit"
-        label="Войти в команду"
+        :label="t('onboarding.joinSubmit')"
         class="w-full"
         :loading="busy"
         :disabled="!inviteCode.trim()"
@@ -149,21 +166,25 @@ async function join() {
 .onboarding__tabs {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--app-space-2);
+  gap: var(--app-space-1);
   padding: var(--app-space-1);
-  border-radius: var(--app-radius);
+  border-radius: var(--app-radius-pill);
   background: var(--app-surface);
-  border: 1px solid var(--app-border);
 }
 
 .onboarding__tab {
   min-height: 2.5rem;
   border: 0;
-  border-radius: var(--app-radius-sm);
+  border-radius: var(--app-radius-pill);
   background: transparent;
   color: var(--app-muted);
-  font-weight: 600;
+  font: inherit;
+  font-weight: 650;
+  letter-spacing: -0.01em;
   cursor: pointer;
+  transition:
+    background-color var(--app-duration) var(--app-ease),
+    color var(--app-duration) var(--app-ease);
 }
 
 .onboarding__tab--active {

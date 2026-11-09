@@ -4,10 +4,9 @@ import type { SetlistItemWithSong, SetlistWithItems, Song } from '~~/shared/type
 import { icons } from '~/utils/icons'
 import { soundingKey } from '~/utils/music/capo'
 
-useTelegramBackButton(true)
-
 const route = useRoute()
 const workspace = useWorkspaceStore()
+const { t, sessionTitle, locale } = useAppLocale()
 const {
   getSetlist,
   deleteSetlist,
@@ -37,7 +36,7 @@ async function load(opts?: { quiet?: boolean }) {
     setlist.value = await getSetlist(id.value)
     markSetlistsSynced()
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Не найдено'
+    error.value = e instanceof Error ? e.message : t('common.notFound')
   } finally {
     loading.value = false
   }
@@ -57,9 +56,16 @@ function songKeyLabel(item: SetlistItemWithSong) {
   return soundingKey(item.song.key, item.song.capo)
 }
 
+const DATE_LOCALE: Record<string, string> = {
+  ru: 'ru-RU',
+  ro: 'ro-RO',
+  en: 'en-GB',
+}
+
 function formatDate(iso: string) {
+  const tag = DATE_LOCALE[locale.value] ?? 'en-GB'
   try {
-    return new Intl.DateTimeFormat('ru-RU', {
+    return new Intl.DateTimeFormat(tag, {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
@@ -88,8 +94,8 @@ async function pickSong(song: Song) {
   } catch (e) {
     toast.add({
       severity: 'error',
-      summary: 'Ошибка',
-      detail: e instanceof Error ? e.message : 'Не удалось добавить',
+      summary: t('common.error'),
+      detail: e instanceof Error ? e.message : t('common.addFailed'),
       life: 4000,
     })
   } finally {
@@ -111,8 +117,8 @@ async function persistOrder(orderedIds: string[]) {
   } catch (e) {
     toast.add({
       severity: 'error',
-      summary: 'Ошибка',
-      detail: e instanceof Error ? e.message : 'Не удалось изменить порядок',
+      summary: t('common.error'),
+      detail: e instanceof Error ? e.message : t('setlist.reorderFailed'),
       life: 4000,
     })
     await load()
@@ -171,8 +177,8 @@ async function remove(item: SetlistItemWithSong) {
   } catch (e) {
     toast.add({
       severity: 'error',
-      summary: 'Ошибка',
-      detail: e instanceof Error ? e.message : 'Не удалось удалить',
+      summary: t('common.error'),
+      detail: e instanceof Error ? e.message : t('common.deleteFailed'),
       life: 4000,
     })
   }
@@ -180,9 +186,9 @@ async function remove(item: SetlistItemWithSong) {
 
 function confirmDelete() {
   requireDanger({
-    title: 'Удалить сет-лист?',
-    message: 'Песни останутся в библиотеке, сам сет-лист исчезнет.',
-    acceptLabel: 'Удалить',
+    title: t('setlist.deleteConfirmTitle'),
+    message: t('setlist.deleteConfirmMessage'),
+    acceptLabel: t('common.delete'),
     accept: async () => {
       try {
         await deleteSetlist(id.value)
@@ -190,8 +196,8 @@ function confirmDelete() {
       } catch (e) {
         toast.add({
           severity: 'error',
-          summary: 'Ошибка',
-          detail: e instanceof Error ? e.message : 'Не удалось удалить',
+          summary: t('common.error'),
+          detail: e instanceof Error ? e.message : t('common.deleteFailed'),
           life: 4000,
         })
       }
@@ -211,18 +217,17 @@ const availableSongs = computed(() => {
     <AppError v-else-if="error" :message="error" @retry="load" />
     <template v-else-if="setlist">
       <AppHeader
-        :title="setlist.title"
+        :title="sessionTitle(setlist.title)"
         :subtitle="formatDate(setlist.serviceDate)"
-        back-to="/setlists"
       />
 
       <AppEmptyState
         v-if="!setlist.items.length"
-        title="Песен пока нет"
-        description="Добавьте песни из библиотеки"
+        :title="t('setlist.emptySongsTitle')"
+        :description="t('setlist.emptySongsDesc')"
       />
 
-      <div v-else ref="listEl" class="setlist-items">
+      <div v-else ref="listEl" class="setlist-items app-panel">
         <article
           v-for="(item, index) in setlist.items"
           :key="item.id"
@@ -233,9 +238,9 @@ const availableSongs = computed(() => {
             v-if="workspace.canEditSetlists"
             type="button"
             class="setlist-item__handle"
-            aria-label="Перетащить"
+            :aria-label="t('setlist.ariaDrag')"
           >
-            <AppIcon :name="icons.grip" size="1.25rem" />
+            <AppIcon :name="icons.grip" size="1.15rem" />
           </button>
 
           <NuxtLink
@@ -248,7 +253,7 @@ const availableSongs = computed(() => {
             <span class="setlist-item__pos">{{ index + 1 }}</span>
             <span class="setlist-item__text">
               <span class="setlist-item__title">{{ item.song.title }}</span>
-              <span class="setlist-item__key">{{ songKeyLabel(item) }}</span>
+              <AppPill size="sm">{{ songKeyLabel(item) }}</AppPill>
             </span>
           </NuxtLink>
 
@@ -256,24 +261,24 @@ const availableSongs = computed(() => {
             v-if="workspace.canEditSetlists"
             type="button"
             class="setlist-item__remove"
-            aria-label="Убрать"
+            :aria-label="t('setlist.ariaRemove')"
             @click="remove(item)"
           >
-            <AppIcon :name="icons.close" size="1.25rem" />
+            <AppIcon :name="icons.close" size="1.1rem" />
           </button>
         </article>
       </div>
 
       <div v-if="workspace.canEditSetlists" class="setlist-footer">
         <Button
-          label="Добавить песню"
+          :label="t('setlist.addSong')"
           class="w-full"
           :loading="busy"
           @click="openPicker"
         />
-        <button type="button" class="setlist-footer__delete" @click="confirmDelete">
-          <AppIcon :name="icons.trash" size="1.1rem" />
-          Удалить сет-лист
+        <button type="button" class="setlist-footer__delete app-cta--danger" @click="confirmDelete">
+          <AppIcon :name="icons.trash" size="1.05rem" />
+          {{ t('setlist.deleteSetlist') }}
         </button>
       </div>
     </template>
@@ -281,11 +286,11 @@ const availableSongs = computed(() => {
     <Dialog
       v-model:visible="pickerVisible"
       modal
-      header="Библиотека"
+      :header="t('songs.library')"
       :style="{ width: 'min(24rem, 100%)' }"
       append-to=".app-shell"
     >
-      <AppEmptyState v-if="!availableSongs.length" title="Нечего добавлять" />
+      <AppEmptyState v-if="!availableSongs.length" :title="t('setlist.pickerEmpty')" />
       <AppSurfaceList v-else>
         <button
           v-for="song in availableSongs"
@@ -318,63 +323,78 @@ const availableSongs = computed(() => {
   gap: var(--app-space-2);
   width: 100%;
   min-height: var(--app-touch-min);
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius);
-  background: var(--app-surface);
-  color: var(--app-destructive);
+  border: 0;
+  border-radius: var(--app-radius-lg);
   font: inherit;
-  font-weight: 600;
+  font-weight: 650;
   cursor: pointer;
 }
 
 .setlist-items {
   display: flex;
   flex-direction: column;
-  gap: var(--app-space-2);
 }
 
 .setlist-item {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: var(--app-space-2);
-  min-height: 3.25rem;
-  padding: var(--app-space-2) var(--app-space-3);
-  border-radius: var(--app-radius);
-  background: var(--app-surface);
-  border: 1px solid var(--app-border);
+  gap: var(--app-space-1);
+  min-height: 3.5rem;
+  padding: 0.55rem var(--app-space-2) 0.55rem var(--app-space-1);
+  background: transparent;
   touch-action: none;
 }
 
+.setlist-item:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 2.75rem;
+  right: 0;
+  bottom: 0;
+  height: var(--app-hairline);
+  background: var(--app-border);
+}
+
 .setlist-item--ghost {
-  opacity: 0.45;
+  opacity: 0.4;
 }
 
 .setlist-item--chosen {
-  border-color: color-mix(in srgb, var(--app-accent) 45%, var(--app-border));
-  box-shadow: 0 8px 20px color-mix(in srgb, #000 18%, transparent);
+  background: var(--app-hover);
+  border-radius: var(--app-radius);
+  z-index: 1;
+}
+
+.setlist-item--chosen::after {
+  display: none;
 }
 
 .setlist-item--drag {
   opacity: 0.95;
+  box-shadow: var(--app-shadow-soft);
+  border-radius: var(--app-radius);
+  background: var(--app-surface);
 }
 
 .setlist-item__handle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 2.25rem;
+  height: 2.25rem;
   flex-shrink: 0;
   border: 0;
-  border-radius: var(--app-radius-sm);
+  border-radius: var(--app-radius-pill);
   background: transparent;
-  color: var(--app-muted);
+  color: var(--app-faint);
   cursor: grab;
   touch-action: none;
 }
 
 .setlist-item__handle:active {
   cursor: grabbing;
+  color: var(--app-muted);
 }
 
 .setlist-item__main {
@@ -385,71 +405,94 @@ const availableSongs = computed(() => {
   flex: 1;
   color: inherit;
   text-decoration: none;
+  padding-block: 0.2rem;
 }
 
 .setlist-item__pos {
   flex-shrink: 0;
-  width: 1.25rem;
+  width: 1.15rem;
   color: var(--app-muted);
   font-variant-numeric: tabular-nums;
-  font-weight: 600;
+  font-weight: 650;
   font-size: var(--app-text-sm);
 }
 
 .setlist-item__text {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  align-items: flex-start;
+  gap: 0.3rem;
   min-width: 0;
 }
 
 .setlist-item__title {
-  font-weight: 700;
+  font-weight: 650;
+  letter-spacing: -0.015em;
   color: var(--app-ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.setlist-item__key {
-  font-size: var(--app-text-sm);
-  font-weight: 600;
-  color: var(--app-accent-text);
+  max-width: 100%;
 }
 
 .setlist-item__remove {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 2.25rem;
+  height: 2.25rem;
   flex-shrink: 0;
   border: 0;
-  border-radius: var(--app-radius-sm);
+  border-radius: var(--app-radius-pill);
   background: transparent;
   color: var(--app-destructive);
+  opacity: 0.75;
   cursor: pointer;
 }
 
+.setlist-item__remove:active {
+  background: color-mix(in srgb, var(--app-destructive) 12%, transparent);
+  opacity: 1;
+}
+
 .picker-row {
+  position: relative;
   display: flex;
   width: 100%;
   align-items: center;
   justify-content: space-between;
   gap: var(--app-space-3);
-  min-height: var(--app-touch-min);
+  min-height: 3.25rem;
   padding: var(--app-space-3) var(--app-space-4);
   border: 0;
-  border-bottom: 1px solid var(--app-border);
-  background: var(--app-surface);
+  background: transparent;
   color: var(--app-ink);
   font: inherit;
   font-weight: 600;
+  letter-spacing: -0.01em;
   text-align: left;
   cursor: pointer;
 }
 
+.picker-row:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: var(--app-space-4);
+  right: 0;
+  bottom: 0;
+  height: var(--app-hairline);
+  background: var(--app-border);
+}
+
 .picker-row__key {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.35rem;
+  padding: 0 0.5rem;
+  border-radius: var(--app-radius-pill);
+  background: var(--app-accent-muted);
   color: var(--app-accent-text);
+  font-size: var(--app-text-xs);
+  font-weight: 700;
 }
 </style>

@@ -2,12 +2,14 @@
 defineProps<{
   label?: string
 }>()
+
+const { t } = useAppLocale()
 </script>
 
 <template>
   <div class="app-loading" role="status" aria-live="polite">
     <span class="app-loading__spinner" aria-hidden="true" />
-    <span class="app-loading__label">{{ label ?? 'Загрузка…' }}</span>
+    <span class="app-loading__label">{{ label ?? t('common.loading') }}</span>
   </div>
 </template>
 

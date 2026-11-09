@@ -15,14 +15,15 @@ type AppConfirmOptions = {
  */
 export function useAppConfirm() {
   const confirm = useConfirm()
+  const { t } = useAppLocale()
 
   function requireDanger(options: AppConfirmOptions) {
     const payload: ConfirmationOptions = {
       position: 'bottom',
       header: options.title,
       message: options.message,
-      acceptLabel: options.acceptLabel ?? 'Удалить',
-      rejectLabel: options.rejectLabel ?? 'Отмена',
+      acceptLabel: options.acceptLabel ?? t('common.delete'),
+      rejectLabel: options.rejectLabel ?? t('common.cancel'),
       defaultFocus: 'reject',
       blockScroll: true,
       appendTo: '.app-shell',

@@ -10,6 +10,7 @@ const CONSUMED_INVITE_KEY = 'worship-consumed-invite'
 export function useInviteShare() {
   const config = useRuntimeConfig()
   const telegram = useTelegramApp()
+  const { t } = useAppLocale()
 
   const botUsername = computed(() =>
     String(config.public.telegramBotUsername || '').replace(/^@/, '').trim(),
@@ -21,9 +22,7 @@ export function useInviteShare() {
 
   function shareMessage(teamName?: string | null): string {
     const name = teamName?.trim()
-    return name
-      ? `Присоединяйся к «${name}» в Worship`
-      : 'Присоединяйся к команде в Worship'
+    return t('invite.shareText', { name: name || t('members.title') })
   }
 
   /** Share via Telegram native sheet (Mini App) or t.me/share fallback. */

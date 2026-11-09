@@ -22,15 +22,16 @@ defineProps<{
   align-items: center;
   justify-content: center;
   gap: var(--app-space-2);
-  padding: var(--app-space-6) var(--app-space-4);
+  padding: var(--app-space-8) var(--app-space-4);
   text-align: center;
   color: var(--app-muted);
 }
 
 .app-empty__title {
   margin: 0;
-  font-size: var(--app-text-md);
-  font-weight: 600;
+  font-size: var(--app-text-lg);
+  font-weight: 650;
+  letter-spacing: -0.02em;
   color: var(--app-ink);
 }
 

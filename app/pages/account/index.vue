@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { MEMBER_ROLE_LABELS } from '~~/shared/types'
+import type { MemberRole } from '~~/shared/types'
 import { icons } from '~/utils/icons'
 
 const auth = useAuthStore()
@@ -9,22 +9,35 @@ const toast = useToast()
 const { requireDanger } = useAppConfirm()
 const { t } = useAppLocale()
 
+const unlinkedLabel = computed(() => t('account.unlinked'))
+
 const emailLabel = computed(() => {
   if (!auth.user) return '—'
-  if (auth.user.pendingEmail) return `${auth.user.pendingEmail} (ожидает подтверждения)`
+  if (auth.user.pendingEmail) {
+    return `${auth.user.pendingEmail} ${t('account.emailPendingSuffix')}`
+  }
   if (auth.user.hasRealEmail && auth.user.email) return auth.user.email
-  return 'Не привязан'
+  return unlinkedLabel.value
 })
 
 const telegramLabel = computed(() => {
-  if (!auth.user?.telegramId) return 'Не привязан'
+  if (!auth.user?.telegramId) return unlinkedLabel.value
   if (auth.user.username) return `@${auth.user.username}`
   return `ID ${auth.user.telegramId}`
 })
 
+function localizedRoleLabel(member: {
+  role: MemberRole
+  roleTitle?: string | null
+}) {
+  const title = member.roleTitle?.trim()
+  if (title) return title
+  return t(`members.role.${member.role}`)
+}
+
 const teamSubtitle = computed(() => {
-  if (!workspace.workspace || !workspace.membership) return 'Нет команды'
-  const role = MEMBER_ROLE_LABELS[workspace.membership.role]
+  if (!workspace.workspace || !workspace.membership) return t('account.noTeam')
+  const role = localizedRoleLabel(workspace.membership)
   return `${workspace.workspace.name} · ${role}`
 })
 
@@ -42,30 +55,30 @@ const avatarInitials = computed(() => {
 
 const rolePill = computed(() => {
   if (!workspace.membership) return null
-  return MEMBER_ROLE_LABELS[workspace.membership.role]
+  return localizedRoleLabel(workspace.membership)
 })
 
 function confirmLeaveTeam() {
-  const name = workspace.workspace?.name ?? 'команду'
+  const name = workspace.workspace?.name ?? t('account.team')
   requireDanger({
-    title: `Выйти из «${name}»?`,
-    message: 'Песни и сет-листы останутся у других участников.',
-    acceptLabel: 'Выйти из команды',
+    title: t('account.leaveTeamConfirmTitle', { name }),
+    message: t('account.leaveTeamConfirmMessage'),
+    acceptLabel: t('account.leaveTeamAccept'),
     accept: async () => {
       try {
         const result = await workspace.leaveWorkspace()
         toast.add({
           severity: 'success',
-          summary: 'Готово',
-          detail: result.hasWorkspace ? 'Переключились на другую команду' : 'Вы вышли из команды',
+          summary: t('common.done'),
+          detail: result.hasWorkspace ? t('account.switchedTeam') : t('account.leftTeam'),
           life: 2500,
         })
         await navigateTo(result.hasWorkspace ? '/' : '/onboarding')
       } catch (e) {
         toast.add({
           severity: 'error',
-          summary: 'Команда',
-          detail: e instanceof Error ? e.message : 'Ошибка',
+          summary: t('account.team'),
+          detail: e instanceof Error ? e.message : t('common.error'),
           life: 4000,
         })
       }
@@ -75,9 +88,9 @@ function confirmLeaveTeam() {
 
 function confirmSignOut() {
   requireDanger({
-    title: 'Выйти из аккаунта?',
-    message: 'Сессия на этом устройстве будет завершена.',
-    acceptLabel: 'Выйти',
+    title: t('account.signOutConfirmTitle'),
+    message: t('account.signOutConfirmMessage'),
+    acceptLabel: t('account.signOutAccept'),
     accept: async () => {
       try {
         await auth.signOut()
@@ -85,8 +98,8 @@ function confirmSignOut() {
       } catch (e) {
         toast.add({
           severity: 'error',
-          summary: 'Выход',
-          detail: e instanceof Error ? e.message : 'Ошибка',
+          summary: t('account.signOut'),
+          detail: e instanceof Error ? e.message : t('common.error'),
           life: 4000,
         })
       }
@@ -99,7 +112,7 @@ function confirmSignOut() {
   <div class="app-page">
     <AppHeader :title="t('account.title')" />
 
-    <section class="account-hero">
+    <section class="account-hero app-panel app-panel--accent">
       <div class="account-hero__avatar" aria-hidden="true">
         <img
           v-if="photoUrl"
@@ -113,22 +126,19 @@ function confirmSignOut() {
       <div class="account-hero__body">
         <p class="account-hero__name">{{ auth.displayLabel }}</p>
         <p class="account-hero__meta">{{ emailLabel }}</p>
-        <div v-if="rolePill || telegramLabel !== 'Не привязан'" class="account-hero__pills">
-          <span v-if="rolePill" class="account-hero__pill">{{ rolePill }}</span>
-          <span
-            v-if="telegramLabel !== 'Не привязан'"
-            class="account-hero__pill account-hero__pill--muted"
-          >
+        <div v-if="rolePill || telegramLabel !== unlinkedLabel" class="account-hero__pills">
+          <AppPill v-if="rolePill">{{ rolePill }}</AppPill>
+          <AppPill v-if="telegramLabel !== unlinkedLabel" tone="muted">
             {{ telegramLabel }}
-          </span>
+          </AppPill>
         </div>
       </div>
     </section>
 
     <AppSurfaceList>
       <AppListRow :title="t('account.team')" :subtitle="teamSubtitle" to="/members" chevron />
-      <AppListRow title="Email" :subtitle="emailLabel" />
-      <AppListRow title="Telegram" :subtitle="telegramLabel" />
+      <AppListRow :title="t('settings.email')" :subtitle="emailLabel" />
+      <AppListRow :title="t('settings.telegram')" :subtitle="telegramLabel" />
       <AppListRow
         :title="t('account.settings')"
         :subtitle="t('account.settingsSubtitle')"
@@ -145,7 +155,7 @@ function confirmSignOut() {
         @click="confirmLeaveTeam"
       >
         <AppIcon :name="icons.users" class="account-action__icon" />
-        Выйти из команды
+        {{ t('account.leaveTeam') }}
       </button>
 
       <button
@@ -154,7 +164,7 @@ function confirmSignOut() {
         @click="confirmSignOut"
       >
         <AppIcon :name="icons.close" class="account-action__icon" />
-        Выйти из аккаунта
+        {{ t('account.signOut') }}
       </button>
     </div>
   </div>
@@ -166,21 +176,17 @@ function confirmSignOut() {
   align-items: center;
   gap: var(--app-space-4);
   padding: var(--app-space-5);
-  border-radius: var(--app-radius);
-  background: var(--app-surface);
-  border: 1px solid var(--app-border);
-  border-left: 3px solid var(--app-accent);
 }
 
 .account-hero__avatar {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 3.5rem;
-  height: 3.5rem;
+  width: 3.75rem;
+  height: 3.75rem;
   flex-shrink: 0;
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: var(--app-radius-pill);
   background: var(--app-accent-muted);
   color: var(--app-accent-text);
   font-size: var(--app-text-md);
@@ -204,9 +210,9 @@ function confirmSignOut() {
 
 .account-hero__name {
   margin: 0;
-  font-size: var(--app-text-lg);
+  font-size: var(--app-text-xl);
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
   color: var(--app-ink);
   white-space: nowrap;
   overflow: hidden;
@@ -227,23 +233,6 @@ function confirmSignOut() {
   margin-top: var(--app-space-1);
 }
 
-.account-hero__pill {
-  display: inline-flex;
-  align-items: center;
-  min-height: 1.5rem;
-  padding: 0 0.55rem;
-  border-radius: 999px;
-  background: var(--app-accent-muted);
-  color: var(--app-accent-text);
-  font-size: var(--app-text-xs);
-  font-weight: 700;
-}
-
-.account-hero__pill--muted {
-  background: var(--app-hover);
-  color: var(--app-muted);
-}
-
 .account-actions {
   display: flex;
   flex-direction: column;
@@ -259,27 +248,27 @@ function confirmSignOut() {
   gap: var(--app-space-2);
   min-height: var(--app-touch-min);
   width: 100%;
-  border-radius: var(--app-radius);
+  border: 0;
+  border-radius: var(--app-radius-lg);
   font: inherit;
-  font-weight: 600;
+  font-weight: 650;
   font-size: var(--app-text-md);
+  letter-spacing: -0.01em;
   cursor: pointer;
 }
 
 .account-action__icon {
-  width: 1.15rem;
-  height: 1.15rem;
+  width: 1.1rem;
+  height: 1.1rem;
 }
 
 .account-action--leave {
-  border: 1px solid var(--app-border);
   background: var(--app-surface);
   color: var(--app-ink);
 }
 
 .account-action--signout {
-  border: 1px solid color-mix(in srgb, var(--app-destructive) 35%, var(--app-border));
-  background: color-mix(in srgb, var(--app-destructive) 14%, var(--app-surface));
+  background: color-mix(in srgb, var(--app-destructive) 12%, var(--app-surface));
   color: var(--app-destructive);
 }
 </style>

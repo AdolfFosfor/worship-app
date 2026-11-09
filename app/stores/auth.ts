@@ -33,13 +33,14 @@ function mapUser(user: User | null): AppAuthUser | null {
 
 /** Name used in team lists / join / create. */
 export function resolveAuthDisplayName(user: AppAuthUser | null | undefined): string {
-  if (!user) return 'Участник'
+  // Fallback is intentional English key-neutral label; UI should prefer t('members.guestName')
+  if (!user) return 'Member'
   if (user.displayName?.trim()) return user.displayName.trim()
   const fromTelegram = [user.firstName, user.lastName].filter(Boolean).join(' ').trim()
   if (fromTelegram) return fromTelegram
   if (user.username?.trim()) return user.username.trim()
   if (user.hasRealEmail && user.email) return user.email
-  return 'Участник'
+  return 'Member'
 }
 
 export const useAuthStore = defineStore('auth', () => {

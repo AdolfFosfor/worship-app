@@ -64,7 +64,7 @@ async function submitDisplayName() {
       life: 2500,
     })
   } catch (e) {
-    const detail = authErrorMessage(e, 'Не удалось сохранить имя')
+    const detail = authErrorMessage(e, 'settings.errorSaveName')
     lastError.value = detail
     toast.add({
       severity: 'error',
@@ -91,7 +91,7 @@ async function submitEmail() {
       life: 5000,
     })
   } catch (e) {
-    const detail = authErrorMessage(e, 'Не удалось привязать email')
+    const detail = authErrorMessage(e, 'settings.errorBindEmail')
     lastError.value = detail
     toast.add({
       severity: 'error',
@@ -126,7 +126,7 @@ async function submitTelegram() {
       life: 5000,
     })
   } catch (e) {
-    const detail = authErrorMessage(e, 'Не удалось привязать Telegram')
+    const detail = authErrorMessage(e, 'settings.errorBindTelegram')
     lastError.value = detail
     toast.add({
       severity: 'error',
@@ -142,13 +142,13 @@ async function submitTelegram() {
 
 <template>
   <div class="app-page">
-    <AppHeader :title="t('settings.title')" show-back back-to="/account" />
+    <AppHeader :title="t('settings.title')" />
 
     <p class="settings-lead">
       {{ t('settings.lead') }}
     </p>
 
-    <section class="settings-block">
+    <section class="settings-block app-panel">
       <h2 class="settings-block__title">{{ t('settings.displayName') }}</h2>
       <form class="settings-form" @submit.prevent="submitDisplayName">
         <label class="settings-field">
@@ -156,7 +156,7 @@ async function submitTelegram() {
           <InputText
             v-model="displayNameInput"
             class="w-full"
-            placeholder="Иван Иванов"
+            :placeholder="t('settings.displayNamePlaceholder')"
             maxlength="80"
             autocomplete="nickname"
           />
@@ -172,7 +172,7 @@ async function submitTelegram() {
       </form>
     </section>
 
-    <section class="settings-block">
+    <section class="settings-block app-panel">
       <h2 class="settings-block__title">{{ t('settings.email') }}</h2>
       <template v-if="auth.user?.pendingEmail">
         <p class="settings-block__status">
@@ -192,7 +192,7 @@ async function submitTelegram() {
             v-model="emailInput"
             type="email"
             class="w-full"
-            placeholder="you@church.org"
+            :placeholder="t('settings.emailPlaceholder')"
             autocomplete="email"
           />
         </label>
@@ -210,7 +210,7 @@ async function submitTelegram() {
       <p v-if="lastError" class="settings-block__error">{{ lastError }}</p>
     </section>
 
-    <section class="settings-block">
+    <section class="settings-block app-panel">
       <h2 class="settings-block__title">{{ t('settings.telegram') }}</h2>
       <template v-if="auth.user?.telegramId">
         <p class="settings-block__status">
@@ -238,7 +238,7 @@ async function submitTelegram() {
       </template>
     </section>
 
-    <section class="settings-block">
+    <section class="settings-block app-panel">
       <h2 class="settings-block__title">{{ t('settings.language') }}</h2>
       <Select
         :model-value="locale"
@@ -266,16 +266,13 @@ async function submitTelegram() {
   flex-direction: column;
   gap: var(--app-space-3);
   padding: var(--app-space-4);
-  border-radius: var(--app-radius);
-  background: var(--app-surface);
-  border: 1px solid var(--app-border);
 }
 
 .settings-block__title {
   margin: 0;
-  font-size: var(--app-text-sm);
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-size: var(--app-text-xs);
+  font-weight: 650;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
   color: var(--app-section-header);
 }

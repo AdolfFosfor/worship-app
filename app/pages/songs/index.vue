@@ -3,7 +3,9 @@ import { icons } from '~/utils/icons'
 import { soundingKey } from '~/utils/music/capo'
 
 const workspace = useWorkspaceStore()
+const { t } = useAppLocale()
 const { songs, loading, error, fetchSongs } = useSongs()
+const { syncSongsOnActivate } = useSongsRevision()
 
 function songMeta(song: { key: string; capo: number }) {
   return soundingKey(song.key, song.capo)
@@ -18,16 +20,27 @@ watch(query, () => {
   void debouncedSearch()
 })
 
+async function load() {
+  try {
+    await fetchSongs(query.value)
+    markSongsSynced()
+  } catch {
+    /* ошибка уже в composable */
+  }
+}
+
+const { markSongsSynced } = syncSongsOnActivate(load)
+
 onMounted(() => {
-  void fetchSongs()
+  void load()
 })
 </script>
 
 <template>
   <div class="app-page">
-    <AppHeader title="Песни">
+    <AppHeader :title="t('songs.title')">
       <template v-if="workspace.canEditSongs" #trailing>
-        <NuxtLink to="/songs/new" class="app-header-action" aria-label="Добавить песню">
+        <NuxtLink to="/songs/new" class="app-header-action" :aria-label="t('songs.ariaAdd')">
           <AppIcon :name="icons.add" />
         </NuxtLink>
       </template>
@@ -35,18 +48,22 @@ onMounted(() => {
 
     <div class="songs-search">
       <AppIcon :name="icons.search" class="songs-search__icon" />
-      <InputText v-model="query" class="w-full" placeholder="Поиск" />
+      <InputText
+        v-model="query"
+        class="w-full songs-search__input"
+        :placeholder="t('songs.searchPlaceholder')"
+      />
     </div>
 
     <AppLoading v-if="loading && !songs.length" />
     <AppError v-else-if="error" :message="error" @retry="fetchSongs(query)" />
     <AppEmptyState
       v-else-if="!songs.length"
-      title="Библиотека пуста"
-      description="Добавьте первую песню команды"
+      :title="t('songs.emptyTitle')"
+      :description="t('songs.emptyDesc')"
     >
       <template v-if="workspace.canEditSongs" #action>
-        <NuxtLink to="/songs/new" class="songs-cta">Добавить</NuxtLink>
+        <NuxtLink to="/songs/new" class="app-cta">{{ t('common.add') }}</NuxtLink>
       </template>
     </AppEmptyState>
     <AppSurfaceList v-else>
@@ -70,33 +87,23 @@ onMounted(() => {
 
 .songs-search__icon {
   position: absolute;
-  left: 0.95rem;
+  left: 0.9rem;
   top: 50%;
   z-index: 1;
-  width: 1.25rem;
-  height: 1.25rem;
+  width: 1.1rem;
+  height: 1.1rem;
   transform: translateY(-50%);
   color: var(--app-muted);
   pointer-events: none;
 }
 
+.songs-search :deep(.songs-search__input),
 .songs-search :deep(input) {
-  min-height: 3.25rem;
-  padding-left: 2.75rem;
-  padding-block: 0.85rem;
-  border-radius: var(--app-radius);
-}
-
-.songs-cta {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 2.5rem;
-  padding: 0 1rem;
-  border-radius: var(--app-radius-sm);
-  background: var(--app-accent);
-  color: var(--app-accent-contrast);
-  font-weight: 600;
-  text-decoration: none;
+  min-height: 2.75rem;
+  padding-left: 2.5rem;
+  padding-block: 0.7rem;
+  border-radius: var(--app-radius-pill) !important;
+  border: 1px solid var(--app-border) !important;
+  background: var(--app-surface) !important;
 }
 </style>

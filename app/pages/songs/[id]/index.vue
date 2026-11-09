@@ -2,13 +2,21 @@
 import type { Setlist, Song } from '~~/shared/types'
 import { icons } from '~/utils/icons'
 import { clampCapo, soundingKey } from '~/utils/music/capo'
+import { transposeChart } from '~/utils/music/chart'
 import { keyDistance, transposeKeyLabel } from '~/utils/music/keys'
 import { transposeText } from '~/utils/music/transpose'
+import { localTodayKey } from '~/utils/dates'
 import { safeInternalPath } from '~/utils/safeInternalPath'
 
 const route = useRoute()
 const workspace = useWorkspaceStore()
+const { t, sessionTitle, locale } = useAppLocale()
+
+const dateLocaleTag = computed(
+  () => ({ ru: 'ru-RU', ro: 'ro-RO', en: 'en-GB' })[locale.value] ?? 'en-GB',
+)
 const { getSong, deleteSong } = useSongs()
+const { syncSongsOnActivate } = useSongsRevision()
 const { fetchSetlists, songInSetlist, addSongToSetlist } = useSetlists()
 const toast = useToast()
 const { requireDanger } = useAppConfirm()
@@ -27,13 +35,18 @@ const viewSounding = ref('C')
 const viewCapo = ref(0)
 /** Capo controls hidden by default — open via the round button. */
 const capoOpen = ref(false)
+const stageFullscreen = ref(false)
 
 const id = computed(() => String(route.params.id))
 const backTo = computed(() => safeInternalPath(route.query.from, '/songs'))
 const showAddToSetlist = computed(() => workspace.canEditSetlists)
 const showSongManage = computed(() => workspace.canEditSongs)
 
-useTelegramBackButton(true, backTo)
+const capoToggleAria = computed(() =>
+  capoBadge.value
+    ? t('capo.ariaWithFret', { n: capoBadge.value })
+    : t('song.fieldCapo'),
+)
 
 const originalSounding = computed(() =>
   song.value ? soundingKey(song.value.key, song.value.capo) : '',
@@ -60,6 +73,12 @@ const displayChords = computed(() =>
   transposeText(song.value?.chords, semitones.value),
 )
 
+const displayChart = computed(() => {
+  const chart = song.value?.chordChart
+  if (!chart) return null
+  return transposeChart(chart, semitones.value)
+})
+
 function syncViewFromSong(next: Song) {
   const keyFromQuery = typeof route.query.key === 'string' ? route.query.key : null
   capoOpen.value = false
@@ -78,7 +97,7 @@ function toggleCapoPanel() {
 
 function formatSetlistDate(iso: string) {
   try {
-    return new Intl.DateTimeFormat('ru-RU', {
+    return new Intl.DateTimeFormat(dateLocaleTag.value, {
       weekday: 'short',
       day: 'numeric',
       month: 'short',
@@ -88,26 +107,30 @@ function formatSetlistDate(iso: string) {
   }
 }
 
-async function load() {
-  loading.value = true
+async function load(opts?: { quiet?: boolean }) {
+  if (!opts?.quiet) loading.value = true
   error.value = null
   try {
     song.value = await getSong(id.value)
     syncViewFromSong(song.value)
+    markSongsSynced()
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Песня не найдена'
+    error.value = e instanceof Error ? e.message : t('songs.notFound')
   } finally {
     loading.value = false
   }
 }
 
-onMounted(load)
+const { markSongsSynced } = syncSongsOnActivate(() => load({ quiet: true }))
+onMounted(() => {
+  void load()
+})
 
 async function openSetlistPicker() {
   pickerVisible.value = true
   pickerLoading.value = true
   try {
-    const today = new Date().toISOString().slice(0, 10)
+    const today = localTodayKey()
     const all = await fetchSetlists()
     upcomingSetlists.value = all
       .filter((s) => s.serviceDate >= today)
@@ -117,8 +140,8 @@ async function openSetlistPicker() {
     pickerVisible.value = false
     toast.add({
       severity: 'error',
-      summary: 'Ошибка',
-      detail: e instanceof Error ? e.message : 'Не удалось загрузить сет-листы',
+      summary: t('common.error'),
+      detail: e instanceof Error ? e.message : t('setlists.loadFailed'),
       life: 4000,
     })
   } finally {
@@ -133,8 +156,8 @@ async function addToSetlist(setlist: Setlist) {
     if (await songInSetlist(setlist.id, song.value.id)) {
       toast.add({
         severity: 'info',
-        summary: 'Уже в сет-листе',
-        detail: setlist.title,
+        summary: t('setlist.alreadyIn'),
+        detail: sessionTitle(setlist.title),
         life: 2500,
       })
       pickerVisible.value = false
@@ -147,15 +170,15 @@ async function addToSetlist(setlist: Setlist) {
     pickerVisible.value = false
     toast.add({
       severity: 'success',
-      summary: 'Добавлено',
-      detail: setlist.title,
+      summary: t('setlist.added'),
+      detail: sessionTitle(setlist.title),
       life: 2500,
     })
   } catch (e) {
     toast.add({
       severity: 'error',
-      summary: 'Ошибка',
-      detail: e instanceof Error ? e.message : 'Не удалось добавить',
+      summary: t('common.error'),
+      detail: e instanceof Error ? e.message : t('common.addFailed'),
       life: 4000,
     })
   } finally {
@@ -165,19 +188,19 @@ async function addToSetlist(setlist: Setlist) {
 
 function confirmDelete() {
   requireDanger({
-    title: 'Удалить песню?',
-    message: 'Песня исчезнет из библиотеки и из всех сет-листов.',
-    acceptLabel: 'Удалить',
+    title: t('songs.deleteConfirmTitle'),
+    message: t('songs.deleteConfirmMessage'),
+    acceptLabel: t('common.delete'),
     accept: async () => {
       try {
         await deleteSong(id.value)
-        toast.add({ severity: 'success', summary: 'Удалено', life: 2000 })
+        toast.add({ severity: 'success', summary: t('common.deleted'), life: 2000 })
         await navigateTo(backTo.value.startsWith('/setlists/') ? '/songs' : backTo.value)
       } catch (e) {
         toast.add({
           severity: 'error',
-          summary: 'Ошибка',
-          detail: e instanceof Error ? e.message : 'Не удалось удалить',
+          summary: t('common.error'),
+          detail: e instanceof Error ? e.message : t('common.deleteFailed'),
           life: 4000,
         })
       }
@@ -191,59 +214,64 @@ function confirmDelete() {
     <AppLoading v-if="loading" />
     <AppError v-else-if="error" :message="error" @retry="load" />
     <template v-else-if="song">
-      <AppHeader :title="song.title" :back-to="backTo">
+      <AppHeader :title="song.title">
         <template v-if="showAddToSetlist" #trailing>
           <button
             type="button"
-            class="song-view__hdr-btn"
-            aria-label="В сет-лист"
+            class="app-header-action app-header-action--chip"
+            :aria-label="t('songs.ariaAddToSetlist')"
             @click="openSetlistPicker"
           >
-            <AppIcon :name="icons.playlist" size="1.35rem" />
-            <span>В сет</span>
+            <AppIcon :name="icons.playlist" />
+            <span>{{ t('songs.addToSetShort') }}</span>
           </button>
         </template>
       </AppHeader>
 
-      <section class="song-view__panel">
+      <section class="song-view__panel app-panel">
         <div class="song-view__row song-view__row--head">
           <div class="song-view__copy">
-            <span class="song-view__label">Оригинал</span>
+            <span class="song-view__label">{{ t('songs.originalKey') }}</span>
             <p class="song-view__original">{{ originalSounding }}</p>
           </div>
           <button
             type="button"
             class="song-view__capo-btn"
             :class="{ 'song-view__capo-btn--open': capoOpen }"
-            :aria-label="capoBadge ? `Капо ${capoBadge}` : 'Капо'"
+            :aria-label="capoToggleAria"
             :aria-expanded="capoOpen"
             @click="toggleCapoPanel"
           >
-            <AppIcon :name="icons.capo" class="song-view__capo-btn-icon" size="1.35rem" />
+            <AppIcon :name="icons.capo" class="song-view__capo-btn-icon" size="1.25rem" />
             <span v-if="capoBadge" class="song-view__capo-badge">{{ capoBadge }}</span>
           </button>
         </div>
 
         <div v-if="capoOpen" class="song-view__capo-panel">
           <div class="song-view__row song-view__row--controls">
-            <span class="song-view__label">Капо</span>
+            <span class="song-view__label">{{ t('song.fieldCapo') }}</span>
             <CapoStepper v-model="viewCapo" />
           </div>
           <p v-if="viewCapo > 0" class="song-view__shapes">
-            Формы на грифе: <strong>{{ viewShapeKey }}</strong>
+            {{ t('songs.shapesOnFretboard') }} <strong>{{ viewShapeKey }}</strong>
           </p>
         </div>
       </section>
 
-      <section v-if="displayChords" class="song-view__section">
-        <h2 class="song-view__section-title">Аккорды</h2>
+      <AppSection v-if="displayChart" :title="t('song.fieldChords')">
+        <ChordStageView
+          :chart="displayChart"
+          :fullscreen="stageFullscreen"
+          @update:fullscreen="stageFullscreen = $event"
+        />
+      </AppSection>
+      <AppSection v-else-if="displayChords" :title="t('song.fieldChords')">
         <ChordSheet :text="displayChords" />
-      </section>
+      </AppSection>
 
-      <section v-if="song.lyrics" class="song-view__section">
-        <h2 class="song-view__section-title">Текст</h2>
+      <AppSection v-if="song.lyrics" :title="t('song.extraLyrics')">
         <ChordSheet :text="song.lyrics" />
-      </section>
+      </AppSection>
 
       <a
         v-if="song.youtubeUrl"
@@ -252,37 +280,47 @@ function confirmDelete() {
         target="_blank"
         rel="noopener noreferrer"
       >
-        <AppIcon :name="icons.youtube" size="1.15rem" />
-        Смотреть на YouTube
+        <span class="song-view__yt-mark" aria-hidden="true">
+          <svg class="song-view__yt-logo" viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M23.5 6.2a3.05 3.05 0 0 0-2.14-2.16C19.4 3.5 12 3.5 12 3.5s-7.4 0-9.36.54A3.05 3.05 0 0 0 .5 6.2 32.1 32.1 0 0 0 0 12a32.1 32.1 0 0 0 .5 5.8 3.05 3.05 0 0 0 2.14 2.16C4.6 20.5 12 20.5 12 20.5s7.4 0 9.36-.54a3.05 3.05 0 0 0 2.14-2.16A32.1 32.1 0 0 0 24 12a32.1 32.1 0 0 0-.5-5.8ZM9.75 15.5v-7L16 12l-6.25 3.5Z"
+            />
+          </svg>
+        </span>
+        <span class="song-view__yt-copy">
+          <span class="song-view__yt-title">{{ t('song.extraYoutube') }}</span>
+          <span class="song-view__yt-sub">{{ t('songs.openVideo') }}</span>
+        </span>
+        <AppIcon :name="icons.chevronRight" class="song-view__yt-chevron" size="1.05rem" />
       </a>
 
       <div v-if="showSongManage" class="song-view__footer">
         <NuxtLink :to="`/songs/${song.id}/edit`" class="song-view__edit">
-          <AppIcon :name="icons.edit" size="1.1rem" />
-          Редактировать
+          <AppIcon :name="icons.edit" size="1.05rem" />
+          {{ t('common.edit') }}
         </NuxtLink>
         <button type="button" class="song-view__delete" @click="confirmDelete">
-          <AppIcon :name="icons.trash" size="1.1rem" />
-          Удалить песню
+          <AppIcon :name="icons.trash" size="1.05rem" />
+          {{ t('songs.deleteSong') }}
         </button>
       </div>
 
       <Dialog
         v-model:visible="pickerVisible"
         modal
-        header="В сет-лист"
+        :header="t('songs.addToSetlistDialog')"
         :style="{ width: 'min(24rem, 100%)' }"
         append-to=".app-shell"
       >
         <AppLoading v-if="pickerLoading" />
         <AppEmptyState
           v-else-if="!upcomingSetlists.length"
-          title="Нет предстоящих"
-          description="Создайте сет-лист на ближайшую дату"
+          :title="t('songs.noUpcomingSetlists')"
+          :description="t('songs.noUpcomingHint')"
         >
           <template #action>
             <NuxtLink to="/setlists/new" class="song-view__picker-cta" @click="pickerVisible = false">
-              Создать
+              {{ t('common.create') }}
             </NuxtLink>
           </template>
         </AppEmptyState>
@@ -295,7 +333,7 @@ function confirmDelete() {
             :disabled="pickerBusy"
             @click="addToSetlist(item)"
           >
-            <span class="song-view__picker-title">{{ item.title }}</span>
+            <span class="song-view__picker-title">{{ sessionTitle(item.title) }}</span>
             <span class="song-view__picker-date">{{ formatSetlistDate(item.serviceDate) }}</span>
           </button>
         </AppSurfaceList>
@@ -305,34 +343,11 @@ function confirmDelete() {
 </template>
 
 <style scoped>
-.song-view__hdr-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.35rem;
-  min-width: 2.75rem;
-  min-height: 2.5rem;
-  padding: 0 0.75rem;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-sm);
-  background: var(--app-surface);
-  color: var(--app-accent-text);
-  font: inherit;
-  font-size: var(--app-text-sm);
-  font-weight: 700;
-  text-decoration: none;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
 .song-view__panel {
   display: flex;
   flex-direction: column;
   gap: var(--app-space-3);
   padding: var(--app-space-4);
-  border-radius: var(--app-radius);
-  background: var(--app-surface);
-  border: 1px solid var(--app-border);
 }
 
 .song-view__row {
@@ -361,17 +376,17 @@ function confirmDelete() {
 
 .song-view__label {
   font-size: var(--app-text-xs);
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  font-weight: 650;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
   color: var(--app-section-header);
 }
 
 .song-view__original {
   margin: 0;
-  font-size: var(--app-text-xl);
+  font-size: var(--app-text-2xl);
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
   color: var(--app-ink);
 }
 
@@ -383,16 +398,22 @@ function confirmDelete() {
   width: 2.75rem;
   height: 2.75rem;
   flex-shrink: 0;
-  border: 1px solid var(--app-border);
-  border-radius: 999px;
-  background: var(--app-bg);
+  border: 0;
+  border-radius: var(--app-radius-pill);
+  background: var(--app-hover);
   color: var(--app-accent-text);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color var(--app-duration) var(--app-ease),
+    transform var(--app-duration) var(--app-ease);
+}
+
+.song-view__capo-btn:active {
+  transform: scale(0.94);
 }
 
 .song-view__capo-btn--open {
-  border-color: var(--app-accent);
   background: var(--app-accent-muted);
 }
 
@@ -424,7 +445,7 @@ function confirmDelete() {
   flex-direction: column;
   gap: var(--app-space-3);
   padding-top: var(--app-space-4);
-  border-top: 1px solid var(--app-border);
+  border-top: var(--app-hairline) solid var(--app-border);
 }
 
 .song-view__shapes {
@@ -438,29 +459,73 @@ function confirmDelete() {
   font-weight: 700;
 }
 
-.song-view__section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-2);
-}
-
-.song-view__section-title {
-  margin: 0;
-  font-size: var(--app-text-xs);
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--app-section-header);
-}
-
 .song-view__yt {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-3);
+  width: 100%;
+  min-height: 3.5rem;
+  padding: var(--app-space-3) var(--app-space-4);
+  border-radius: var(--app-radius-lg);
+  background: var(--app-surface);
+  color: var(--app-ink);
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color var(--app-duration) var(--app-ease),
+    transform var(--app-duration) var(--app-ease);
+}
+
+.song-view__yt:active {
+  background: var(--app-press);
+  transform: scale(0.99);
+}
+
+.song-view__yt-mark {
   display: inline-flex;
   align-items: center;
-  gap: var(--app-space-2);
-  min-height: var(--app-touch-min);
-  color: var(--app-link);
-  font-weight: 600;
-  text-decoration: none;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex-shrink: 0;
+  border-radius: var(--app-radius-sm);
+  background: #ff0033;
+  color: #fff;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #000 8%, transparent);
+}
+
+.song-view__yt-logo {
+  display: block;
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
+.song-view__yt-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.song-view__yt-title {
+  font-size: var(--app-text-md);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.song-view__yt-sub {
+  font-size: var(--app-text-xs);
+  font-weight: 550;
+  color: var(--app-muted);
+  line-height: 1.3;
+}
+
+.song-view__yt-chevron {
+  flex-shrink: 0;
+  color: var(--app-muted);
+  opacity: 0.55;
 }
 
 .song-view__footer {
@@ -479,11 +544,11 @@ function confirmDelete() {
   gap: var(--app-space-2);
   width: 100%;
   min-height: var(--app-touch-min);
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius);
+  border: 0;
+  border-radius: var(--app-radius-lg);
   background: var(--app-surface);
   font: inherit;
-  font-weight: 600;
+  font-weight: 650;
   text-decoration: none;
   cursor: pointer;
 }
@@ -493,24 +558,35 @@ function confirmDelete() {
 }
 
 .song-view__delete {
+  background: color-mix(in srgb, var(--app-destructive) 12%, var(--app-surface));
   color: var(--app-destructive);
 }
 
 .song-view__picker-row {
+  position: relative;
   display: flex;
   width: 100%;
   align-items: center;
   justify-content: space-between;
   gap: var(--app-space-3);
-  min-height: var(--app-touch-min);
+  min-height: 3.25rem;
   padding: var(--app-space-3) var(--app-space-4);
   border: 0;
-  border-bottom: 1px solid var(--app-border);
-  background: var(--app-surface);
+  background: transparent;
   color: var(--app-ink);
   font: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+.song-view__picker-row:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: var(--app-space-4);
+  right: 0;
+  bottom: 0;
+  height: var(--app-hairline);
+  background: var(--app-border);
 }
 
 .song-view__picker-row:disabled {
@@ -519,7 +595,8 @@ function confirmDelete() {
 }
 
 .song-view__picker-title {
-  font-weight: 600;
+  font-weight: 650;
+  letter-spacing: -0.01em;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -528,9 +605,12 @@ function confirmDelete() {
 
 .song-view__picker-date {
   flex-shrink: 0;
-  font-size: var(--app-text-sm);
-  font-weight: 600;
+  font-size: var(--app-text-xs);
+  font-weight: 700;
   color: var(--app-accent-text);
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--app-radius-pill);
+  background: var(--app-accent-muted);
 }
 
 .song-view__picker-cta {
@@ -538,11 +618,11 @@ function confirmDelete() {
   align-items: center;
   justify-content: center;
   min-height: 2.5rem;
-  padding: 0 1rem;
-  border-radius: var(--app-radius-sm);
+  padding: 0 1.1rem;
+  border-radius: var(--app-radius-pill);
   background: var(--app-accent);
   color: var(--app-accent-contrast);
-  font-weight: 600;
+  font-weight: 650;
   text-decoration: none;
 }
 </style>

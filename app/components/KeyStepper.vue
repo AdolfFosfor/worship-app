@@ -2,6 +2,8 @@
 import { icons } from '~/utils/icons'
 import { transposeKeyLabel } from '~/utils/music/keys'
 
+const { t } = useAppLocale()
+
 const props = defineProps<{
   modelValue: string
 }>()
@@ -17,11 +19,11 @@ function shift(delta: number) {
 
 <template>
   <div class="key-stepper">
-    <button type="button" class="key-stepper__btn" aria-label="Ниже" @click="shift(-1)">
+    <button type="button" class="key-stepper__btn" :aria-label="t('keyStepper.ariaDown')" @click="shift(-1)">
       <AppIcon :name="icons.minus" />
     </button>
     <span class="key-stepper__value">{{ modelValue }}</span>
-    <button type="button" class="key-stepper__btn" aria-label="Выше" @click="shift(1)">
+    <button type="button" class="key-stepper__btn" :aria-label="t('keyStepper.ariaUp')" @click="shift(1)">
       <AppIcon :name="icons.plus" />
     </button>
   </div>
@@ -31,11 +33,10 @@ function shift(delta: number) {
 .key-stepper {
   display: inline-flex;
   align-items: center;
-  gap: var(--app-space-2);
-  padding: 0.2rem;
-  border-radius: 999px;
-  background: var(--app-surface);
-  border: 1px solid var(--app-border);
+  gap: var(--app-space-1);
+  padding: 0.15rem;
+  border-radius: var(--app-radius-pill);
+  background: var(--app-hover);
 }
 
 .key-stepper__btn {
@@ -45,10 +46,18 @@ function shift(delta: number) {
   width: 2.25rem;
   height: 2.25rem;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--app-radius-pill);
   background: transparent;
   color: var(--app-accent-text);
   cursor: pointer;
+  transition:
+    background-color var(--app-duration) var(--app-ease),
+    transform var(--app-duration) var(--app-ease);
+}
+
+.key-stepper__btn:active {
+  background: var(--app-press);
+  transform: scale(0.94);
 }
 
 .key-stepper__value {
@@ -56,6 +65,7 @@ function shift(delta: number) {
   text-align: center;
   font-weight: 700;
   font-size: var(--app-text-md);
+  letter-spacing: -0.02em;
   color: var(--app-ink);
 }
 </style>

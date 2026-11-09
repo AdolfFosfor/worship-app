@@ -8,6 +8,7 @@ import type {
   SetlistWithItems,
 } from '~~/shared/types'
 import { mapSetlist, mapSetlistItem, mapSong } from '~/utils/mappers'
+import { localTodayKey } from '~/utils/dates'
 import { getSupabaseBrowserClient } from '~/utils/supabase/client'
 import { useAuthStore } from '~/stores/auth'
 import { useWorkspaceStore } from '~/stores/workspace'
@@ -95,7 +96,11 @@ export function useSetlists() {
       upcoming.value = null
       return null
     }
-    const today = new Date().toISOString().slice(0, 10)
+    const today = localTodayKey()
+    // Кэш мог пережить смену календарного дня (UTC ≠ локальная дата).
+    if (upcoming.value && upcoming.value.serviceDate < today) {
+      upcoming.value = null
+    }
     const supabase = getSupabaseBrowserClient()
     // Один запрос: сет + песни — UI не мигает пустым hero.
     const { data, error: qError } = await supabase

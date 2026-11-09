@@ -4,6 +4,7 @@ import {
   themeParams,
   viewport,
 } from '@tma.js/sdk-vue'
+import { disableTelegramVerticalSwipes } from '~/utils/telegram/disableVerticalSwipes'
 
 function syncDarkClass(isDark: boolean) {
   document.documentElement.classList.toggle('app-dark', isDark)
@@ -98,6 +99,7 @@ export function applyTelegramTheme(): () => void {
 
   let unbindViewportCss: (() => void) | undefined
   let offFullscreen: (() => void) | undefined
+  let disposeSwipe: (() => void) | undefined
   void (async () => {
     try {
       await viewport.mount()
@@ -110,7 +112,11 @@ export function applyTelegramTheme(): () => void {
 
       try {
         syncFullscreenClass(viewport.isFullscreen())
-        offFullscreen = viewport.isFullscreen.sub(syncFullscreenClass)
+        offFullscreen = viewport.isFullscreen.sub((isFs) => {
+          syncFullscreenClass(isFs)
+          // После смены fullscreen клиент иногда сбрасывает swipe behavior
+          disposeSwipe = disableTelegramVerticalSwipes()
+        })
       } catch {
         offFullscreen = undefined
       }
@@ -119,14 +125,19 @@ export function applyTelegramTheme(): () => void {
       // После fullscreen клиент может обновить insets асинхронно —
       // bindCssVars уже слушает safe_area / content_safe_area.
       applyChromeColors()
+
+      // Запрет вертикального свайпа «свернуть» (Bot API 7.7+)
+      disposeSwipe = disableTelegramVerticalSwipes()
     } catch {
       // Viewport APIs optional in mock / older clients.
+      disposeSwipe = disableTelegramVerticalSwipes()
     }
   })()
 
   return () => {
     offDark()
     offFullscreen?.()
+    disposeSwipe?.()
     unbindCssVars?.()
     unbindViewportCss?.()
     document.documentElement.classList.remove('app-fullscreen')

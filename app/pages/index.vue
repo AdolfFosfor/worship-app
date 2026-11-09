@@ -1,8 +1,14 @@
 <script setup lang="ts">
 import type Popover from 'primevue/popover'
+import { formatServiceDatePill } from '~/utils/dates'
+import {
+  clampOverlayToFrameAfterShow,
+  resolvePopoverEl,
+} from '~/utils/dom/clampOverlayToFrame'
 import { icons, type AppIconName } from '~/utils/icons'
 
 const workspace = useWorkspaceStore()
+const { t, sessionTitle, locale } = useAppLocale()
 const { getUpcoming, upcoming } = useSetlists()
 const { syncSetlistsOnActivate } = useSetlistsRevision()
 
@@ -25,7 +31,7 @@ const createOptions = computed(() => {
   if (workspace.canEditSongs) {
     options.push({
       to: '/songs/new',
-      label: 'Песня',
+      label: t('home.createSong'),
       icon: icons.music,
       kind: 'song',
     })
@@ -33,7 +39,7 @@ const createOptions = computed(() => {
   if (workspace.canEditSetlists) {
     options.push({
       to: '/setlists/new',
-      label: 'Сет-лист',
+      label: t('home.createSetlist'),
       icon: icons.playlist,
       kind: 'setlist',
     })
@@ -43,6 +49,10 @@ const createOptions = computed(() => {
 
 function toggleCreateMenu(event: Event) {
   createPopover.value?.toggle(event)
+}
+
+function onCreateShow() {
+  clampOverlayToFrameAfterShow(resolvePopoverEl(createPopover.value))
 }
 
 async function onCreatePick(to: string) {
@@ -57,7 +67,7 @@ async function load(opts?: { quiet?: boolean }) {
     await getUpcoming()
     markSetlistsSynced()
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'Ошибка загрузки'
+    error.value = e instanceof Error ? e.message : t('home.loadError')
   } finally {
     loading.value = false
   }
@@ -69,15 +79,10 @@ onMounted(() => {
 })
 
 function formatDatePill(iso: string) {
-  try {
-    return new Intl.DateTimeFormat('ru-RU', {
-      weekday: 'short',
-      day: 'numeric',
-      month: 'short',
-    }).format(new Date(iso + 'T12:00:00'))
-  } catch {
-    return iso
-  }
+  return formatServiceDatePill(iso, {
+    locale: locale.value,
+    todayPrefix: (date) => t('dates.todayPrefix', { date }),
+  })
 }
 </script>
 
@@ -88,7 +93,7 @@ function formatDatePill(iso: string) {
         <button
           type="button"
           class="app-header-action"
-          aria-label="Создать"
+          :aria-label="t('common.create')"
           aria-haspopup="menu"
           @click="toggleCreateMenu"
         >
@@ -97,8 +102,13 @@ function formatDatePill(iso: string) {
       </template>
     </AppHeader>
 
-    <Popover ref="createPopover" class="app-create-popover">
-      <div class="app-create-menu" role="menu" aria-label="Создать">
+    <Popover
+      ref="createPopover"
+      class="app-create-popover"
+      append-to=".app-shell"
+      @show="onCreateShow"
+    >
+      <div class="app-create-menu" role="menu" :aria-label="t('common.create')">
         <button
           v-for="option in createOptions"
           :key="option.kind"
@@ -120,55 +130,53 @@ function formatDatePill(iso: string) {
     <AppError v-else-if="error" :message="error" @retry="load" />
 
     <template v-else>
-      <section class="home-section">
-        <h2 class="home-section__title">Ближайшее служение</h2>
-
-        <div class="home-hero">
+      <AppSection :title="t('home.sectionUpcoming')">
+        <div class="home-hero app-panel app-panel--accent">
           <template v-if="upcoming">
-            <NuxtLink :to="`/setlists/${upcoming.id}`" class="home-hero__link">
-              <span class="home-hero__badge">{{ formatDatePill(upcoming.serviceDate) }}</span>
-              <h3 class="home-hero__title">{{ upcoming.title }}</h3>
-              <AppIcon :name="icons.chevronRight" class="home-hero__chevron" size="1.15rem" />
+            <NuxtLink :to="`/setlists/${upcoming.id}`" class="home-hero__link app-press">
+              <AppPill>{{ formatDatePill(upcoming.serviceDate) }}</AppPill>
+              <h3 class="home-hero__title">{{ sessionTitle(upcoming.title) }}</h3>
+              <AppIcon :name="icons.chevronRight" class="home-hero__chevron" size="1.05rem" />
             </NuxtLink>
             <div
               v-if="upcoming.items.length"
-              class="home-hero__songs"
-              aria-label="Песни в сет-листе"
+              class="home-hero__songs app-chip-row"
+              :aria-label="t('home.ariaSetlistSongs')"
             >
-              <span
+              <AppPill
                 v-for="item in upcoming.items"
                 :key="item.id"
-                class="home-hero__song-pill"
+                tone="soft"
               >
                 {{ item.song.title }}
-              </span>
+              </AppPill>
             </div>
           </template>
           <div v-else class="home-hero__empty">
             <AppEmptyState
-              title="Пока нет служений"
-              description="Создайте сет-лист на ближайшую дату"
+              :title="t('home.emptyUpcomingTitle')"
+              :description="t('home.emptyUpcomingDesc')"
             >
               <template v-if="workspace.canEditSetlists" #action>
-                <NuxtLink to="/setlists/new" class="home-cta">Создать</NuxtLink>
+                <NuxtLink to="/setlists/new" class="app-cta">{{ t('common.create') }}</NuxtLink>
               </template>
             </AppEmptyState>
           </div>
         </div>
-      </section>
+      </AppSection>
 
       <div class="home-actions">
-        <NuxtLink to="/songs" class="home-action">
+        <NuxtLink to="/songs" class="home-action app-press">
           <span class="home-action__icon-wrap">
             <AppIcon :name="icons.music" class="home-action__icon" />
           </span>
-          <span class="home-action__label">Библиотека</span>
+          <span class="home-action__label">{{ t('home.library') }}</span>
         </NuxtLink>
-        <NuxtLink to="/setlists" class="home-action">
-          <span class="home-action__icon-wrap">
+        <NuxtLink to="/setlists" class="home-action app-press">
+          <span class="home-action__icon-wrap home-action__icon-wrap--warm">
             <AppIcon :name="icons.playlist" class="home-action__icon" />
           </span>
-          <span class="home-action__label">Сет-листы</span>
+          <span class="home-action__label">{{ t('home.setlists') }}</span>
         </NuxtLink>
       </div>
     </template>
@@ -176,26 +184,7 @@ function formatDatePill(iso: string) {
 </template>
 
 <style scoped>
-.home-section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-3);
-}
-
-.home-section__title {
-  margin: 0;
-  font-size: var(--app-text-xs);
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--app-section-header);
-}
-
 .home-hero {
-  border-radius: var(--app-radius);
-  background: var(--app-surface);
-  border: 1px solid var(--app-border);
-  border-left: 3px solid var(--app-accent);
   overflow: hidden;
 }
 
@@ -212,23 +201,11 @@ function formatDatePill(iso: string) {
   color: inherit;
 }
 
-.home-hero__badge {
-  display: inline-flex;
-  align-items: center;
-  min-height: 1.5rem;
-  padding: 0 0.55rem;
-  border-radius: 999px;
-  background: var(--app-accent-muted);
-  color: var(--app-accent-text);
-  font-size: var(--app-text-xs);
-  font-weight: 700;
-}
-
 .home-hero__title {
   margin: 0;
   font-size: var(--app-text-xl);
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
   line-height: 1.2;
   color: var(--app-ink);
 }
@@ -239,37 +216,11 @@ function formatDatePill(iso: string) {
   top: 50%;
   transform: translateY(-50%);
   color: var(--app-muted);
+  opacity: 0.5;
 }
 
 .home-hero__songs {
-  display: flex;
-  gap: var(--app-space-2);
   padding: 0 var(--app-space-5) var(--app-space-5);
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-}
-
-.home-hero__songs::-webkit-scrollbar {
-  display: none;
-}
-
-.home-hero__song-pill {
-  display: inline-flex;
-  align-items: center;
-  flex-shrink: 0;
-  max-width: 12rem;
-  min-height: 1.75rem;
-  padding: 0 0.7rem;
-  border-radius: 999px;
-  background: var(--app-hover);
-  color: var(--app-ink);
-  font-size: var(--app-text-xs);
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .home-hero__empty {
@@ -287,11 +238,10 @@ function formatDatePill(iso: string) {
   flex-direction: column;
   align-items: flex-start;
   gap: var(--app-space-3);
-  min-height: 5.5rem;
+  min-height: 5.25rem;
   padding: var(--app-space-4);
-  border-radius: var(--app-radius);
+  border-radius: var(--app-radius-lg);
   background: var(--app-surface);
-  border: 1px solid var(--app-border);
   text-decoration: none;
   color: var(--app-ink);
 }
@@ -307,25 +257,19 @@ function formatDatePill(iso: string) {
   color: var(--app-accent-text);
 }
 
+.home-action__icon-wrap--warm {
+  background: color-mix(in srgb, var(--app-warn) 16%, transparent);
+  color: var(--app-warn);
+}
+
 .home-action__icon {
-  width: 1.25rem;
-  height: 1.25rem;
+  width: 1.2rem;
+  height: 1.2rem;
 }
 
 .home-action__label {
-  font-weight: 700;
-}
-
-.home-cta {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 2.5rem;
-  padding: 0 1rem;
-  border-radius: var(--app-radius-sm);
-  background: var(--app-accent);
-  color: var(--app-accent-contrast);
-  font-weight: 600;
-  text-decoration: none;
+  font-size: var(--app-text-md);
+  font-weight: 650;
+  letter-spacing: -0.015em;
 }
 </style>

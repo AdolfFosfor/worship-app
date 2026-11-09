@@ -1,6 +1,10 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
-let browserClient: SupabaseClient | null = null
+const AUTH_STORAGE_KEY = 'worship-auth-token'
+
+type SbGlobal = typeof globalThis & {
+  __worshipSupabase?: SupabaseClient
+}
 
 export function createSupabaseBrowserClient(url: string, anonKey: string): SupabaseClient {
   return createClient(url, anonKey, {
@@ -9,15 +13,24 @@ export function createSupabaseBrowserClient(url: string, anonKey: string): Supab
       autoRefreshToken: true,
       detectSessionInUrl: true,
       flowType: 'pkce',
+      storageKey: AUTH_STORAGE_KEY,
+      storage: typeof window !== 'undefined' ? window.localStorage : undefined,
     },
   })
 }
 
+/**
+ * Singleton across Vite HMR — otherwise a hot reload drops the in-memory
+ * session and (if storage was empty/mismatched) leaves the app logged out
+ * while the form still looks editable.
+ */
 export function getSupabaseBrowserClient(): SupabaseClient {
   if (!import.meta.client) {
     throw new Error('Supabase browser client is only available on the client')
   }
-  if (browserClient) return browserClient
+
+  const g = globalThis as SbGlobal
+  if (g.__worshipSupabase) return g.__worshipSupabase
 
   const config = useRuntimeConfig()
   const url = config.public.supabaseUrl as string
@@ -27,6 +40,6 @@ export function getSupabaseBrowserClient(): SupabaseClient {
     throw new Error('Missing NUXT_PUBLIC_SUPABASE_URL or NUXT_PUBLIC_SUPABASE_ANON_KEY')
   }
 
-  browserClient = createSupabaseBrowserClient(url, anonKey)
-  return browserClient
+  g.__worshipSupabase = createSupabaseBrowserClient(url, anonKey)
+  return g.__worshipSupabase
 }

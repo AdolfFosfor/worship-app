@@ -1,13 +1,85 @@
-import type { DbSong, Song, SongInput } from '~~/shared/types'
+import type { DbSong, Json, Song, SongInput } from '~~/shared/types'
 import { mapSong } from '~/utils/mappers'
+import { serializeChart } from '~/utils/music/chart'
 import { getSupabaseBrowserClient } from '~/utils/supabase/client'
 import { useAuthStore } from '~/stores/auth'
 import { useWorkspaceStore } from '~/stores/workspace'
+import { useSetlistsRevision } from '~/composables/useSetlists'
+
+/** KeepAlive-страницы подтягивают данные, когда revision изменился. */
+export function useSongsRevision() {
+  const revision = useState('songs-data-revision', () => 0)
+
+  function bumpSongsRevision() {
+    revision.value += 1
+  }
+
+  function syncSongsOnActivate(reload: () => void | Promise<void>) {
+    const seen = ref(revision.value)
+
+    onActivated(() => {
+      if (seen.value === revision.value) return
+      seen.value = revision.value
+      void reload()
+    })
+
+    return {
+      markSongsSynced() {
+        seen.value = revision.value
+      },
+    }
+  }
+
+  return { songsRevision: revision, bumpSongsRevision, syncSongsOnActivate }
+}
+
+function songWritePayload(input: SongInput) {
+  const chart = input.chordChart ?? null
+  const hasChart = Boolean(chart?.sections?.length)
+  const plainChart = hasChart ? (JSON.parse(JSON.stringify(chart)) as Json) : null
+  const chordsFromChart = hasChart ? serializeChart(chart) : null
+  return {
+    title: input.title.trim(),
+    key: input.key,
+    capo: Math.max(0, Math.min(11, Math.round(input.capo ?? 0))),
+    chords: chordsFromChart ?? (input.chords?.trim() || null),
+    chord_chart: plainChart,
+    lyrics: input.lyrics?.trim() || null,
+    youtube_url: input.youtubeUrl?.trim() || null,
+  }
+}
+
+function queryErrorMessage(error: { message?: string; code?: string } | null | undefined): string {
+  if (!error) return 'Неизвестная ошибка'
+  if (error.code === 'PGRST116') {
+    return 'Не удалось сохранить — нет прав или сессия истекла. Войдите снова.'
+  }
+  if (error.code === 'PGRST301' || /jwt|session|auth/i.test(error.message ?? '')) {
+    return 'Сессия истекла — войдите снова'
+  }
+  return error.message || 'Ошибка запроса'
+}
+
+async function requireAuthSession() {
+  const supabase = getSupabaseBrowserClient()
+  const { data, error } = await supabase.auth.getSession()
+  if (error) throw new Error(queryErrorMessage(error))
+  if (!data.session) throw new Error('Сессия истекла — войдите снова')
+  return data.session
+}
 
 export function useSongs() {
+  const { bumpSongsRevision } = useSongsRevision()
+  const { bumpSetlistsRevision } = useSetlistsRevision()
   const songs = ref<Song[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
+
+  function bumpSongDependents() {
+    bumpSongsRevision()
+    // Сет-листы кэшируют вложенную песню — тоже инвалидируем
+    bumpSetlistsRevision()
+  }
 
   async function fetchSongs(query?: string) {
     const workspace = useWorkspaceStore()
@@ -53,6 +125,7 @@ export function useSongs() {
   async function createSong(input: SongInput) {
     const auth = useAuthStore()
     const workspace = useWorkspaceStore()
+    await requireAuthSession()
     if (!workspace.workspace || !auth.user) throw new Error('Нет активного workspace')
 
     const supabase = getSupabaseBrowserClient()
@@ -60,40 +133,31 @@ export function useSongs() {
       .from('songs')
       .insert({
         workspace_id: workspace.workspace.id,
-        title: input.title.trim(),
-        key: input.key,
-        capo: Math.max(0, Math.min(11, Math.round(input.capo ?? 0))),
-        chords: input.chords?.trim() || null,
-        lyrics: input.lyrics?.trim() || null,
-        youtube_url: input.youtubeUrl?.trim() || null,
+        ...songWritePayload(input),
         created_by: auth.user.id,
       })
       .select('*')
       .single()
-    if (qError) throw qError
+    if (qError) throw new Error(queryErrorMessage(qError))
     const song = mapSong(data as DbSong)
     songs.value = [...songs.value, song].sort((a, b) => a.title.localeCompare(b.title, 'ru'))
+    bumpSongDependents()
     return song
   }
 
   async function updateSong(id: string, input: SongInput) {
+    await requireAuthSession()
     const supabase = getSupabaseBrowserClient()
     const { data, error: qError } = await supabase
       .from('songs')
-      .update({
-        title: input.title.trim(),
-        key: input.key,
-        capo: Math.max(0, Math.min(11, Math.round(input.capo ?? 0))),
-        chords: input.chords?.trim() || null,
-        lyrics: input.lyrics?.trim() || null,
-        youtube_url: input.youtubeUrl?.trim() || null,
-      })
+      .update(songWritePayload(input))
       .eq('id', id)
       .select('*')
       .single()
-    if (qError) throw qError
+    if (qError) throw new Error(queryErrorMessage(qError))
     const song = mapSong(data as DbSong)
     songs.value = songs.value.map((s) => (s.id === id ? song : s))
+    bumpSongDependents()
     return song
   }
 
@@ -102,6 +166,7 @@ export function useSongs() {
     const { error: qError } = await supabase.from('songs').delete().eq('id', id)
     if (qError) throw qError
     songs.value = songs.value.filter((s) => s.id !== id)
+    bumpSongDependents()
   }
 
   return {

@@ -17,4 +17,11 @@ describe('chord transpose', () => {
     expect(transposeText('G  D  Em  C', 2)).toBe('A  E  F#m  D')
     expect(transposeText('D/F#', 2)).toBe('E/G#')
   })
+
+  it('does not transpose section headers', () => {
+    expect(transposeText('Bridge: Bm G D A', 2)).toBe('Bridge: C#m A E B')
+    expect(transposeText('Куплет:\nBm G D', 2)).toBe('Куплет:\nC#m A E')
+    expect(transposeText('Припев: Bm G D', 2)).toBe('Припев: C#m A E')
+    expect(transposeText('Tag: Bm G D', 2)).toBe('Tag: C#m A E')
+  })
 })

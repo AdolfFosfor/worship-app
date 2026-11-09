@@ -1,11 +1,11 @@
 import { shiftRoot } from './keys'
 
 /**
- * Transpose chord tokens inside free-form chord/lyric text.
- * Matches roots like C, F#, Bb followed by optional quality (m, maj7, sus4…).
+ * Chord token as a whole word — never a prefix of "Bridge", "Bass", etc.
+ * Root + optional quality + optional slash bass; must not be followed by a letter.
  */
 const CHORD_TOKEN =
-  /\b([A-G](?:#|b)?)((?:maj|min|dim|aug|sus|add|m|M|°|ø)?\d*)(?:\/([A-G](?:#|b)?))?/g
+  /\b([A-G](?:#|b)?)((?:maj|min|dim|aug|sus|add|m|M|°|ø)?\d*(?:sus\d+|add\d+|maj\d+|m\d+|dim|aug)?)?(?:\/([A-G](?:#|b)?))?(?![A-Za-z])/g
 
 export function transposeChordSymbol(symbol: string, semitones: number): string {
   if (!semitones) return symbol
