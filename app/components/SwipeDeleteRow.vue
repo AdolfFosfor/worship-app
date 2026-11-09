@@ -6,6 +6,7 @@ import { icons, type AppIconName } from '~/utils/icons'
  * - влево (end) → удаление
  * - вправо (start) → доп. действие (например в сет-лист)
  * ПК: wheel / Shift+колёсико над строкой.
+ * Мобилка: non-passive touchmove, иначе браузер скроллит и рвёт жест.
  */
 const props = withDefaults(
   defineProps<{
@@ -22,7 +23,7 @@ const props = withDefaults(
   }>(),
   {
     disabled: false,
-    threshold: 72,
+    threshold: 64,
     endEnabled: true,
     startEnabled: false,
     endLabel: undefined,
@@ -45,6 +46,7 @@ const haptics = useHaptics()
 /** >0 влево (удаление), <0 вправо (start) */
 const offset = ref(0)
 const dragging = ref(false)
+const contentEl = ref<HTMLElement | null>(null)
 
 let startX = 0
 let startY = 0
@@ -52,10 +54,12 @@ let tracking = false
 let axis: 'h' | 'v' | null = null
 let armed: 'end' | 'start' | null = null
 let moved = false
+let activePointerId: number | null = null
 let wheelTracking = false
 let wheelIdleTimer: ReturnType<typeof setTimeout> | null = null
-const EDGE_GUARD = 28
+const EDGE_GUARD = 22
 const MAX = 104
+const AXIS_LOCK = 8
 const WHEEL_START = 6
 const WHEEL_IDLE_MS = 90
 
@@ -84,6 +88,7 @@ function reset() {
   axis = null
   armed = null
   moved = false
+  activePointerId = null
   wheelTracking = false
   clearWheelIdle()
   dragging.value = false
@@ -133,6 +138,7 @@ function commitIfArmed() {
   wheelTracking = false
   tracking = false
   axis = null
+  activePointerId = null
   offset.value = 0
   armed = null
   if (which === 'end' && props.endEnabled) {
@@ -145,65 +151,123 @@ function commitIfArmed() {
   }
 }
 
-function onPointerDown(e: PointerEvent) {
-  if (props.disabled || e.button !== 0) return
-  if (e.clientX < EDGE_GUARD) return
-  if (wheelTracking) return
+function beginTrack(clientX: number, clientY: number) {
   tracking = true
   axis = null
   armed = null
   moved = false
-  startX = e.clientX
-  startY = e.clientY
+  startX = clientX
+  startY = clientY
 }
 
-function onPointerMove(e: PointerEvent) {
-  if (!tracking || props.disabled || wheelTracking) return
-  const dx = e.clientX - startX
-  const dy = e.clientY - startY
+function moveTrack(clientX: number, clientY: number): boolean {
+  if (!tracking || props.disabled || wheelTracking) return false
+  const dx = clientX - startX
+  const dy = clientY - startY
 
   if (!axis) {
-    if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return
-    axis = Math.abs(dx) > Math.abs(dy) * 1.15 ? 'h' : 'v'
+    if (Math.abs(dx) < AXIS_LOCK && Math.abs(dy) < AXIS_LOCK) return false
+    axis = Math.abs(dx) > Math.abs(dy) * 1.1 ? 'h' : 'v'
     if (axis === 'v') {
       tracking = false
-      return
+      return false
     }
-    // dx < 0 → end (влево), dx > 0 → start (вправо)
     if (dx < 0 && !props.endEnabled) {
       tracking = false
-      return
+      return false
     }
     if (dx > 0 && !props.startEnabled) {
       tracking = false
-      return
+      return false
     }
     dragging.value = true
+  }
+
+  if (axis !== 'h') return false
+  moved = true
+  applyOffset(-dx)
+  return true
+}
+
+function endTrack() {
+  if (!tracking && !dragging.value) return
+  if (wheelTracking) return
+  tracking = false
+  axis = null
+  commitIfArmed()
+}
+
+function onPointerDown(e: PointerEvent) {
+  if (props.disabled || e.button !== 0) return
+  if (e.clientX < EDGE_GUARD) return
+  if (wheelTracking) return
+  // Touch ведём через touch* (passive: false) — иначе iOS скроллит и шлёт pointercancel
+  if (e.pointerType === 'touch') return
+  activePointerId = e.pointerId
+  beginTrack(e.clientX, e.clientY)
+}
+
+function onPointerMove(e: PointerEvent) {
+  if (e.pointerType === 'touch') return
+  if (activePointerId != null && e.pointerId !== activePointerId) return
+  if (!moveTrack(e.clientX, e.clientY)) return
+  e.preventDefault()
+  if (dragging.value && contentEl.value) {
     try {
-      ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+      contentEl.value.setPointerCapture(e.pointerId)
     } catch {
       /* ignore */
     }
   }
-
-  if (axis !== 'h') return
-  e.preventDefault()
-  moved = true
-  // dx>0 → offset отрицательный (контент вправо)
-  applyOffset(-dx)
 }
 
-function finish(e: PointerEvent) {
-  if (!tracking && !dragging.value) return
-  if (wheelTracking) return
-  try {
-    ;(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId)
-  } catch {
-    /* ignore */
+function onPointerUp(e: PointerEvent) {
+  if (e.pointerType === 'touch') return
+  if (activePointerId != null && e.pointerId !== activePointerId) return
+  if (contentEl.value) {
+    try {
+      contentEl.value.releasePointerCapture(e.pointerId)
+    } catch {
+      /* ignore */
+    }
   }
-  tracking = false
-  axis = null
-  commitIfArmed()
+  endTrack()
+}
+
+function onPointerCancel(e: PointerEvent) {
+  if (e.pointerType === 'touch') return
+  reset()
+}
+
+function onTouchStart(e: TouchEvent) {
+  if (props.disabled || wheelTracking) return
+  if (e.touches.length !== 1) return
+  const touch = e.touches[0]
+  if (!touch) return
+  if (touch.clientX < EDGE_GUARD) return
+  beginTrack(touch.clientX, touch.clientY)
+}
+
+function onTouchMove(e: TouchEvent) {
+  if (!tracking || props.disabled || wheelTracking) return
+  if (e.touches.length !== 1) {
+    reset()
+    return
+  }
+  const touch = e.touches[0]
+  if (!touch) return
+  if (moveTrack(touch.clientX, touch.clientY)) {
+    e.preventDefault()
+  }
+}
+
+function onTouchEnd() {
+  endTrack()
+}
+
+function onTouchCancel() {
+  // Браузер перехватил жест — просто откат, без ложного commit
+  if (dragging.value || tracking) reset()
 }
 
 function onClickCapture(e: MouseEvent) {
@@ -211,10 +275,6 @@ function onClickCapture(e: MouseEvent) {
   e.preventDefault()
   e.stopPropagation()
   moved = false
-}
-
-function onLostCapture() {
-  if (dragging.value && !wheelTracking) reset()
 }
 
 function onWheel(e: WheelEvent) {
@@ -234,12 +294,10 @@ function onWheel(e: WheelEvent) {
   let absY: number
   if (e.shiftKey) {
     const horizontal = Math.abs(rawX) >= Math.abs(rawY) ? rawX : rawY
-    // Shift+вниз → влево (end); Shift+вверх → вправо (start)
     pull = -horizontal
     absX = Math.abs(horizontal)
     absY = 0
   } else {
-    // Natural: палец влево → deltaX>0 → offset+ (end)
     pull = rawX
     absX = Math.abs(rawX)
     absY = Math.abs(rawY)
@@ -278,8 +336,23 @@ watch(
   },
 )
 
+onMounted(() => {
+  const el = contentEl.value
+  if (!el) return
+  el.addEventListener('touchstart', onTouchStart, { passive: true })
+  el.addEventListener('touchmove', onTouchMove, { passive: false })
+  el.addEventListener('touchend', onTouchEnd)
+  el.addEventListener('touchcancel', onTouchCancel)
+})
+
 onBeforeUnmount(() => {
   clearWheelIdle()
+  const el = contentEl.value
+  if (!el) return
+  el.removeEventListener('touchstart', onTouchStart)
+  el.removeEventListener('touchmove', onTouchMove)
+  el.removeEventListener('touchend', onTouchEnd)
+  el.removeEventListener('touchcancel', onTouchCancel)
 })
 
 defineExpose({ reset })
@@ -315,13 +388,13 @@ defineExpose({ reset })
       <span>{{ startLabelText }}</span>
     </div>
     <div
+      ref="contentEl"
       class="swipe-delete__content"
       :style="contentStyle"
       @pointerdown="onPointerDown"
       @pointermove="onPointerMove"
-      @pointerup="finish"
-      @pointercancel="finish"
-      @lostpointercapture="onLostCapture"
+      @pointerup="onPointerUp"
+      @pointercancel="onPointerCancel"
       @click.capture="onClickCapture"
     >
       <slot />
@@ -392,9 +465,12 @@ defineExpose({ reset })
   z-index: 1;
   border-radius: inherit;
   background: var(--app-surface);
+  /* Нужен для non-passive touchmove + блокировки вертикального скролла после lock */
+  touch-action: pan-y;
 }
 
-.swipe-delete--dragging {
+.swipe-delete--dragging,
+.swipe-delete--dragging .swipe-delete__content {
   touch-action: none;
 }
 </style>

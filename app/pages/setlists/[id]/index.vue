@@ -145,10 +145,11 @@ function setupSortable() {
     dragClass: 'setlist-item--drag',
     forceFallback: true,
     /** Long-press всей карточки (и мышь, и тач) — иначе мышь крадёт свайп */
-    delay: 420,
+    delay: 480,
     delayOnTouchOnly: false,
-    touchStartThreshold: 12,
-    fallbackTolerance: 8,
+    /** Любой сдвиг пальца снимает delay — горизонтальный свайп не перехватывается */
+    touchStartThreshold: 6,
+    fallbackTolerance: 12,
     onStart: () => {
       sorting.value = true
       haptics.grab()

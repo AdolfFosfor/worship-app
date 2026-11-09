@@ -1,4 +1,7 @@
-import { REPERTOIRE_THRESHOLDS } from '~~/shared/repertoire/thresholds'
+import {
+  REPERTOIRE_THRESHOLDS,
+  type RepertoireStaleTier,
+} from '~~/shared/repertoire/thresholds'
 import type { RepertoireSongStat, RepertoireSongStatus } from '~~/shared/types'
 import { localTodayKey } from '~/utils/dates'
 
@@ -14,21 +17,17 @@ export function daysSinceLastPlay(lastDate: string, today = localTodayKey()): nu
 }
 
 /**
- * Понятный статус без «рейтинга»:
- * - new: впервые в периоде
- * - active: было исполнение за short-окно
- * - cooling: тишина в short, но ещё звучала в medium
- * - stale: давно в ротации и не звучала дольше staleAfterDays
+ * Stale-tier по спеке:
+ * - totalAll ≥ 2
+ * - first_date старше 90 дней
+ * - last_date: dormant ≥180 / stale ≥90 / cooling ≥60
  */
-export function classifySongStatus(
-  song: Pick<
-    RepertoireSongStat,
-    'count30' | 'count90' | 'totalAll' | 'firstDate' | 'lastDate' | 'isNewInPeriod'
-  >,
+export function staleTierOf(
+  song: Pick<RepertoireSongStat, 'totalAll' | 'firstDate' | 'lastDate' | 'staleTier'>,
   today = localTodayKey(),
   thresholds = REPERTOIRE_THRESHOLDS,
-): RepertoireSongStatus {
-  if (song.isNewInPeriod) return 'new'
+): RepertoireStaleTier | null {
+  if (song.staleTier) return song.staleTier
 
   const since = daysSinceLastPlay(song.lastDate, today)
   const firstAge = daysSinceLastPlay(song.firstDate, today)
@@ -36,40 +35,48 @@ export function classifySongStatus(
     song.totalAll >= thresholds.minPerformancesForStale &&
     firstAge >= thresholds.windowDays.medium
 
-  if (inRotation && since >= thresholds.staleAfterDays) return 'stale'
-  if (song.count30 > 0) return 'active'
-  if (song.count90 > 0) return 'cooling'
-  if (inRotation) return 'stale'
-  return 'cooling'
+  if (!inRotation) return null
+  if (since >= thresholds.staleTiers.dormant) return 'dormant'
+  if (since >= thresholds.staleTiers.stale) return 'stale'
+  if (since >= thresholds.staleTiers.cooling) return 'cooling'
+  return null
 }
 
 export function isStaleSong(
-  song: Pick<
-    RepertoireSongStat,
-    'count30' | 'count90' | 'totalAll' | 'firstDate' | 'lastDate' | 'isNewInPeriod'
-  >,
+  song: Pick<RepertoireSongStat, 'totalAll' | 'firstDate' | 'lastDate' | 'staleTier'>,
   today = localTodayKey(),
-  thresholds = REPERTOIRE_THRESHOLDS,
 ): boolean {
-  return classifySongStatus(song, today, thresholds) === 'stale'
+  return staleTierOf(song, today) != null
 }
 
-export function filterStaleHints<T extends {
-  firstDate: string
-  lastDate: string
-  total: number
-}>(
-  hints: T[],
+/**
+ * Компактный статус для UI: new → stale-tier → active.
+ * Не вводит категории «фаворит / в ротации / редко».
+ */
+export function classifySongStatus(
+  song: Pick<
+    RepertoireSongStat,
+    'totalAll' | 'firstDate' | 'lastDate' | 'isNewInPeriod' | 'staleTier'
+  >,
   today = localTodayKey(),
-  thresholds = REPERTOIRE_THRESHOLDS,
-): T[] {
-  return hints.filter((hint) => {
-    const since = daysSinceLastPlay(hint.lastDate, today)
-    const firstAge = daysSinceLastPlay(hint.firstDate, today)
-    return (
-      hint.total >= thresholds.minPerformancesForStale &&
-      firstAge >= thresholds.windowDays.medium &&
-      since >= thresholds.staleAfterDays
-    )
-  })
+): RepertoireSongStatus {
+  if (song.isNewInPeriod) return 'new'
+  const tier = staleTierOf(song, today)
+  if (tier) return tier
+  return 'active'
+}
+
+/** Человекочитаемый интервал «N дн./мес. назад». */
+export function formatSinceLast(
+  lastDate: string,
+  t: (key: string, params?: Record<string, string | number>) => string,
+  today = localTodayKey(),
+): string {
+  const days = daysSinceLastPlay(lastDate, today)
+  if (days <= 0) return t('repertoire.sinceToday')
+  if (days < 30) return t('repertoire.sinceDays', { count: days })
+  const months = Math.max(1, Math.round(days / 30))
+  if (months < 12) return t('repertoire.sinceMonths', { count: months })
+  const years = Math.max(1, Math.round(days / 365))
+  return t('repertoire.sinceYears', { count: years })
 }

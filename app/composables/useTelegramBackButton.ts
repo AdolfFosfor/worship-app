@@ -20,6 +20,7 @@ function isRootPath(path: string): boolean {
 function fallbackParent(path: string): string {
   if (path.startsWith('/songs/')) return '/songs'
   if (path.startsWith('/setlists/')) return '/setlists'
+  if (path.startsWith('/repertoire/songs/')) return '/repertoire'
   if (path.startsWith('/repertoire')) return '/'
   if (path.startsWith('/account/')) return '/account'
   if (path.startsWith('/members')) return '/account'

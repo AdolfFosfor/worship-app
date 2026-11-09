@@ -2,82 +2,128 @@
 import { REPERTOIRE_THRESHOLDS } from '~~/shared/repertoire/thresholds'
 import type { RepertoirePulseSummary } from '~~/shared/types'
 import { icons } from '~/utils/icons'
-import { filterStaleHints } from '~/utils/repertoire/status'
-import { localTodayKey } from '~/utils/dates'
+import { periodLabelKey } from '~/utils/repertoire/period'
 
 const props = defineProps<{
   summary: RepertoirePulseSummary
 }>()
 
 const { t } = useAppLocale()
+const { period } = useRepertoirePulse()
 
-const staleHints = computed(() =>
-  filterStaleHints(props.summary.staleHint).slice(
-    0,
-    REPERTOIRE_THRESHOLDS.homeStaleHintLimit,
-  ),
+/** Только RPC-подсказка, без пересчёта топа на клиенте. */
+const frequent = computed(() =>
+  props.summary.frequentHint.slice(0, REPERTOIRE_THRESHOLDS.homeFrequentHintLimit),
 )
 
-const staleText = computed(() => {
-  if (!staleHints.value.length) return null
-  const titles = staleHints.value.map((s) => s.title)
-  if (titles.length === 1) {
-    return t('repertoire.staleHintOne', { title: titles[0] })
-  }
-  return t('repertoire.staleHintMany', {
-    titles: titles.join(', '),
-  })
-})
+const topPlays = computed(() => frequent.value[0]?.total ?? 0)
 
-const calendarTo = computed(() => props.summary.to || localTodayKey())
+const periodCaption = computed(() =>
+  t('repertoire.forPeriod', { period: t(periodLabelKey(period.value)) }),
+)
+
+function barWidth(plays: number) {
+  if (topPlays.value <= 0 || plays <= 0) return 0
+  return Math.round((plays / topPlays.value) * 100)
+}
+
+function songLink(id: string) {
+  return `/repertoire/songs/${id}`
+}
 </script>
 
 <template>
-  <NuxtLink to="/repertoire" class="pulse-card app-panel app-press">
+  <div class="pulse-card app-panel">
     <div class="pulse-card__head">
-      <div class="pulse-card__metrics">
-        <div class="pulse-card__metric">
-          <span class="pulse-card__value">{{ summary.executionCount }}</span>
-          <span class="pulse-card__label">{{ t('repertoire.metricPlays') }}</span>
-        </div>
-        <div class="pulse-card__metric">
-          <span class="pulse-card__value">{{ summary.uniqueSongs }}</span>
-          <span class="pulse-card__label">{{ t('repertoire.metricUnique') }}</span>
-        </div>
-        <div class="pulse-card__metric">
-          <span class="pulse-card__value">{{ summary.newSongs }}</span>
-          <span class="pulse-card__label">{{ t('repertoire.metricNew') }}</span>
-        </div>
+      <div class="pulse-card__titles">
+        <h3 class="pulse-card__title">{{ t('repertoire.pulseTitle') }}</h3>
+        <p class="pulse-card__period">{{ periodCaption }}</p>
       </div>
-      <span class="pulse-card__more">
+      <NuxtLink to="/repertoire" class="pulse-card__more app-press">
         {{ t('repertoire.more') }}
         <AppIcon :name="icons.chevronRight" size="0.95rem" />
-      </span>
+      </NuxtLink>
     </div>
 
-    <ContributionCalendar
-      class="pulse-card__cal"
-      :from="summary.from"
-      :to="calendarTo"
-      :activity="summary.activity"
-      compact
-      :interactive="false"
-    />
+    <div class="pulse-card__metrics" role="group" :aria-label="t('repertoire.sectionOverview')">
+      <div class="pulse-card__metric">
+        <span class="pulse-card__value">{{ summary.uniqueSongs }}</span>
+        <span class="pulse-card__label">{{ t('repertoire.metricUnique') }}</span>
+      </div>
+      <div class="pulse-card__metric">
+        <span class="pulse-card__value">{{ summary.newSongs }}</span>
+        <span class="pulse-card__label">{{ t('repertoire.metricNew') }}</span>
+      </div>
+      <div class="pulse-card__metric">
+        <span class="pulse-card__value">{{ summary.staleCount }}</span>
+        <span class="pulse-card__label">{{ t('repertoire.metricStale') }}</span>
+      </div>
+    </div>
 
-    <p v-if="staleText" class="pulse-card__hint">{{ staleText }}</p>
-    <p v-else-if="summary.executionCount === 0" class="pulse-card__hint">
+    <div v-if="frequent.length" class="pulse-card__favorites">
+      <span class="pulse-card__block-title">{{ t('repertoire.sectionFavorites') }}</span>
+      <ul class="pulse-card__list">
+        <li
+          v-for="(item, index) in frequent"
+          :key="item.id"
+          class="pulse-card__fav"
+          :class="{ 'pulse-card__fav--lead': index === 0 }"
+        >
+          <NuxtLink :to="songLink(item.id)" class="pulse-card__fav-link app-press">
+            <span class="pulse-card__rank" aria-hidden="true">{{ index + 1 }}</span>
+            <div class="pulse-card__fav-body">
+              <div class="pulse-card__fav-row">
+                <span class="pulse-card__fav-title">{{ item.title }}</span>
+                <span class="pulse-card__fav-plays">
+                  {{ t('repertoire.playsCount', { count: item.total }) }}
+                </span>
+              </div>
+              <div
+                class="pulse-card__bar"
+                role="meter"
+                :aria-valuenow="barWidth(item.total)"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                :aria-label="t('repertoire.playsCount', { count: item.total })"
+              >
+                <span
+                  class="pulse-card__bar-fill"
+                  :style="{ width: `${barWidth(item.total)}%` }"
+                />
+              </div>
+            </div>
+          </NuxtLink>
+        </li>
+      </ul>
+    </div>
+
+    <NuxtLink
+      v-if="summary.staleCount > 0"
+      to="/repertoire?section=stale"
+      class="pulse-card__stale app-press"
+    >
+      <div class="pulse-card__stale-copy">
+        <span class="pulse-card__stale-title">
+          {{ t('repertoire.homeStaleTitle', { count: summary.staleCount }) }}
+        </span>
+        <span class="pulse-card__stale-action">{{ t('repertoire.homeStaleAction') }}</span>
+      </div>
+      <AppIcon :name="icons.chevronRight" class="pulse-card__stale-chevron" size="1.05rem" />
+    </NuxtLink>
+
+    <p v-else-if="summary.executionCount === 0 && !frequent.length" class="pulse-card__hint">
       {{ t('repertoire.homeEmptyHint') }}
     </p>
-  </NuxtLink>
+  </div>
 </template>
 
 <style scoped>
 .pulse-card {
   display: flex;
   flex-direction: column;
-  gap: var(--app-space-3);
+  gap: var(--app-space-4);
   padding: var(--app-space-4);
-  text-decoration: none;
+  min-width: 0;
   color: inherit;
 }
 
@@ -88,30 +134,57 @@ const calendarTo = computed(() => props.summary.to || localTodayKey())
   gap: var(--app-space-3);
 }
 
+.pulse-card__titles {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.pulse-card__title {
+  margin: 0;
+  font-size: var(--app-text-lg);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--app-ink);
+}
+
+.pulse-card__period {
+  margin: 0;
+  font-size: var(--app-text-xs);
+  font-weight: 550;
+  color: var(--app-muted);
+}
+
 .pulse-card__more {
   display: inline-flex;
   align-items: center;
   gap: 0.1rem;
   flex-shrink: 0;
-  margin-top: 0.15rem;
+  margin-top: 0.1rem;
+  margin-right: -0.25rem;
+  padding: 0.15rem 0.25rem;
+  border-radius: var(--app-radius-sm);
   font-size: var(--app-text-sm);
   font-weight: 600;
   color: var(--app-accent-text);
+  text-decoration: none;
 }
 
 .pulse-card__metrics {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--app-space-2);
-  flex: 1;
   min-width: 0;
 }
 
 .pulse-card__metric {
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
+  gap: 0.15rem;
   min-width: 0;
+  text-align: center;
 }
 
 .pulse-card__value {
@@ -126,14 +199,166 @@ const calendarTo = computed(() => props.summary.to || localTodayKey())
 .pulse-card__label {
   font-size: var(--app-text-2xs);
   font-weight: 550;
+  line-height: 1.25;
   color: var(--app-muted);
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  hyphens: auto;
+}
+
+.pulse-card__favorites {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.pulse-card__block-title {
+  font-size: var(--app-text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--app-section-header);
+}
+
+.pulse-card__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.pulse-card__fav-link {
+  display: grid;
+  grid-template-columns: 1.35rem minmax(0, 1fr);
+  align-items: start;
+  gap: 0.55rem;
+  min-width: 0;
+  margin: 0 -0.35rem;
+  padding: 0.25rem 0.35rem;
+  border-radius: var(--app-radius-sm);
+  text-decoration: none;
+  color: inherit;
+}
+
+.pulse-card__rank {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  margin-top: 0.05rem;
+  border-radius: var(--app-radius-pill);
+  font-size: var(--app-text-xs);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--app-muted);
+  background: var(--app-hover);
+}
+
+.pulse-card__fav--lead .pulse-card__rank {
+  color: var(--app-accent-text);
+  background: var(--app-accent-muted);
+}
+
+.pulse-card__fav-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.pulse-card__fav-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--app-space-3);
+  min-width: 0;
+}
+
+.pulse-card__fav-title {
+  min-width: 0;
+  font-size: var(--app-text-sm);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  color: var(--app-ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.pulse-card__cal {
-  margin-inline: -0.1rem;
+.pulse-card__fav--lead .pulse-card__fav-title {
+  font-weight: 700;
+}
+
+.pulse-card__fav-plays {
+  flex-shrink: 0;
+  font-size: var(--app-text-2xs);
+  font-weight: 650;
+  color: var(--app-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.pulse-card__bar {
+  height: 0.28rem;
+  border-radius: var(--app-radius-pill);
+  background: var(--app-hover);
+  overflow: hidden;
+}
+
+.pulse-card__bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--app-accent) 55%, var(--app-muted));
+}
+
+.pulse-card__fav--lead .pulse-card__bar-fill {
+  background: var(--app-accent);
+}
+
+.pulse-card__stale {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--app-space-3);
+  margin: 0 calc(var(--app-space-4) * -1) calc(var(--app-space-4) * -1);
+  padding: 0.85rem var(--app-space-4);
+  border-top: var(--app-hairline) solid var(--app-border);
+  text-decoration: none;
+  color: inherit;
+}
+
+.pulse-card__stale-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.pulse-card__stale-title {
+  font-size: var(--app-text-sm);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  color: var(--app-ink);
+}
+
+.pulse-card__stale-action {
+  font-size: var(--app-text-xs);
+  font-weight: 550;
+  line-height: 1.3;
+  color: var(--app-accent-text);
+}
+
+.pulse-card__stale-chevron {
+  flex-shrink: 0;
+  color: var(--app-muted);
+  opacity: 0.45;
 }
 
 .pulse-card__hint {
@@ -142,5 +367,19 @@ const calendarTo = computed(() => props.summary.to || localTodayKey())
   font-weight: 450;
   line-height: 1.35;
   color: var(--app-muted);
+}
+
+@media (max-width: 360px) {
+  .pulse-card__metrics {
+    gap: var(--app-space-1);
+  }
+
+  .pulse-card__value {
+    font-size: var(--app-text-lg);
+  }
+
+  .pulse-card__label {
+    font-size: 0.62rem;
+  }
 }
 </style>

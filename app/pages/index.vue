@@ -192,25 +192,10 @@ function formatDatePill(iso: string) {
         </div>
       </AppSection>
 
-      <AppSection v-if="pulseSummary || pulseLoading" :title="t('repertoire.pulseTitle')">
+      <AppSection v-if="pulseSummary || pulseLoading">
         <div v-if="pulseLoading && !pulseSummary" class="home-pulse-skeleton app-panel" />
         <RepertoirePulseCard v-else-if="pulseSummary" :summary="pulseSummary" />
       </AppSection>
-
-      <div class="home-actions">
-        <NuxtLink to="/songs" class="home-action app-press">
-          <span class="home-action__icon-wrap">
-            <AppIcon :name="icons.music" class="home-action__icon" />
-          </span>
-          <span class="home-action__label">{{ t('home.library') }}</span>
-        </NuxtLink>
-        <NuxtLink to="/setlists" class="home-action app-press">
-          <span class="home-action__icon-wrap home-action__icon-wrap--warm">
-            <AppIcon :name="icons.playlist" class="home-action__icon" />
-          </span>
-          <span class="home-action__label">{{ t('home.setlists') }}</span>
-        </NuxtLink>
-      </div>
     </template>
   </div>
 </template>
@@ -260,53 +245,7 @@ function formatDatePill(iso: string) {
 }
 
 .home-pulse-skeleton {
-  min-height: 7.5rem;
+  min-height: 14rem;
   background: color-mix(in srgb, var(--app-surface) 70%, var(--app-hover));
-}
-
-.home-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--app-space-3);
-}
-
-.home-action {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--app-space-3);
-  min-height: 5.25rem;
-  padding: var(--app-space-4);
-  border-radius: var(--app-radius-lg);
-  background: var(--app-surface);
-  text-decoration: none;
-  color: var(--app-ink);
-}
-
-.home-action__icon-wrap {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  border-radius: var(--app-radius-sm);
-  background: var(--app-accent-muted);
-  color: var(--app-accent-text);
-}
-
-.home-action__icon-wrap--warm {
-  background: color-mix(in srgb, var(--app-warn) 16%, transparent);
-  color: var(--app-warn);
-}
-
-.home-action__icon {
-  width: 1.2rem;
-  height: 1.2rem;
-}
-
-.home-action__label {
-  font-size: var(--app-text-md);
-  font-weight: 650;
-  letter-spacing: -0.015em;
 }
 </style>

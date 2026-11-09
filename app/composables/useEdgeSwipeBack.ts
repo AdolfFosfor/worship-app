@@ -46,6 +46,12 @@ function fallbackParent(path: string): string {
   if (path.startsWith('/setlists/')) {
     return '/setlists'
   }
+  if (path.startsWith('/repertoire/songs/')) {
+    return '/repertoire'
+  }
+  if (path.startsWith('/repertoire')) {
+    return '/'
+  }
   if (path.startsWith('/account/')) {
     return '/account'
   }

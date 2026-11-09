@@ -1,56 +1,132 @@
 <script setup lang="ts">
-import { REPERTOIRE_THRESHOLDS } from '~~/shared/repertoire/thresholds'
-import type { ContributionCell } from '~/utils/repertoire/calendar'
-import type { RepertoireDayPlay } from '~~/shared/types'
-import { isStaleSong } from '~/utils/repertoire/status'
-import { localTodayKey } from '~/utils/dates'
+import { REPERTOIRE_THRESHOLDS, type RepertoirePeriodKey } from '~~/shared/repertoire/thresholds'
+import type { RepertoireSongSort, RepertoireSongStat } from '~~/shared/types'
+import { icons } from '~/utils/icons'
+import { REPERTOIRE_PERIODS, periodLabelKey } from '~/utils/repertoire/period'
+import { isStaleSong, staleTierOf } from '~/utils/repertoire/status'
 
 const { t } = useAppLocale()
+const route = useRoute()
 const {
   summary,
   songs,
+  period,
   loadingSummary,
   loadingSongs,
   error,
   fetchSummary,
   fetchSongs,
-  fetchDay,
+  setPeriod,
 } = useRepertoirePulse()
 const { syncRepertoireOnActivate } = useRepertoirePulseRevision()
 
 const pageReady = ref(Boolean(summary.value && songs.value))
-const dayOpen = ref(false)
-const selectedDay = ref<string | null>(null)
-const dayPlays = ref<RepertoireDayPlay[]>([])
-const dayLoading = ref(false)
+const expandFrequent = ref(false)
+const expandStale = ref(false)
+const expandNew = ref(false)
+const allQuery = ref('')
+const allSort = ref<RepertoireSongSort>('plays')
 
-const calendarFrom = computed(() => summary.value?.from ?? '')
-const calendarTo = computed(() => summary.value?.to ?? localTodayKey())
+function focusSectionFromQuery() {
+  if (route.query.section !== 'stale') return
+  nextTick(() => {
+    document.getElementById('repertoire-stale')?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    })
+  })
+}
 
-const frequent = computed(() =>
+const preview = REPERTOIRE_THRESHOLDS.sectionPreviewLimit
+const rangeFrom = computed(() => summary.value?.from ?? '')
+const rangeTo = computed(() => summary.value?.to ?? '')
+
+/** «Новые» за всё время = все песни с историей — показатель ничего не добавляет. */
+const showNewMetric = computed(() => {
+  const s = summary.value
+  if (!s) return false
+  if (period.value === 'all' && s.newSongs >= s.uniqueSongs) return false
+  return true
+})
+
+const newMetricLabel = computed(() =>
+  period.value === 'all' ? t('repertoire.metricFirstPlayed') : t('repertoire.metricNew'),
+)
+
+const overviewMetricCount = computed(() => 2 + (showNewMetric.value ? 1 : 0))
+
+const frequentAll = computed(() =>
   (songs.value ?? [])
     .filter((s) => s.executionCount > 0)
-    .slice(0, REPERTOIRE_THRESHOLDS.frequentListLimit),
+    .slice()
+    .sort((a, b) => b.executionCount - a.executionCount || a.title.localeCompare(b.title)),
+)
+
+const frequent = computed(() =>
+  expandFrequent.value ? frequentAll.value : frequentAll.value.slice(0, preview),
+)
+
+const frequentMaxPlays = computed(() => frequentAll.value[0]?.executionCount ?? 0)
+
+const staleAll = computed(() =>
+  (songs.value ?? [])
+    .filter((s) => isStaleSong(s))
+    .slice()
+    .sort((a, b) => a.lastDate.localeCompare(b.lastDate) || a.title.localeCompare(b.title)),
 )
 
 const stale = computed(() =>
-  (songs.value ?? [])
-    .filter((s) => isStaleSong(s))
-    .sort((a, b) => a.lastDate.localeCompare(b.lastDate))
-    .slice(0, 12),
+  expandStale.value ? staleAll.value : staleAll.value.slice(0, preview),
 )
 
-const newest = computed(() =>
-  (songs.value ?? [])
+const newestAll = computed(() => {
+  if (!showNewMetric.value) return []
+  return (songs.value ?? [])
     .filter((s) => s.isNewInPeriod)
+    .slice()
     .sort((a, b) => b.firstDate.localeCompare(a.firstDate) || b.executionCount - a.executionCount)
-    .slice(0, 12),
+})
+
+const newest = computed(() =>
+  expandNew.value ? newestAll.value : newestAll.value.slice(0, preview),
 )
+
+const repertoireAll = computed(() => {
+  const q = allQuery.value.trim().toLowerCase()
+  let rows = (songs.value ?? []).slice()
+  if (q) rows = rows.filter((s) => s.title.toLowerCase().includes(q))
+  rows.sort((a, b) => compareSongs(a, b, allSort.value))
+  return rows
+})
+
+function compareSongs(a: RepertoireSongStat, b: RepertoireSongStat, sort: RepertoireSongSort) {
+  switch (sort) {
+    case 'plays':
+      return b.totalAll - a.totalAll || a.title.localeCompare(b.title)
+    case 'last':
+      return b.lastDate.localeCompare(a.lastDate) || a.title.localeCompare(b.title)
+    case 'first':
+      return a.firstDate.localeCompare(b.firstDate) || a.title.localeCompare(b.title)
+    case 'title':
+      return a.title.localeCompare(b.title)
+    default:
+      return 0
+  }
+}
+
+function staleBadge(song: RepertoireSongStat) {
+  const tier = staleTierOf(song)
+  if (!tier) return undefined
+  return t(`repertoire.staleTier.${tier}`)
+}
 
 async function load(opts?: { quiet?: boolean }) {
   if (!opts?.quiet && !summary.value) pageReady.value = false
   try {
-    await Promise.all([fetchSummary({ force: true }), fetchSongs({ force: true })])
+    await Promise.all([
+      fetchSummary({ force: true, period: period.value }),
+      fetchSongs({ force: true, period: period.value }),
+    ])
     markRepertoireSynced()
   } catch {
     /* error in composable */
@@ -59,33 +135,62 @@ async function load(opts?: { quiet?: boolean }) {
   }
 }
 
+async function onPeriod(next: RepertoirePeriodKey) {
+  if (next === period.value) return
+  pageReady.value = false
+  try {
+    await setPeriod(next)
+    markRepertoireSynced()
+  } catch {
+    /* */
+  } finally {
+    pageReady.value = true
+  }
+}
+
 const { markRepertoireSynced } = syncRepertoireOnActivate(() => load({ quiet: true }))
+
+watch(
+  [pageReady, () => route.query.section],
+  ([ready]) => {
+    if (ready) focusSectionFromQuery()
+  },
+  { immediate: true },
+)
 
 onMounted(() => {
   void load()
 })
 
-async function onSelectDay(cell: ContributionCell) {
-  selectedDay.value = cell.date
-  dayOpen.value = true
-  dayLoading.value = true
-  dayPlays.value = []
-  try {
-    dayPlays.value = await fetchDay(cell.date)
-  } catch {
-    dayPlays.value = []
-  } finally {
-    dayLoading.value = false
-  }
-}
+const sortOptions = computed(() =>
+  (['plays', 'last', 'first', 'title'] as RepertoireSongSort[]).map((value) => ({
+    value,
+    label: t(`repertoire.sort.${value}`),
+  })),
+)
 </script>
 
 <template>
   <div class="app-page">
     <AppHeader
       :title="t('repertoire.title')"
-      :subtitle="t('repertoire.subtitle')"
+      :subtitle="t(periodLabelKey(period))"
     />
+
+    <div class="pulse-periods" role="tablist" :aria-label="t('repertoire.periodAria')">
+      <button
+        v-for="key in REPERTOIRE_PERIODS"
+        :key="key"
+        type="button"
+        class="pulse-periods__chip"
+        :class="{ 'pulse-periods__chip--on': period === key }"
+        role="tab"
+        :aria-selected="period === key"
+        @click="onPeriod(key)"
+      >
+        {{ t(periodLabelKey(key)) }}
+      </button>
+    </div>
 
     <AppLoading v-if="!pageReady && (loadingSummary || loadingSongs)" />
     <AppError
@@ -96,119 +201,185 @@ async function onSelectDay(cell: ContributionCell) {
 
     <template v-else-if="summary">
       <AppSection :title="t('repertoire.sectionOverview')">
-        <div class="pulse-overview app-panel">
+        <div
+          class="pulse-overview app-panel"
+          :class="`pulse-overview--cols-${overviewMetricCount}`"
+        >
           <div class="pulse-overview__metrics">
-            <div class="pulse-overview__metric">
-              <span class="pulse-overview__value">{{ summary.executionCount }}</span>
-              <span class="pulse-overview__label">{{ t('repertoire.metricPlays') }}</span>
-            </div>
             <div class="pulse-overview__metric">
               <span class="pulse-overview__value">{{ summary.uniqueSongs }}</span>
               <span class="pulse-overview__label">{{ t('repertoire.metricUnique') }}</span>
             </div>
-            <div class="pulse-overview__metric">
+            <div v-if="showNewMetric" class="pulse-overview__metric">
               <span class="pulse-overview__value">{{ summary.newSongs }}</span>
-              <span class="pulse-overview__label">{{ t('repertoire.metricNew') }}</span>
+              <span class="pulse-overview__label">{{ newMetricLabel }}</span>
+            </div>
+            <div class="pulse-overview__metric">
+              <span class="pulse-overview__value">{{ summary.staleCount }}</span>
+              <span class="pulse-overview__label">{{ t('repertoire.metricStale') }}</span>
             </div>
           </div>
-          <p class="pulse-overview__note">{{ t('repertoire.overviewNote') }}</p>
-        </div>
-      </AppSection>
-
-      <AppSection :title="t('repertoire.sectionCalendar')">
-        <div class="pulse-calendar app-panel">
-          <ContributionCalendar
-            :from="calendarFrom"
-            :to="calendarTo"
-            :activity="summary.activity"
-            @select="onSelectDay"
-          />
         </div>
       </AppSection>
 
       <AppSection :title="t('repertoire.sectionFrequent')">
         <AppEmptyState
-          v-if="!frequent.length"
+          v-if="!frequentAll.length"
           :title="t('repertoire.emptyFrequentTitle')"
           :description="t('repertoire.emptyFrequentDesc')"
         />
-        <AppSurfaceList v-else>
-          <div
-            v-for="(song, index) in frequent"
+        <div v-else class="pulse-list app-panel">
+          <SongStatRow
+            v-for="song in frequent"
             :key="song.songId"
-            class="pulse-row"
-            :class="{ 'pulse-row--split': index < frequent.length - 1 }"
+            variant="frequent"
+            :song="song"
+            :from="rangeFrom"
+            :to="rangeTo"
+            :popularity-max="frequentMaxPlays"
+          />
+          <button
+            v-if="frequentAll.length > preview"
+            type="button"
+            class="pulse-list__more"
+            @click="expandFrequent = !expandFrequent"
           >
-            <SongStatRow
-              :song="song"
-              :from="calendarFrom"
-              :to="calendarTo"
-            />
-          </div>
-        </AppSurfaceList>
+            {{
+              expandFrequent
+                ? t('repertoire.showLess')
+                : t('repertoire.showAll', { count: frequentAll.length })
+            }}
+          </button>
+        </div>
       </AppSection>
 
-      <AppSection :title="t('repertoire.sectionStale')">
+      <AppSection id="repertoire-stale" :title="t('repertoire.sectionStale')">
         <AppEmptyState
-          v-if="!stale.length"
+          v-if="!staleAll.length"
           :title="t('repertoire.emptyStaleTitle')"
           :description="t('repertoire.emptyStaleDesc')"
         />
-        <AppSurfaceList v-else>
-          <div
-            v-for="(song, index) in stale"
+        <div v-else class="pulse-list app-panel">
+          <SongStatRow
+            v-for="song in stale"
             :key="song.songId"
-            class="pulse-row"
-            :class="{ 'pulse-row--split': index < stale.length - 1 }"
+            variant="stale"
+            :song="song"
+            :from="rangeFrom"
+            :to="rangeTo"
+            :badge="staleBadge(song)"
+          />
+          <button
+            v-if="staleAll.length > preview"
+            type="button"
+            class="pulse-list__more"
+            @click="expandStale = !expandStale"
           >
-            <SongStatRow
-              :song="song"
-              :from="calendarFrom"
-              :to="calendarTo"
-            />
-          </div>
-        </AppSurfaceList>
+            {{
+              expandStale
+                ? t('repertoire.showLess')
+                : t('repertoire.showAll', { count: staleAll.length })
+            }}
+          </button>
+        </div>
       </AppSection>
 
-      <AppSection :title="t('repertoire.sectionNew')">
+      <AppSection v-if="showNewMetric" :title="t('repertoire.sectionNew')">
         <AppEmptyState
-          v-if="!newest.length"
+          v-if="!newestAll.length"
           :title="t('repertoire.emptyNewTitle')"
           :description="t('repertoire.emptyNewDesc')"
         />
-        <AppSurfaceList v-else>
-          <div
-            v-for="(song, index) in newest"
+        <div v-else class="pulse-list app-panel">
+          <SongStatRow
+            v-for="song in newest"
             :key="song.songId"
-            class="pulse-row"
-            :class="{ 'pulse-row--split': index < newest.length - 1 }"
+            :song="song"
+            :from="rangeFrom"
+            :to="rangeTo"
+            :badge="t('repertoire.badgeNew')"
+          />
+          <button
+            v-if="newestAll.length > preview"
+            type="button"
+            class="pulse-list__more"
+            @click="expandNew = !expandNew"
           >
-            <SongStatRow
-              :song="song"
-              :from="calendarFrom"
-              :to="calendarTo"
-              :badge="t('repertoire.badgeNew')"
+            {{
+              expandNew
+                ? t('repertoire.showLess')
+                : t('repertoire.showAll', { count: newestAll.length })
+            }}
+          </button>
+        </div>
+      </AppSection>
+
+      <AppSection :title="t('repertoire.sectionAll')">
+        <div class="pulse-all-tools">
+          <div class="pulse-all-search">
+            <AppIcon :name="icons.search" class="pulse-all-search__icon" />
+            <InputText
+              v-model="allQuery"
+              class="w-full pulse-all-search__input"
+              :placeholder="t('repertoire.searchPlaceholder')"
             />
           </div>
-        </AppSurfaceList>
+          <Select
+            v-model="allSort"
+            :options="sortOptions"
+            option-label="label"
+            option-value="value"
+            class="pulse-all-sort"
+          />
+        </div>
+
+        <AppEmptyState
+          v-if="!repertoireAll.length"
+          :title="t('repertoire.emptyAllTitle')"
+          :description="t('repertoire.emptyAllDesc')"
+        />
+        <div v-else class="pulse-list app-panel">
+          <SongStatRow
+            v-for="song in repertoireAll"
+            :key="song.songId"
+            :song="song"
+            :from="rangeFrom"
+            :to="rangeTo"
+            plays-mode="total"
+          />
+        </div>
       </AppSection>
     </template>
-
-    <RepertoireDaySheet
-      v-model:open="dayOpen"
-      :day="selectedDay"
-      :plays="dayPlays"
-      :loading="dayLoading"
-    />
   </div>
 </template>
 
 <style scoped>
-.pulse-overview {
-  padding: var(--app-space-4);
+.pulse-periods {
   display: flex;
-  flex-direction: column;
-  gap: var(--app-space-3);
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.pulse-periods__chip {
+  min-height: 2rem;
+  padding: 0 0.75rem;
+  border: 0;
+  border-radius: var(--app-radius-pill);
+  background: var(--app-hover);
+  color: var(--app-muted);
+  font: inherit;
+  font-size: var(--app-text-sm);
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.pulse-periods__chip--on {
+  background: var(--app-accent-muted);
+  color: var(--app-accent-text);
+}
+
+.pulse-overview {
+  padding: 0.85rem var(--app-space-4);
 }
 
 .pulse-overview__metrics {
@@ -217,51 +388,99 @@ async function onSelectDay(cell: ContributionCell) {
   gap: var(--app-space-2);
 }
 
+.pulse-overview--cols-2 .pulse-overview__metrics {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .pulse-overview__metric {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
   min-width: 0;
+  text-align: center;
 }
 
 .pulse-overview__value {
-  font-size: var(--app-text-2xl);
+  font-size: var(--app-text-xl);
   font-weight: 700;
   letter-spacing: -0.03em;
   line-height: 1.1;
-  color: var(--app-ink);
   font-variant-numeric: tabular-nums;
+  color: var(--app-ink);
 }
 
 .pulse-overview__label {
   font-size: var(--app-text-2xs);
   font-weight: 550;
+  line-height: 1.25;
   color: var(--app-muted);
+  white-space: normal;
 }
 
-.pulse-overview__note {
-  margin: 0;
+@media (max-width: 360px) {
+  .pulse-overview__value {
+    font-size: var(--app-text-lg);
+  }
+
+  .pulse-overview__label {
+    font-size: 0.62rem;
+  }
+}
+
+.pulse-list {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.pulse-list :deep(.song-stat:not(:last-child)) {
+  box-shadow: inset 0 -1px 0 var(--app-border);
+}
+
+.pulse-list__more {
+  width: 100%;
+  min-height: 2.75rem;
+  border: 0;
+  border-top: var(--app-hairline) solid var(--app-border);
+  background: transparent;
+  color: var(--app-accent-text);
+  font: inherit;
   font-size: var(--app-text-sm);
-  color: var(--app-muted);
-  line-height: 1.35;
+  font-weight: 650;
+  cursor: pointer;
 }
 
-.pulse-calendar {
-  padding: var(--app-space-4) var(--app-space-3);
+.pulse-all-tools {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+  margin-bottom: var(--app-space-2);
 }
 
-.pulse-row--split {
+.pulse-all-search {
   position: relative;
 }
 
-.pulse-row--split::after {
-  content: '';
+.pulse-all-search__icon {
   position: absolute;
-  left: var(--app-space-4);
-  right: 0;
-  bottom: 0;
-  height: var(--app-hairline);
-  background: var(--app-border);
+  left: 0.9rem;
+  top: 50%;
+  z-index: 1;
+  width: 1.1rem;
+  height: 1.1rem;
+  transform: translateY(-50%);
+  color: var(--app-muted);
   pointer-events: none;
+}
+
+.pulse-all-search :deep(.pulse-all-search__input),
+.pulse-all-search :deep(input) {
+  min-height: 2.75rem;
+  padding-left: 2.5rem;
+  border-radius: var(--app-radius-pill) !important;
+}
+
+.pulse-all-sort {
+  width: 100%;
 }
 </style>

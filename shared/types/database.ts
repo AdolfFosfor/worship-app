@@ -245,13 +245,13 @@ export interface Database {
         }
         Returns: import('./repertoire').DbRepertoireSongStat[]
       }
-      repertoire_pulse_day: {
+      repertoire_song_detail: {
         Args: {
           p_workspace_id: string
-          p_day: string
+          p_song_id: string
           p_today: string
         }
-        Returns: import('./repertoire').DbRepertoireDayPlay[]
+        Returns: import('./repertoire').DbRepertoireSongDetail | null
       }
     }
     Enums: {
