@@ -13,7 +13,6 @@ import {
   createAnnotation,
   createChord,
   createEmptyChart,
-  durationOptions,
   getMeter,
   parseLegacyChords,
   sectionAutoTitle,
@@ -25,13 +24,13 @@ import {
   mergeBars,
   moveBar,
   moveItem,
+  swapItems,
   removeBar,
   removeItem,
   removeSection,
   updateSection,
   withChart,
   insertItem,
-  setChordDuration,
 } from '~/utils/music/chart/ops'
 import { icons } from '~/utils/icons'
 import { useEditorReveal } from '~/composables/useEditorReveal'
@@ -113,6 +112,7 @@ const dropHint = ref<{
   /** Край чипа-цели: линия до/после */
   edge?: 'before' | 'after'
   overItemId?: string
+  mode?: 'insert' | 'swap'
 } | null>(null)
 const longPressTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 
@@ -270,8 +270,6 @@ function startFirstBar(sectionId: string) {
   selected.value = { sectionId: section.id, barId: bar.id, insertIndex: 0 }
   openKeyboard()
 }
-
-const pulseOptions = computed(() => durationOptions(chart.value.timeSignature))
 
 function onAddSection(type: SectionType) {
   const next = addSection(currentChart(), type)
@@ -450,22 +448,6 @@ function onRemoveItem(sectionId: string, barId: string, itemId: string) {
   }
 }
 
-const selectedChord = computed(() => {
-  const sel = selected.value
-  if (!sel?.itemId) return null
-  const item = chart.value.sections
-    .find((s) => s.id === sel.sectionId)
-    ?.bars.find((b) => b.id === sel.barId)
-    ?.items.find((i) => i.id === sel.itemId)
-  return item?.kind === 'chord' ? item : null
-})
-
-function onSetDuration(beats: number | null) {
-  const sel = selected.value
-  if (!sel?.itemId) return
-  commit(setChordDuration(currentChart(), sel.sectionId, sel.barId, sel.itemId, beats))
-}
-
 function clearLongPress() {
   if (longPressTimer.value) {
     clearTimeout(longPressTimer.value)
@@ -496,7 +478,7 @@ function startBarDrag(sectionId: string, barId: string, e: PointerEvent) {
 watch(
   () =>
     dropHint.value
-      ? `${dropHint.value.sectionId}:${dropHint.value.barId ?? ''}:${dropHint.value.index}:${dropHint.value.edge ?? ''}`
+      ? `${dropHint.value.sectionId}:${dropHint.value.barId ?? ''}:${dropHint.value.index}:${dropHint.value.edge ?? ''}:${dropHint.value.mode ?? ''}`
       : null,
   (next, prev) => {
     if (!drag.value || !next || next === prev) return
@@ -514,6 +496,7 @@ function itemDropHintFromBar(
   index: number
   edge?: 'before' | 'after'
   overItemId?: string
+  mode?: 'insert' | 'swap'
 } {
   const sectionId = bar.dataset.sectionId!
   const barId = bar.dataset.barId!
@@ -521,7 +504,7 @@ function itemDropHintFromBar(
     (c) => c.dataset.itemId && c.dataset.itemId !== dragItemId,
   )
   if (!chips.length) {
-    return { sectionId, barId, index: 0 }
+    return { sectionId, barId, index: 0, mode: 'insert' }
   }
 
   for (let i = 0; i < chips.length; i++) {
@@ -533,14 +516,58 @@ function itemDropHintFromBar(
       : rect.right + 48
     if (clientX > zoneRight) continue
 
-    const before = clientX < rect.left + rect.width / 2
     const itemIndex = Number(chip.dataset.itemIndex ?? 0)
+    const overItemId = chip.dataset.itemId!
+
+    if (clientX < rect.left) {
+      return {
+        sectionId,
+        barId,
+        index: itemIndex,
+        edge: 'before',
+        overItemId,
+        mode: 'insert',
+      }
+    }
+    if (clientX > rect.right) {
+      return {
+        sectionId,
+        barId,
+        index: itemIndex + 1,
+        edge: 'after',
+        overItemId,
+        mode: 'insert',
+      }
+    }
+
+    const rel = clientX - rect.left
+    const w = rect.width
+    if (rel < w * 0.2) {
+      return {
+        sectionId,
+        barId,
+        index: itemIndex,
+        edge: 'before',
+        overItemId,
+        mode: 'insert',
+      }
+    }
+    if (rel > w * 0.8) {
+      return {
+        sectionId,
+        barId,
+        index: itemIndex + 1,
+        edge: 'after',
+        overItemId,
+        mode: 'insert',
+      }
+    }
     return {
       sectionId,
       barId,
-      index: before ? itemIndex : itemIndex + 1,
-      edge: before ? 'before' : 'after',
-      overItemId: chip.dataset.itemId,
+      index: itemIndex,
+      overItemId,
+      mode: 'swap',
     }
   }
 
@@ -551,6 +578,7 @@ function itemDropHintFromBar(
     index: Number(last.dataset.itemIndex ?? 0) + 1,
     edge: 'after',
     overItemId: last.dataset.itemId,
+    mode: 'insert',
   }
 }
 
@@ -578,38 +606,59 @@ function onPointerUp() {
   clearLongPress()
   let moved = false
   if (drag.value && dropHint.value) {
-    if (drag.value.kind === 'item' && dropHint.value.barId) {
-      const sameBar =
-        drag.value.sectionId === dropHint.value.sectionId &&
-        drag.value.barId === dropHint.value.barId
-      const fromBar = currentChart()
-        .sections.find((s) => s.id === drag.value!.sectionId)
-        ?.bars.find((b) => b.id === drag.value!.barId)
-      const fromIdx = fromBar?.items.findIndex((i) => i.id === drag.value!.itemId) ?? -1
-      const unchanged =
-        sameBar && (fromIdx === dropHint.value.index || fromIdx + 1 === dropHint.value.index)
-      if (!unchanged) {
-        commit(
-          moveItem(
-            currentChart(),
-            {
-              sectionId: drag.value.sectionId,
-              barId: drag.value.barId,
-              itemId: drag.value.itemId!,
-            },
-            {
+    if (drag.value.kind === 'item' && dropHint.value.barId && drag.value.itemId) {
+      const fromPath = {
+        sectionId: drag.value.sectionId,
+        barId: drag.value.barId,
+        itemId: drag.value.itemId,
+      }
+      if (
+        dropHint.value.mode === 'swap' &&
+        dropHint.value.overItemId &&
+        dropHint.value.overItemId !== drag.value.itemId
+      ) {
+        const toPath = {
+          sectionId: dropHint.value.sectionId,
+          barId: dropHint.value.barId,
+          itemId: dropHint.value.overItemId,
+        }
+        const next = swapItems(currentChart(), fromPath, toPath)
+        commit(next)
+        const bar = next.sections
+          .find((s) => s.id === toPath.sectionId)
+          ?.bars.find((b) => b.id === toPath.barId)
+        const newIdx = bar?.items.findIndex((i) => i.id === fromPath.itemId) ?? -1
+        selected.value = {
+          sectionId: toPath.sectionId,
+          barId: toPath.barId,
+          insertIndex: newIdx >= 0 ? newIdx + 1 : dropHint.value.index,
+        }
+        moved = true
+      } else if (dropHint.value.mode !== 'swap') {
+        const sameBar =
+          drag.value.sectionId === dropHint.value.sectionId &&
+          drag.value.barId === dropHint.value.barId
+        const fromBar = currentChart()
+          .sections.find((s) => s.id === drag.value!.sectionId)
+          ?.bars.find((b) => b.id === drag.value!.barId)
+        const fromIdx = fromBar?.items.findIndex((i) => i.id === drag.value!.itemId) ?? -1
+        const unchanged =
+          sameBar && (fromIdx === dropHint.value.index || fromIdx + 1 === dropHint.value.index)
+        if (!unchanged) {
+          commit(
+            moveItem(currentChart(), fromPath, {
               sectionId: dropHint.value.sectionId,
               barId: dropHint.value.barId,
               index: dropHint.value.index,
-            },
-          ),
-        )
-        selected.value = {
-          sectionId: dropHint.value.sectionId,
-          barId: dropHint.value.barId,
-          insertIndex: dropHint.value.index + 1,
+            }),
+          )
+          selected.value = {
+            sectionId: dropHint.value.sectionId,
+            barId: dropHint.value.barId,
+            insertIndex: dropHint.value.index + 1,
+          }
+          moved = true
         }
-        moved = true
       }
     } else if (drag.value.kind === 'bar') {
       const same =
@@ -674,8 +723,14 @@ function isBarSelected(sectionId: string, barId: string) {
 
 function isDropOnItem(itemId: string, edge: 'before' | 'after') {
   return (
-    dropHint.value?.overItemId === itemId && dropHint.value.edge === edge
+    dropHint.value?.mode === 'insert' &&
+    dropHint.value.overItemId === itemId &&
+    dropHint.value.edge === edge
   )
+}
+
+function isDropSwap(itemId: string) {
+  return dropHint.value?.mode === 'swap' && dropHint.value.overItemId === itemId
 }
 
 watch(keyboardOpen, (open) => {
@@ -861,6 +916,7 @@ onBeforeUnmount(() => {
                         drag?.kind === 'item' && drag.itemId === item.id,
                       'chart-chip--drop-before': isDropOnItem(item.id, 'before'),
                       'chart-chip--drop-after': isDropOnItem(item.id, 'after'),
+                      'chart-chip--drop-swap': isDropSwap(item.id),
                     },
                   ]"
                   data-drop-item
@@ -933,33 +989,6 @@ onBeforeUnmount(() => {
           </button>
         </div>
       </section>
-    </div>
-
-    <div v-if="selectedChord" class="chart-chord-tools">
-      <span>{{ selectedChord.symbol }}</span>
-      <button
-        type="button"
-        :class="{ 'chart-chord-tools__on': !selectedChord.duration }"
-        @click="onSetDuration(null)"
-      >
-        {{ t('chart.durationAuto') }}
-      </button>
-      <button
-        v-for="n in pulseOptions"
-        :key="n"
-        type="button"
-        :class="{ 'chart-chord-tools__on': selectedChord.duration?.beats === n }"
-        @click="onSetDuration(n)"
-      >
-        {{ n }}
-      </button>
-      <button
-        type="button"
-        class="chart-chord-tools__danger"
-        @click="onRemoveItem(selected!.sectionId, selected!.barId, selectedChord.id)"
-      >
-        {{ t('common.remove') }}
-      </button>
     </div>
 
     <ChordKeyboard
@@ -1400,6 +1429,12 @@ onBeforeUnmount(() => {
   right: -0.2rem;
 }
 
+.chart-chip--drop-swap {
+  z-index: 1;
+  box-shadow: 0 0 0 2px var(--app-accent);
+  background: color-mix(in srgb, var(--app-accent) 14%, transparent);
+}
+
 .chart-chip small {
   font-size: 0.65em;
   opacity: 0.55;
@@ -1462,43 +1497,6 @@ onBeforeUnmount(() => {
   cursor: pointer;
 }
 
-.chart-chord-tools {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.35rem 0.55rem;
-  border-radius: var(--app-radius);
-  background: var(--app-hover);
-}
-
-.chart-chord-tools > span {
-  margin-right: 0.2rem;
-  font-size: var(--app-text-sm);
-  font-weight: 750;
-}
-
-.chart-chord-tools button {
-  min-height: 1.55rem;
-  padding: 0 0.45rem;
-  border: 0;
-  border-radius: var(--app-radius-pill);
-  background: var(--app-surface);
-  color: var(--app-ink);
-  font: inherit;
-  font-size: var(--app-text-2xs);
-  font-weight: 650;
-  cursor: pointer;
-}
-
-.chart-chord-tools__on {
-  background: var(--app-accent) !important;
-  color: var(--app-accent-contrast) !important;
-}
-
-.chart-chord-tools__danger {
-  color: var(--app-destructive) !important;
-}
 </style>
 
 <style>

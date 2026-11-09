@@ -38,11 +38,13 @@ export function useKeyboardInset() {
     if (!import.meta.client) return
     const root = document.documentElement
     root.style.setProperty('--app-keyboard-inset', `${inset.value}px`)
-    // open = есть inset; fieldFocused = прячем nav (в т.ч. host-shrink, где overlap≈0).
-    root.classList.toggle('app-keyboard-open', fieldFocused)
+    // Прячем nav только при реальном overlap KB. Голый focus (ПК / без soft KB)
+    // не должен убирать нижнее меню.
+    const hideNav = fieldFocused && open.value
+    root.classList.toggle('app-keyboard-open', hideNav)
     document
       .querySelector('.app-shell')
-      ?.classList.toggle('app-shell--keyboard-open', fieldFocused)
+      ?.classList.toggle('app-shell--keyboard-open', hideNav)
   }
 
   function measure() {
@@ -126,7 +128,9 @@ export function useKeyboardInset() {
       const el = document.activeElement
       if (
         isEditable(el) &&
-        !el.closest('.note-composer, .chord-kb, .member-sheet, .song-top-sheet')
+        !el.closest(
+          '.note-composer, .chord-kb, .member-sheet, .song-top-sheet, .create-setlist-sheet',
+        )
       ) {
         ensureVisible(el)
       }
@@ -139,7 +143,11 @@ export function useKeyboardInset() {
       if (!isEditable(event.target)) return
       const el = event.target as HTMLElement
       measure()
-      if (el.closest('.note-composer, .chord-kb, .member-sheet, .song-top-sheet')) {
+      if (
+        el.closest(
+          '.note-composer, .chord-kb, .member-sheet, .song-top-sheet, .create-setlist-sheet',
+        )
+      ) {
         requestAnimationFrame(() => measure())
         return
       }

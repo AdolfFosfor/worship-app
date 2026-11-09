@@ -33,9 +33,6 @@ const canSubmit = computed(
   () => props.modelValue.title.trim().length > 0 && Boolean(props.modelValue.key),
 )
 
-const hasLyrics = computed(() => Boolean(props.modelValue.lyrics?.trim()))
-const hasYoutube = computed(() => Boolean(props.modelValue.youtubeUrl?.trim()))
-
 export type SongExtraKind = 'lyrics' | 'youtube'
 
 const sheetKind = ref<SongExtraKind | null>(null)
@@ -119,8 +116,6 @@ onBeforeUnmount(() => {
 
 defineExpose({
   openExtra,
-  hasLyrics,
-  hasYoutube,
 })
 </script>
 
@@ -167,11 +162,6 @@ defineExpose({
       />
     </div>
 
-    <div v-if="hasLyrics || hasYoutube" class="song-form__extras-status">
-      <span v-if="hasLyrics" class="song-form__chip">{{ t('song.extraLyrics') }}</span>
-      <span v-if="hasYoutube" class="song-form__chip song-form__chip--yt">{{ t('song.extraYoutube') }}</span>
-    </div>
-
     <input
       ref="focusProxy"
       class="song-form__focus-proxy"
@@ -191,7 +181,11 @@ defineExpose({
           :disabled="!canSubmit || busy"
           :loading="busy"
           @click="canSubmit && !$props.busy && emit('submit')"
-        />
+        >
+          <template #icon>
+            <AppIcon :name="icons.save" size="1.15rem" />
+          </template>
+        </Button>
       </div>
 
       <Transition name="song-top-sheet" @after-enter="onSheetAfterEnter">
@@ -304,29 +298,6 @@ defineExpose({
   color: var(--app-muted);
 }
 
-.song-form__extras-status {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-}
-
-.song-form__chip {
-  display: inline-flex;
-  align-items: center;
-  min-height: 1.5rem;
-  padding: 0 0.55rem;
-  border-radius: var(--app-radius-pill);
-  background: var(--app-hover);
-  color: var(--app-muted);
-  font-size: var(--app-text-2xs);
-  font-weight: 700;
-}
-
-.song-form__chip--yt {
-  color: var(--app-warn);
-  background: color-mix(in srgb, var(--app-warn) 14%, transparent);
-}
-
 /* Всегда над таббаром */
 .song-form-cta {
   position: absolute;
@@ -353,6 +324,8 @@ defineExpose({
   max-width: var(--app-page-max);
   margin-inline: auto;
   display: flex;
+  min-height: 2.875rem;
+  gap: 0.4rem;
 }
 
 .song-top-sheet {

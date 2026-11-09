@@ -2,6 +2,7 @@
 import { formatServiceDatePill, localTodayKey } from '~/utils/dates'
 import { icons } from '~/utils/icons'
 
+const route = useRoute()
 const workspace = useWorkspaceStore()
 const { t, sessionTitle, locale } = useAppLocale()
 const { setlists, loading, error, fetchSetlists, getUpcoming, upcoming } = useSetlists()
@@ -9,6 +10,18 @@ const { syncSetlistsOnActivate } = useSetlistsRevision()
 
 /** Пока нет кэша — не показываем hero без пиллов. */
 const pageReady = ref(Boolean(setlists.value.length || upcoming.value))
+const createOpen = ref(false)
+const createSheet = ref<{ open: () => void } | null>(null)
+
+function openCreate() {
+  createSheet.value?.open()
+}
+
+function consumeCreateQuery() {
+  if (route.query.create == null) return
+  if (workspace.canEditSetlists) createOpen.value = true
+  void navigateTo({ path: '/setlists', query: {} }, { replace: true })
+}
 
 const today = computed(() => localTodayKey())
 
@@ -55,7 +68,13 @@ const { markSetlistsSynced } = syncSetlistsOnActivate(() => load({ quiet: true }
 
 onMounted(() => {
   void load()
+  consumeCreateQuery()
 })
+
+watch(
+  () => route.query.create,
+  () => consumeCreateQuery(),
+)
 
 function formatDatePill(iso: string) {
   return formatServiceDatePill(iso, {
@@ -69,11 +88,18 @@ function formatDatePill(iso: string) {
   <div class="app-page">
     <AppHeader :title="t('setlists.title')">
       <template v-if="workspace.canEditSetlists" #trailing>
-        <NuxtLink to="/setlists/new" class="app-header-action" :aria-label="t('setlists.ariaCreate')">
+        <button
+          type="button"
+          class="app-header-action"
+          :aria-label="t('setlists.ariaCreate')"
+          @click="openCreate"
+        >
           <AppIcon :name="icons.add" />
-        </NuxtLink>
+        </button>
       </template>
     </AppHeader>
+
+    <CreateSetlistSheet ref="createSheet" v-model:open="createOpen" />
 
     <AppLoading v-if="!pageReady || (loading && !setlists.length)" />
     <AppError v-else-if="error" :message="error" @retry="load" />
@@ -83,7 +109,10 @@ function formatDatePill(iso: string) {
       :description="t('setlists.emptyDesc')"
     >
       <template v-if="workspace.canEditSetlists" #action>
-        <NuxtLink to="/setlists/new" class="app-cta">{{ t('common.create') }}</NuxtLink>
+        <button type="button" class="app-cta" @click="openCreate">
+          <AppIcon :name="icons.add" size="1.1rem" />
+          {{ t('common.create') }}
+        </button>
       </template>
     </AppEmptyState>
 

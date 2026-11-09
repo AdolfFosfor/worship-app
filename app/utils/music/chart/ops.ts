@@ -189,6 +189,24 @@ export function moveItem(
   })
 }
 
+export function swapItems(chart: ChordChart, a: ItemPath, b: ItemPath): ChordChart {
+  if (a.itemId === b.itemId) return chart
+  return withChart(chart, (d) => {
+    const secA = findSection(d, a.sectionId)
+    const secB = findSection(d, b.sectionId)
+    const barA = secA ? findBar(secA, a.barId) : null
+    const barB = secB ? findBar(secB, b.barId) : null
+    if (!barA || !barB) return
+    const idxA = barA.items.findIndex((i) => i.id === a.itemId)
+    const idxB = barB.items.findIndex((i) => i.id === b.itemId)
+    if (idxA < 0 || idxB < 0) return
+    const itemA = barA.items[idxA]!
+    const itemB = barB.items[idxB]!
+    barA.items[idxA] = itemB
+    barB.items[idxB] = itemA
+  })
+}
+
 export function moveBar(
   chart: ChordChart,
   from: BarPath,

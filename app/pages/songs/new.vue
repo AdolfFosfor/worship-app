@@ -46,6 +46,10 @@ function pickExtra(kind: SongExtraKind) {
   extrasPopover.value?.hide()
 }
 
+const hasLyrics = computed(() => Boolean(form.value.lyrics?.trim()))
+const hasYoutube = computed(() => Boolean(form.value.youtubeUrl?.trim()))
+const hasExtras = computed(() => hasLyrics.value || hasYoutube.value)
+
 async function save() {
   busy.value = true
   try {
@@ -75,15 +79,29 @@ async function save() {
   <div class="app-page">
     <AppHeader :title="t('songs.newTitle')">
       <template #trailing>
-        <button
-          type="button"
-          class="app-header-action"
-          :aria-label="t('songs.ariaExtras')"
-          aria-haspopup="menu"
-          @click="toggleExtras"
-        >
-          <AppIcon :name="icons.documentText" />
-        </button>
+        <div class="app-header-extras">
+          <span
+            v-if="hasExtras"
+            class="app-header-extras__marks"
+            aria-hidden="true"
+          >
+            <span v-if="hasLyrics" class="app-header-extras__mark app-header-extras__mark--lyrics">
+              <AppIcon :name="icons.documentText" :size="16" />
+            </span>
+            <span v-if="hasYoutube" class="app-header-extras__mark app-header-extras__mark--youtube">
+              <AppIcon :name="icons.youtube" :size="16" />
+            </span>
+          </span>
+          <button
+            type="button"
+            class="app-header-action"
+            :aria-label="t('songs.ariaExtras')"
+            aria-haspopup="menu"
+            @click="toggleExtras"
+          >
+            <AppIcon :name="icons.documentText" />
+          </button>
+        </div>
       </template>
     </AppHeader>
 

@@ -16,6 +16,8 @@ const loading = ref(!upcoming.value)
 const error = ref<string | null>(null)
 
 const createPopover = useTemplateRef<InstanceType<typeof Popover>>('createPopover')
+const createSetlistOpen = ref(false)
+const createSetlistSheet = ref<{ open: () => void } | null>(null)
 
 const canCreate = computed(
   () => workspace.canEditSongs || workspace.canEditSetlists,
@@ -23,7 +25,7 @@ const canCreate = computed(
 
 const createOptions = computed(() => {
   const options: {
-    to: string
+    to?: string
     label: string
     icon: AppIconName
     kind: 'song' | 'setlist'
@@ -38,7 +40,6 @@ const createOptions = computed(() => {
   }
   if (workspace.canEditSetlists) {
     options.push({
-      to: '/setlists/new',
       label: t('home.createSetlist'),
       icon: icons.playlist,
       kind: 'setlist',
@@ -55,9 +56,13 @@ function onCreateShow() {
   clampOverlayToFrameAfterShow(resolvePopoverEl(createPopover.value))
 }
 
-async function onCreatePick(to: string) {
+async function onCreatePick(option: (typeof createOptions.value)[number]) {
   createPopover.value?.hide()
-  await navigateTo(to)
+  if (option.kind === 'setlist') {
+    createSetlistSheet.value?.open()
+    return
+  }
+  if (option.to) await navigateTo(option.to)
 }
 
 async function load(opts?: { quiet?: boolean }) {
@@ -116,7 +121,7 @@ function formatDatePill(iso: string) {
           class="app-create-menu__item"
           :class="`app-create-menu__item--${option.kind}`"
           role="menuitem"
-          @click="onCreatePick(option.to)"
+          @click="onCreatePick(option)"
         >
           <span class="app-create-menu__icon">
             <AppIcon :name="option.icon" :size="18" />
@@ -125,6 +130,8 @@ function formatDatePill(iso: string) {
         </button>
       </div>
     </Popover>
+
+    <CreateSetlistSheet ref="createSetlistSheet" v-model:open="createSetlistOpen" />
 
     <AppLoading v-if="loading" />
     <AppError v-else-if="error" :message="error" @retry="load" />
@@ -158,7 +165,10 @@ function formatDatePill(iso: string) {
               :description="t('home.emptyUpcomingDesc')"
             >
               <template v-if="workspace.canEditSetlists" #action>
-                <NuxtLink to="/setlists/new" class="app-cta">{{ t('common.create') }}</NuxtLink>
+                <button type="button" class="app-cta" @click="createSetlistSheet?.open()">
+                  <AppIcon :name="icons.add" size="1.1rem" />
+                  {{ t('common.create') }}
+                </button>
               </template>
             </AppEmptyState>
           </div>

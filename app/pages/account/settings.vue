@@ -9,7 +9,7 @@ const telegram = useTelegramApp()
 const toast = useToast()
 const { locale, localeOptions, setLocale, t } = useAppLocale()
 
-const displayNameInput = ref('')
+const displayNameInput = ref(resolveAuthDisplayName(auth.user))
 const emailInput = ref('')
 const busyName = ref(false)
 const busyEmail = ref(false)
@@ -36,9 +36,19 @@ const nameDirty = computed(() => {
   return Boolean(next) && next !== current
 })
 
-onMounted(async () => {
-  await auth.refreshUser()
+function syncDisplayNameFromAuth() {
+  if (nameDirty.value) return
   displayNameInput.value = resolveAuthDisplayName(auth.user)
+}
+
+onMounted(async () => {
+  syncDisplayNameFromAuth()
+  try {
+    await auth.refreshUser()
+  } catch {
+    /* оставляем локальное значение */
+  }
+  syncDisplayNameFromAuth()
 })
 
 function onLocaleChange(next: AppLocale) {
@@ -158,7 +168,8 @@ async function submitTelegram() {
             class="w-full"
             :placeholder="t('settings.displayNamePlaceholder')"
             maxlength="80"
-            autocomplete="nickname"
+            autocomplete="off"
+            spellcheck="false"
           />
         </label>
         <p class="settings-block__hint">{{ nameHint }}</p>

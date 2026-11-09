@@ -188,6 +188,31 @@ body,
   overscroll-behavior-y: none;
 }
 
+/*
+  UI-тексты: text-wrap: balance (Tailwind text-balance).
+  Не трогаем chord-sheet / pre / поля ввода — там важны исходные переносы.
+*/
+:where(h1, h2, h3, h4, p, legend, button, a),
+:where(
+  [class*='__title'],
+  [class*='__desc'],
+  [class*='__hint'],
+  [class*='__subtitle'],
+  [class*='__label'],
+  [class*='__message'],
+  [class*='__empty']
+) {
+  text-wrap: balance;
+}
+
+/*
+  label часто оборачивает input — balance на родителе дёргает поле при вводе.
+  pre/chord/поля — исходные переносы.
+*/
+:where(label, .chord-sheet, .chord-sheet *, pre, code, textarea, input) {
+  text-wrap: wrap;
+}
+
 /* iOS: font < 16px → auto-zoom on input focus */
 .p-inputtext,
 .p-textarea,
@@ -517,6 +542,44 @@ body {
 
 .app-press:active {
   background: var(--app-press);
+}
+
+/* Иконки «есть текст / YouTube» рядом с кнопкой extras */
+.app-header-extras {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.app-header-extras__marks {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  pointer-events: none;
+}
+
+.app-header-extras__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.65rem;
+  height: 1.65rem;
+  border-radius: var(--app-radius-pill);
+}
+
+.app-header-extras__mark .app-icon {
+  width: 1rem !important;
+  height: 1rem !important;
+}
+
+.app-header-extras__mark--lyrics {
+  color: var(--app-accent-text);
+  background: var(--app-accent-muted);
+}
+
+.app-header-extras__mark--youtube {
+  color: #ff0033;
+  background: color-mix(in srgb, #ff0033 14%, transparent);
 }
 
 /* Header trailing actions — filled circular control */

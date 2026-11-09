@@ -32,7 +32,9 @@ function isEditableTarget(target: EventTarget | null): boolean {
 
 function hasBlockingOverlay(): boolean {
   return Boolean(
-    document.querySelector('.app-sheet, .app-top-sheet, .p-dialog-mask'),
+    document.querySelector(
+      '.app-sheet, .app-top-sheet, .create-setlist-sheet-mask, .member-sheet-mask, .p-dialog-mask',
+    ),
   )
 }
 

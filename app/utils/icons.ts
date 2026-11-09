@@ -20,6 +20,7 @@ export const icons = {
   search: 'magnifier-linear',
   trash: 'trash-bin-trash-linear',
   edit: 'pen-linear',
+  save: 'diskette-bold',
   /** Текст / доп. мета песни — iOS-вес как у add-circle */
   documentText: 'document-text-bold',
   copy: 'copy-linear',

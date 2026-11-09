@@ -27,7 +27,15 @@ const error = ref<string | null>(null)
 const pickerVisible = ref(false)
 const pickerLoading = ref(false)
 const pickerBusy = ref(false)
+const createSetlistOpen = ref(false)
+const createSetlistSheet = ref<{ open: () => void } | null>(null)
 const upcomingSetlists = ref<Setlist[]>([])
+
+function openCreateSetlistFromPicker() {
+  pickerVisible.value = false
+  // После закрытия Dialog — в том же жесте клика держим soft KB через proxy.
+  createSetlistSheet.value?.open()
+}
 
 /** Concert/sounding key (fixed for this view; capo only changes shapes). */
 const viewSounding = ref('C')
@@ -319,9 +327,14 @@ function confirmDelete() {
           :description="t('songs.noUpcomingHint')"
         >
           <template #action>
-            <NuxtLink to="/setlists/new" class="song-view__picker-cta" @click="pickerVisible = false">
+            <button
+              type="button"
+              class="song-view__picker-cta"
+              @click="openCreateSetlistFromPicker"
+            >
+              <AppIcon :name="icons.add" size="1.1rem" />
               {{ t('common.create') }}
-            </NuxtLink>
+            </button>
           </template>
         </AppEmptyState>
         <AppSurfaceList v-else>
@@ -338,6 +351,8 @@ function confirmDelete() {
           </button>
         </AppSurfaceList>
       </Dialog>
+
+      <CreateSetlistSheet ref="createSetlistSheet" v-model:open="createSetlistOpen" />
     </template>
   </div>
 </template>
@@ -617,12 +632,15 @@ function confirmDelete() {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: var(--app-space-2);
   min-height: 2.5rem;
   padding: 0 1.1rem;
+  border: 0;
   border-radius: var(--app-radius-pill);
   background: var(--app-accent);
   color: var(--app-accent-contrast);
+  font: inherit;
   font-weight: 650;
-  text-decoration: none;
+  cursor: pointer;
 }
 </style>

@@ -332,6 +332,24 @@ const confirmPt = {
   color: var(--app-ink) !important;
 }
 
+.p-dialog .p-dialog-close-button {
+  color: var(--app-muted) !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.p-dialog .p-dialog-close-button:hover,
+.p-dialog .p-dialog-close-button:focus-visible {
+  color: var(--app-ink) !important;
+  background: var(--app-hover) !important;
+}
+
+.p-dialog .p-dialog-close-button:active {
+  color: var(--app-ink) !important;
+  background: var(--app-press) !important;
+}
+
 /* Confirm — нижний sheet в стиле TMA */
 .p-dialog-mask:has(.p-confirmdialog) {
   align-items: flex-end !important;
