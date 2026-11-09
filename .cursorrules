@@ -1,3 +1,11 @@
+# Shortcut: КМП
+
+When the user says **КМП** (or «кмп»):
+1. Create a git commit (short Russian one-liner, repo style)
+2. Immediately `git push` to the tracked remote — do **not** ask whether to push
+3. If there is nothing to commit but unpushed commits exist — just push
+4. After push, briefly confirm commit hash + that it was pushed
+
 # Commit messages
 
 When generating a git commit message (including Source Control "Generate Commit Message"):
