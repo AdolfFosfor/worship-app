@@ -278,6 +278,8 @@ const ru: MessageDict = {
   'chartKb.presets': 'Готовые',
   'chartKb.customNote': 'Свой текст…',
   'chartKb.customNotePlaceholder': 'Свой текст',
+  'chartKb.noteSheetTitle': 'Своя заметка',
+  'chartKb.accidentalNatural': 'Без знака',
 
   'stage.ariaSize': 'Размер аккордов',
   'stage.ariaFullscreen': 'Полный экран',
@@ -562,6 +564,8 @@ const ro: MessageDict = {
   'chartKb.presets': 'Gata',
   'chartKb.customNote': 'Text propriu…',
   'chartKb.customNotePlaceholder': 'Text propriu',
+  'chartKb.noteSheetTitle': 'Notă personală',
+  'chartKb.accidentalNatural': 'Fără alterare',
 
   'stage.ariaSize': 'Mărimea acordurilor',
   'stage.ariaFullscreen': 'Ecran complet',
@@ -846,6 +850,8 @@ const en: MessageDict = {
   'chartKb.presets': 'Presets',
   'chartKb.customNote': 'Custom text…',
   'chartKb.customNotePlaceholder': 'Custom text',
+  'chartKb.noteSheetTitle': 'Custom note',
+  'chartKb.accidentalNatural': 'Natural',
 
   'stage.ariaSize': 'Chord size',
   'stage.ariaFullscreen': 'Fullscreen',

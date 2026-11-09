@@ -129,7 +129,7 @@ export function useKeyboardInset() {
       if (
         isEditable(el) &&
         !el.closest(
-          '.note-composer, .chord-kb, .member-sheet, .song-top-sheet, .create-setlist-sheet',
+          '.chart-note-sheet, .chord-kb, .member-sheet, .song-top-sheet, .create-setlist-sheet',
         )
       ) {
         ensureVisible(el)
@@ -145,7 +145,7 @@ export function useKeyboardInset() {
       measure()
       if (
         el.closest(
-          '.note-composer, .chord-kb, .member-sheet, .song-top-sheet, .create-setlist-sheet',
+          '.chart-note-sheet, .chord-kb, .member-sheet, .song-top-sheet, .create-setlist-sheet',
         )
       ) {
         requestAnimationFrame(() => measure())

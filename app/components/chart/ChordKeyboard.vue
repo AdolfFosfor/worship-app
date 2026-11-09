@@ -32,18 +32,17 @@ const auth = useAuthStore()
 const userId = computed(() => auth.user?.id ?? 'anon')
 
 type Tab = 'chords' | 'build' | 'notes'
-type Sheet = 'compact' | 'expanded' | 'full'
 
 const tab = ref<Tab>('chords')
-const sheet = ref<Sheet>('compact')
 const showAllQuick = ref(false)
-/** Telegram/WhatsApp-style composer над системной KB */
-const composerOpen = ref(false)
-const composerEl = ref<HTMLElement | null>(null)
-const composerInput = ref<HTMLInputElement | null>(null)
+const noteSheetOpen = ref(false)
+const pendingNoteFocus = ref(false)
+const focusProxy = ref<HTMLInputElement | null>(null)
+const noteInput = ref<HTMLInputElement | null>(null)
+let panelResizeObs: ResizeObserver | null = null
 
 const roots = ['C', 'D', 'E', 'F', 'G', 'A', 'B'] as const
-const qualities = ['', 'm', '7', 'm7', 'maj7', 'sus2', 'sus4', 'add9', 'dim', 'aug', '6', '9'] as const
+const qualities = ['', 'm', '7', 'm7', 'maj7', 'sus4', 'add9', 'dim', 'aug', '6'] as const
 const quickCompact = ['G', 'C', 'D', 'Em', 'Am', 'F', 'Bm', 'A']
 const quickAll = ['G', 'C', 'D', 'Em', 'Am', 'F', 'Bm', 'A', 'E', 'Dm', 'B', 'F#m', 'Bb', 'Cm', 'Gm', 'D7']
 
@@ -59,19 +58,13 @@ const favorites = ref<string[]>([])
 const panelEl = ref<HTMLElement | null>(null)
 
 const swipeStartY = ref<number | null>(null)
+const swipeStartT = ref(0)
 const swipeDelta = ref(0)
+const swipeDragging = ref(false)
 
-const SHEET_ORDER: Sheet[] = ['compact', 'expanded', 'full']
-const SHEET_VH: Record<Sheet, number> = {
-  compact: 32,
-  expanded: 46,
-  full: 62,
-}
-const SHEET_CAP: Record<Sheet, number> = {
-  compact: 216,
-  expanded: 304,
-  full: 416,
-}
+/** Ниже порог + flick — на телефоне проще свернуть. */
+const CLOSE_PX = 44
+const FLICK_V = 0.35 // px/ms
 
 function refreshPrefs() {
   recents.value = readRecentChords(userId.value)
@@ -85,87 +78,68 @@ function syncShellNav(hide: boolean) {
 
 function publishHeight() {
   if (!import.meta.client) return
-  // При открытом composer sheet скрыт — учитываем только composer.
   const sheetH =
-    props.open && !composerOpen.value && panelEl.value
+    props.open && !noteSheetOpen.value && panelEl.value
       ? Math.round(panelEl.value.getBoundingClientRect().height)
       : 0
-  const composerH =
-    composerOpen.value && composerEl.value
-      ? Math.round(composerEl.value.getBoundingClientRect().height)
-      : composerOpen.value
-        ? 56
-        : 0
-  document.documentElement.style.setProperty('--chart-kb-inset', `${sheetH + composerH}px`)
-  document.documentElement.style.setProperty('--app-composer-inset', `${composerH}px`)
+  document.documentElement.style.setProperty('--chart-kb-inset', `${sheetH}px`)
+  document.documentElement.style.setProperty('--app-composer-inset', '0px')
 }
 
-const sheetStyle = computed(() => {
-  const mode = sheet.value
-  const layoutH = import.meta.client ? window.innerHeight : 700
-  const preferred = Math.round((layoutH * SHEET_VH[mode]) / 100)
-  const height = Math.min(preferred, SHEET_CAP[mode])
-  return {
-    height: `${height}px`,
-    maxHeight: `${height}px`,
-    bottom: '0px',
-    transform: swipeDelta.value
-      ? `translateY(${Math.max(0, swipeDelta.value)}px)`
-      : undefined,
-  }
-})
-
-const composerStyle = computed(() => ({
-  bottom: 'var(--app-keyboard-inset, 0px)',
+const sheetStyle = computed(() => ({
+  height: 'auto',
+  bottom: '0px',
+  transform: `translateY(${Math.max(0, swipeDelta.value)}px)`,
+  transition: swipeDragging.value
+    ? 'none'
+    : 'transform 180ms cubic-bezier(0.32, 0.72, 0, 1)',
 }))
-
-function setSheet(next: Sheet) {
-  sheet.value = next
-  if (next === 'compact') showAllQuick.value = false
-}
 
 function setTab(next: Tab) {
   tab.value = next
-  if (next !== 'notes') closeComposer()
-  if (next === 'build' || next === 'notes') setSheet('full')
-  else if (sheet.value === 'full') setSheet('expanded')
+  if (next !== 'notes') closeNoteSheet()
+  void nextTick(() => publishHeight())
 }
 
-function openComposer() {
-  // Sheet прячем — только composer над KB (как Telegram).
-  composerOpen.value = true
+function openNoteSheet() {
+  focusProxy.value?.focus({ preventScroll: true })
+  pendingNoteFocus.value = true
+  noteSheetOpen.value = true
   customNote.value = ''
-  if (import.meta.client) {
-    document.documentElement.style.setProperty('--app-composer-inset', '56px')
-    document.documentElement.style.setProperty('--chart-kb-inset', '56px')
-  }
   void nextTick(() => {
     publishHeight()
-    composerInput.value?.focus({ preventScroll: true })
     kb.measure()
+  })
+}
+
+function onNoteSheetAfterEnter() {
+  if (!pendingNoteFocus.value) return
+  pendingNoteFocus.value = false
+  void nextTick(() => {
+    noteInput.value?.focus({ preventScroll: true })
     window.setTimeout(() => {
-      publishHeight()
+      noteInput.value?.focus({ preventScroll: true })
       kb.measure()
-    }, 200)
+    }, 40)
   })
 }
 
-function closeComposer() {
-  composerOpen.value = false
+function closeNoteSheet() {
+  pendingNoteFocus.value = false
+  noteSheetOpen.value = false
   customNote.value = ''
-  composerInput.value?.blur()
+  noteInput.value?.blur()
+  focusProxy.value?.blur()
   void nextTick(() => {
     publishHeight()
     kb.measure()
   })
 }
 
-function submitCustomNote() {
+function confirmNoteSheet() {
   const text = customNote.value.trim()
-  if (!text) return
-  emit('annotation', text)
-  customNote.value = ''
-  closeComposer()
+  if (text) emit('annotation', text)
+  closeNoteSheet()
 }
 
 watch(
@@ -175,19 +149,20 @@ watch(
     if (open) {
       refreshPrefs()
       tab.value = 'chords'
-      sheet.value = 'compact'
       showAllQuick.value = false
       swipeDelta.value = 0
-      closeComposer()
+      swipeDragging.value = false
+      swipeStartY.value = null
+      closeNoteSheet()
     } else {
-      closeComposer()
+      closeNoteSheet()
     }
     await nextTick()
     publishHeight()
   },
 )
 
-watch([sheet, tab, showAllQuick, composerOpen, kbOpen], async () => {
+watch([tab, showAllQuick, noteSheetOpen, kbOpen], async () => {
   await nextTick()
   publishHeight()
 })
@@ -202,7 +177,13 @@ function clearShellChrome() {
 
 onMounted(() => {
   if (props.open) syncShellNav(true)
-  nextTick(() => publishHeight())
+  void nextTick(() => {
+    publishHeight()
+    if (panelEl.value && typeof ResizeObserver !== 'undefined') {
+      panelResizeObs = new ResizeObserver(() => publishHeight())
+      panelResizeObs.observe(panelEl.value)
+    }
+  })
 })
 
 onActivated(() => {
@@ -219,6 +200,8 @@ onDeactivated(() => {
 })
 
 onBeforeUnmount(() => {
+  panelResizeObs?.disconnect()
+  panelResizeObs = null
   shellUiActive.value = false
   clearShellChrome()
 })
@@ -229,9 +212,7 @@ const builtSymbol = computed(() => {
   return `${r}${quality.value}${bass}`
 })
 
-const quickList = computed(() =>
-  showAllQuick.value || sheet.value !== 'compact' ? quickAll : quickCompact,
-)
+const quickList = computed(() => (showAllQuick.value ? quickAll : quickCompact))
 
 function emitChord(symbol: string) {
   const s = symbol.trim()
@@ -249,91 +230,115 @@ function favActive(symbol: string) {
   return isFavoriteChord(userId.value, symbol)
 }
 
-function onHandlePointerDown(e: PointerEvent) {
+function onSwipePointerDown(e: PointerEvent) {
+  if (e.pointerType === 'mouse' && e.button !== 0) return
+  // Не стартуем жест с кнопок табов / next / close
+  const t = e.target
+  if (t instanceof Element && t.closest('.chord-kb__tab, .chord-kb__next, .chord-kb__close')) {
+    return
+  }
   swipeStartY.value = e.clientY
+  swipeStartT.value = performance.now()
   swipeDelta.value = 0
+  swipeDragging.value = true
   ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
 }
 
-function onHandlePointerMove(e: PointerEvent) {
+function onSwipePointerMove(e: PointerEvent) {
   if (swipeStartY.value == null) return
-  swipeDelta.value = e.clientY - swipeStartY.value
+  const raw = Math.max(0, e.clientY - swipeStartY.value)
+  // Лёгкое сопротивление после ~72px — жест не «прыгает»
+  swipeDelta.value = raw < 72 ? raw : 72 + (raw - 72) * 0.4
 }
 
-function onHandlePointerUp() {
-  const dy = swipeDelta.value
+function onSwipePointerUp(e: PointerEvent) {
+  if (swipeStartY.value == null) return
+  const dy = Math.max(0, e.clientY - swipeStartY.value)
+  const dt = Math.max(16, performance.now() - swipeStartT.value)
+  const velocity = dy / dt
+  const shouldClose = dy >= CLOSE_PX || (dy >= 18 && velocity >= FLICK_V)
   swipeStartY.value = null
-  swipeDelta.value = 0
-  const idx = SHEET_ORDER.indexOf(sheet.value)
-
-  if (dy > 90) {
-    if (idx <= 0) emit('close')
-    else setSheet(SHEET_ORDER[idx - 1]!)
+  swipeDragging.value = false
+  if (shouldClose) {
+    swipeDelta.value = 0
+    emit('close')
     return
   }
-  if (dy < -70) {
-    if (idx < SHEET_ORDER.length - 1) setSheet(SHEET_ORDER[idx + 1]!)
-  }
+  swipeDelta.value = 0
 }
 
 function expandQuick() {
   showAllQuick.value = true
-  if (sheet.value === 'compact') setSheet('expanded')
 }
 </script>
 
 <template>
   <Teleport to=".app-shell">
+    <input
+      ref="focusProxy"
+      class="chord-kb__focus-proxy"
+      type="text"
+      tabindex="-1"
+      aria-hidden="true"
+      inputmode="text"
+      autocomplete="off"
+    >
+
     <aside
-      v-show="shellUiActive && open && !composerOpen"
+      v-show="shellUiActive && open && !noteSheetOpen"
       ref="panelEl"
       class="chord-kb"
-      :class="[`chord-kb--${sheet}`]"
+      :class="`chord-kb--${tab}`"
       :style="sheetStyle"
       :aria-label="t('chartKb.ariaPanel')"
       @pointerdown.stop
     >
-      <button
-        type="button"
-        class="chord-kb__handle"
-        :aria-label="t('chartKb.ariaResize')"
-        @pointerdown="onHandlePointerDown"
-        @pointermove="onHandlePointerMove"
-        @pointerup="onHandlePointerUp"
-        @pointercancel="onHandlePointerUp"
-      />
+      <div
+        class="chord-kb__grab"
+        @pointerdown="onSwipePointerDown"
+        @pointermove="onSwipePointerMove"
+        @pointerup="onSwipePointerUp"
+        @pointercancel="onSwipePointerUp"
+      >
+        <button
+          type="button"
+          class="chord-kb__handle"
+          :aria-label="t('common.close')"
+          @click="emit('close')"
+        />
 
-      <div class="chord-kb__top">
-        <div class="chord-kb__tabs" role="tablist">
-          <button
-            type="button"
-            class="chord-kb__tab"
-            :class="{ 'chord-kb__tab--on': tab === 'chords' }"
-            @click="setTab('chords')"
-          >
-            {{ t('chartKb.tabChords') }}
-          </button>
-          <button
-            type="button"
-            class="chord-kb__tab"
-            :class="{ 'chord-kb__tab--on': tab === 'build' }"
-            @click="setTab('build')"
-          >
-            {{ t('chartKb.tabBuild') }}
-          </button>
-          <button
-            type="button"
-            class="chord-kb__tab"
-            :class="{ 'chord-kb__tab--on': tab === 'notes' }"
-            @click="setTab('notes')"
-          >
-            {{ t('chartKb.tabNotes') }}
+        <div class="chord-kb__top">
+          <div class="chord-kb__tabs" role="tablist">
+            <button
+              type="button"
+              class="chord-kb__tab"
+              :class="{ 'chord-kb__tab--on': tab === 'chords' }"
+              @click="setTab('chords')"
+            >
+              {{ t('chartKb.tabChords') }}
+            </button>
+            <button
+              type="button"
+              class="chord-kb__tab"
+              :class="{ 'chord-kb__tab--on': tab === 'build' }"
+              @click="setTab('build')"
+            >
+              {{ t('chartKb.tabBuild') }}
+            </button>
+            <button
+              type="button"
+              class="chord-kb__tab"
+              :class="{ 'chord-kb__tab--on': tab === 'notes' }"
+              @click="setTab('notes')"
+            >
+              {{ t('chartKb.tabNotes') }}
+            </button>
+          </div>
+          <button type="button" class="chord-kb__next" @click="emit('nextBar')">{{ t('chartKb.nextBar') }}</button>
+          <button type="button" class="chord-kb__close" :aria-label="t('common.close')" @click="emit('close')">
+            <AppIcon :name="icons.close" size="1.05rem" />
           </button>
         </div>
-        <button type="button" class="chord-kb__next" @click="emit('nextBar')">{{ t('chartKb.nextBar') }}</button>
-        <button type="button" class="chord-kb__close" :aria-label="t('common.close')" @click="emit('close')">
-          <AppIcon :name="icons.close" size="1.05rem" />
-        </button>
       </div>
 
       <div class="chord-kb__body">
@@ -372,7 +377,7 @@ function expandQuick() {
             <div class="chord-kb__label-row">
               <span class="chord-kb__label">{{ t('chartKb.quick') }}</span>
               <button
-                v-if="!showAllQuick && sheet === 'compact'"
+                v-if="!showAllQuick"
                 type="button"
                 class="chord-kb__more"
                 @click="expandQuick"
@@ -413,41 +418,46 @@ function expandQuick() {
 
           <div class="chord-kb__block">
             <span class="chord-kb__label">{{ t('chartKb.note') }}</span>
-            <div class="chord-kb__grid">
-              <button
-                v-for="r in roots"
-                :key="r"
-                type="button"
-                class="chord-kb__chip"
-                :class="{ 'chord-kb__chip--on': root === r }"
-                @click="root = r"
-              >
-                {{ r }}
-              </button>
-              <button
-                type="button"
-                class="chord-kb__chip"
-                :class="{ 'chord-kb__chip--on': accidental === '' }"
-                @click="accidental = ''"
-              >
-                ♮
-              </button>
-              <button
-                type="button"
-                class="chord-kb__chip"
-                :class="{ 'chord-kb__chip--on': accidental === '#' }"
-                @click="accidental = '#'"
-              >
-                ♯
-              </button>
-              <button
-                type="button"
-                class="chord-kb__chip"
-                :class="{ 'chord-kb__chip--on': accidental === 'b' }"
-                @click="accidental = 'b'"
-              >
-                ♭
-              </button>
+            <div class="chord-kb__note-row">
+              <div class="chord-kb__roots">
+                <button
+                  v-for="r in roots"
+                  :key="r"
+                  type="button"
+                  class="chord-kb__chip"
+                  :class="{ 'chord-kb__chip--on': root === r }"
+                  @click="root = r"
+                >
+                  {{ r }}
+                </button>
+              </div>
+              <div class="chord-kb__accidentals">
+                <button
+                  type="button"
+                  class="chord-kb__chip chord-kb__chip--round"
+                  :class="{ 'chord-kb__chip--on': accidental === '' }"
+                  :aria-label="t('chartKb.accidentalNatural')"
+                  @click="accidental = ''"
+                >
+                  <AppIcon :name="icons.none" size="1rem" />
+                </button>
+                <button
+                  type="button"
+                  class="chord-kb__chip chord-kb__chip--round"
+                  :class="{ 'chord-kb__chip--on': accidental === '#' }"
+                  @click="accidental = '#'"
+                >
+                  ♯
+                </button>
+                <button
+                  type="button"
+                  class="chord-kb__chip chord-kb__chip--round"
+                  :class="{ 'chord-kb__chip--on': accidental === 'b' }"
+                  @click="accidental = 'b'"
+                >
+                  ♭
+                </button>
+              </div>
             </div>
           </div>
 
@@ -456,13 +466,17 @@ function expandQuick() {
             <div class="chord-kb__grid">
               <button
                 v-for="q in qualities"
-                :key="q || 'maj'"
+                :key="q || 'none'"
                 type="button"
                 class="chord-kb__chip"
-                :class="{ 'chord-kb__chip--on': quality === q }"
+                :class="{
+                  'chord-kb__chip--on': quality === q,
+                  'chord-kb__chip--round': !q,
+                }"
                 @click="quality = q"
               >
-                {{ q || 'maj' }}
+                <AppIcon v-if="!q" :name="icons.none" size="1rem" />
+                <template v-else>{{ q }}</template>
               </button>
             </div>
           </div>
@@ -472,11 +486,12 @@ function expandQuick() {
             <div class="chord-kb__grid">
               <button
                 type="button"
-                class="chord-kb__chip"
+                class="chord-kb__chip chord-kb__chip--round"
                 :class="{ 'chord-kb__chip--on': !bassRoot }"
+                :aria-label="t('chartKb.bassNone')"
                 @click="bassRoot = ''; bassAccidental = ''"
               >
-                {{ t('chartKb.bassNone') }}
+                <AppIcon :name="icons.none" size="1rem" />
               </button>
               <button
                 v-for="r in roots"
@@ -509,7 +524,7 @@ function expandQuick() {
           </div>
 
           <div class="chord-kb__block">
-            <button type="button" class="chord-kb__composer-cta" @click="openComposer">
+            <button type="button" class="chord-kb__composer-cta" @click="openNoteSheet">
               {{ t('chartKb.customNote') }}
             </button>
           </div>
@@ -517,40 +532,73 @@ function expandQuick() {
       </div>
     </aside>
 
-    <!-- Composer над системной KB (как Telegram / WhatsApp) -->
-    <Transition name="note-composer">
+    <Transition name="chart-note-sheet" @after-enter="onNoteSheetAfterEnter">
       <div
-        v-if="shellUiActive && open && composerOpen"
-        ref="composerEl"
-        class="note-composer"
-        :class="{ 'note-composer--kb': kbOpen }"
-        :style="composerStyle"
+        v-if="shellUiActive && open && noteSheetOpen"
+        class="chart-note-sheet"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="t('chartKb.noteSheetTitle')"
         @pointerdown.stop
       >
-        <input
-          ref="composerInput"
-          v-model="customNote"
-          class="note-composer__input"
-          maxlength="32"
-          :placeholder="t('chartKb.customNotePlaceholder')"
-          enterkeyhint="done"
-          autocomplete="off"
-          @keydown.enter.prevent="submitCustomNote"
-        >
         <button
           type="button"
-          class="note-composer__add"
-          :disabled="!customNote.trim()"
-          @click="submitCustomNote"
-        >
-          {{ t('common.add') }}
-        </button>
+          class="chart-note-sheet__mask"
+          :aria-label="t('common.close')"
+          @click="closeNoteSheet"
+        />
+        <div class="chart-note-sheet__panel">
+          <header class="chart-note-sheet__head">
+            <button
+              type="button"
+              class="chart-note-sheet__icon-btn"
+              :aria-label="t('common.close')"
+              @click="closeNoteSheet"
+            >
+              <AppIcon :name="icons.close" size="1.1rem" />
+            </button>
+            <h2 class="chart-note-sheet__title">{{ t('chartKb.noteSheetTitle') }}</h2>
+            <button
+              type="button"
+              class="chart-note-sheet__done"
+              :disabled="!customNote.trim()"
+              @click="confirmNoteSheet"
+            >
+              {{ t('common.add') }}
+            </button>
+          </header>
+          <div class="chart-note-sheet__body">
+            <input
+              ref="noteInput"
+              v-model="customNote"
+              class="chart-note-sheet__field"
+              maxlength="32"
+              :placeholder="t('chartKb.customNotePlaceholder')"
+              enterkeyhint="done"
+              autocomplete="off"
+              @keydown.enter.prevent="confirmNoteSheet"
+            >
+          </div>
+        </div>
       </div>
     </Transition>
   </Teleport>
 </template>
 
 <style scoped>
+.chord-kb__focus-proxy {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  pointer-events: none;
+}
+
 .chord-kb {
   position: absolute;
   left: 0;
@@ -558,7 +606,8 @@ function expandQuick() {
   z-index: 40;
   display: flex;
   flex-direction: column;
-  padding: 0.2rem calc(var(--app-safe-right) + var(--app-space-3))
+  height: auto;
+  padding: 0.15rem calc(var(--app-safe-right) + var(--app-space-3))
     calc(var(--app-safe-bottom) + var(--app-space-2))
     calc(var(--app-safe-left) + var(--app-space-3));
   border-radius: var(--app-radius-xl) var(--app-radius-xl) 0 0;
@@ -567,18 +616,24 @@ function expandQuick() {
   background: var(--app-surface);
   box-shadow: 0 -10px 28px color-mix(in srgb, #000 10%, transparent);
   overflow: hidden;
-  transition:
-    height 180ms var(--app-ease),
-    max-height 180ms var(--app-ease),
-    bottom 180ms var(--app-ease);
+  transition: none;
+}
+
+.chord-kb__grab {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  touch-action: none;
+  margin-bottom: var(--app-space-2);
+  cursor: grab;
 }
 
 .chord-kb__handle {
-  align-self: center;
-  width: 3rem;
-  height: 1.1rem;
+  align-self: stretch;
+  width: 100%;
+  height: 1.65rem;
   border: 0;
-  border-radius: var(--app-radius-pill);
+  border-radius: 0;
   background: transparent;
   cursor: grab;
   touch-action: none;
@@ -591,8 +646,8 @@ function expandQuick() {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 2.35rem;
-  height: 0.28rem;
+  width: 2.5rem;
+  height: 0.3rem;
   border-radius: 999px;
   background: var(--app-border-strong);
   transform: translate(-50%, -50%);
@@ -603,7 +658,6 @@ function expandQuick() {
   align-items: center;
   gap: var(--app-space-2);
   flex-shrink: 0;
-  margin-bottom: var(--app-space-2);
 }
 
 .chord-kb__tabs {
@@ -662,17 +716,48 @@ function expandQuick() {
 }
 
 .chord-kb__body {
-  flex: 1;
+  flex: 0 0 auto;
   min-height: 0;
-  overflow: auto;
-  -webkit-overflow-scrolling: touch;
+  overflow: visible;
 }
 
 .chord-kb__panel {
   display: flex;
   flex-direction: column;
   gap: var(--app-space-3);
-  padding-bottom: 0.25rem;
+}
+
+.chord-kb__note-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--app-space-2);
+}
+
+.chord-kb__roots {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.chord-kb__accidentals {
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.35rem;
+  align-items: center;
+  margin-left: auto;
+}
+
+.chord-kb__chip--round {
+  width: 2rem;
+  height: 2rem;
+  min-height: 2rem;
+  padding: 0;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .chord-kb__block {
@@ -771,44 +856,88 @@ function expandQuick() {
   cursor: pointer;
 }
 
-.note-composer {
+.chart-note-sheet {
   position: absolute;
-  left: 0;
-  right: 0;
-  z-index: 45;
+  inset: 0;
+  z-index: 50;
   display: flex;
+  flex-direction: column;
+  pointer-events: none;
+}
+
+.chart-note-sheet__mask {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  background: color-mix(in srgb, #000 48%, transparent);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.chart-note-sheet__panel {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
   gap: var(--app-space-2);
-  align-items: center;
-  padding: var(--app-space-2)
-    calc(var(--app-safe-right) + var(--app-space-3))
-    calc(var(--app-space-2) + var(--app-safe-bottom))
-    calc(var(--app-safe-left) + var(--app-space-3));
-  border-top: var(--app-hairline) solid var(--app-border);
+  width: 100%;
+  max-height: min(16rem, calc(var(--app-frame-height, 100lvh) * 0.38));
+  padding-top: max(
+    var(--app-safe-top),
+    env(safe-area-inset-top, 0px),
+    var(--app-overlay-gap)
+  );
+  padding-left: max(var(--app-safe-left), env(safe-area-inset-left, 0px));
+  padding-right: max(var(--app-safe-right), env(safe-area-inset-right, 0px));
+  padding-bottom: var(--app-space-3);
+  border-radius: 0 0 var(--app-radius-xl) var(--app-radius-xl);
   background: var(--app-surface);
-  box-shadow: 0 -8px 24px color-mix(in srgb, #000 10%, transparent);
+  box-shadow: 0 16px 40px color-mix(in srgb, #000 28%, transparent);
+  pointer-events: auto;
 }
 
-.note-composer--kb {
-  /* Safe-bottom уже «внутри» зоны клавиатуры */
-  padding-bottom: var(--app-space-2);
+.chart-note-sheet__head {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-2);
+  flex-shrink: 0;
+  min-height: 2.75rem;
+  padding: var(--app-space-2) var(--app-space-3);
 }
 
-.note-composer__input {
+.chart-note-sheet__title {
   flex: 1;
+  margin: 0;
   min-width: 0;
-  min-height: 2.5rem;
-  padding: 0 0.75rem;
-  border: var(--app-hairline) solid var(--app-border);
-  border-radius: var(--app-radius);
-  background: var(--app-bg);
+  font-size: var(--app-text-md);
+  font-weight: 750;
+  letter-spacing: -0.02em;
   color: var(--app-ink);
-  font: inherit;
-  font-size: 16px;
+  text-align: center;
 }
 
-.note-composer__add {
-  min-height: 2.5rem;
-  padding: 0 0.75rem;
+.chart-note-sheet__icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 0;
+  border-radius: var(--app-radius-pill);
+  background: var(--app-hover);
+  color: var(--app-ink);
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.chart-note-sheet__done {
+  flex-shrink: 0;
+  min-height: 2.25rem;
+  padding: 0 0.85rem;
   border: 0;
   border-radius: var(--app-radius-pill);
   background: var(--app-accent);
@@ -819,22 +948,48 @@ function expandQuick() {
   cursor: pointer;
 }
 
-.note-composer__add:disabled {
+.chart-note-sheet__done:disabled {
   opacity: 0.4;
   cursor: default;
 }
 
-.note-composer-enter-active,
-.note-composer-leave-active {
-  transition:
-    opacity 180ms var(--app-ease, ease),
-    transform 200ms var(--app-ease, cubic-bezier(0.32, 0.72, 0, 1));
+.chart-note-sheet__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  padding: 0 var(--app-space-3);
 }
 
-.note-composer-enter-from,
-.note-composer-leave-to {
+.chart-note-sheet__field {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.65rem 0.75rem;
+  border: var(--app-hairline) solid var(--app-border);
+  border-radius: var(--app-radius-lg);
+  background: var(--app-bg);
+  color: var(--app-ink);
+  font: inherit;
+  font-size: 16px;
+}
+
+.chart-note-sheet-enter-active,
+.chart-note-sheet-leave-active {
+  transition: opacity 160ms var(--app-ease, ease);
+}
+
+.chart-note-sheet-enter-active .chart-note-sheet__panel,
+.chart-note-sheet-leave-active .chart-note-sheet__panel {
+  transition: transform 200ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.chart-note-sheet-enter-from,
+.chart-note-sheet-leave-to {
   opacity: 0;
-  transform: translateY(10px);
+}
+
+.chart-note-sheet-enter-from .chart-note-sheet__panel,
+.chart-note-sheet-leave-to .chart-note-sheet__panel {
+  transform: translateY(-12%);
 }
 
 .chord-kb__preview {

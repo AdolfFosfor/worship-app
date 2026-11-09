@@ -406,6 +406,7 @@ function onChord(symbol: string) {
     barId: target.barId,
     insertIndex: target.insertIndex + 1,
   }
+  void nextTick(() => revealSelection({ force: true }))
 }
 
 function onAnnotation(text: string, preset?: AnnotationPreset) {
@@ -420,6 +421,7 @@ function onAnnotation(text: string, preset?: AnnotationPreset) {
     barId: target.barId,
     insertIndex: target.insertIndex + 1,
   }
+  void nextTick(() => revealSelection({ force: true }))
 }
 
 function onNextBar() {
@@ -435,6 +437,7 @@ function onNextBar() {
   const afterIdx = afterId ? (updated?.bars.findIndex((x) => x.id === afterId) ?? -1) : -1
   const newBar = updated?.bars[afterIdx + 1] ?? updated?.bars[updated.bars.length - 1]
   if (newBar) selected.value = { sectionId, barId: newBar.id, insertIndex: 0 }
+  void nextTick(() => revealSelection({ force: true }))
 }
 
 function onRemoveItem(sectionId: string, barId: string, itemId: string) {
@@ -735,8 +738,17 @@ function isDropSwap(itemId: string) {
 
 watch(keyboardOpen, (open) => {
   if (!open) return
-  void nextTick(() => revealSelection())
+  void nextTick(() => revealSelection({ force: true }))
 })
+
+watch(
+  selected,
+  () => {
+    if (!keyboardOpen.value) return
+    void nextTick(() => revealSelection({ force: true }))
+  },
+  { deep: true },
+)
 
 onMounted(() => {
   if (!props.modelValue && !props.legacyChords?.trim()) {

@@ -41,7 +41,7 @@ export function useEditorReveal() {
       if (!opts.force && ok) return
 
       const delta = (rect.top + rect.bottom) / 2 - (bandTop + bandBottom) / 2
-      if (Math.abs(delta) < 8) return
+      if (!opts.force && Math.abs(delta) < 8) return
       scroller.scrollTop += delta
     })
   }
