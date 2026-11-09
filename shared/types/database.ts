@@ -225,6 +225,30 @@ export interface Database {
         }
         Returns: string
       }
+      repertoire_pulse_summary: {
+        Args: {
+          p_workspace_id: string
+          p_from: string
+          p_today: string
+        }
+        Returns: import('./repertoire').DbRepertoirePulseSummary
+      }
+      repertoire_pulse_songs: {
+        Args: {
+          p_workspace_id: string
+          p_from: string
+          p_today: string
+        }
+        Returns: import('./repertoire').DbRepertoireSongStat[]
+      }
+      repertoire_pulse_day: {
+        Args: {
+          p_workspace_id: string
+          p_day: string
+          p_today: string
+        }
+        Returns: import('./repertoire').DbRepertoireDayPlay[]
+      }
     }
     Enums: {
       member_role: DbMemberRole

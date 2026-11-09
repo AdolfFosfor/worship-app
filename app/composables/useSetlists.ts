@@ -31,9 +31,11 @@ function mapJoinedItems(rows: SetlistItemJoinRow[] | null | undefined): SetlistI
 /** KeepAlive-страницы подтягивают данные, когда revision изменился. */
 export function useSetlistsRevision() {
   const revision = useState('setlists-data-revision', () => 0)
+  const { bumpRepertoirePulseRevision } = useRepertoirePulseRevision()
 
   function bumpSetlistsRevision() {
     revision.value += 1
+    bumpRepertoirePulseRevision()
   }
 
   function syncSetlistsOnActivate(reload: () => void | Promise<void>) {

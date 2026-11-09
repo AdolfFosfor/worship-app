@@ -11,9 +11,12 @@ const workspace = useWorkspaceStore()
 const { t, sessionTitle, locale } = useAppLocale()
 const { getUpcoming, upcoming } = useSetlists()
 const { syncSetlistsOnActivate } = useSetlistsRevision()
+const { summary: pulseSummary, fetchSummary } = useRepertoirePulse()
+const { syncRepertoireOnActivate } = useRepertoirePulseRevision()
 
 const loading = ref(!upcoming.value)
 const error = ref<string | null>(null)
+const pulseLoading = ref(!pulseSummary.value)
 
 const createPopover = useTemplateRef<InstanceType<typeof Popover>>('createPopover')
 const createSetlistOpen = ref(false)
@@ -65,6 +68,18 @@ async function onCreatePick(option: (typeof createOptions.value)[number]) {
   if (option.to) await navigateTo(option.to)
 }
 
+async function loadPulse(opts?: { quiet?: boolean }) {
+  if (!opts?.quiet && !pulseSummary.value) pulseLoading.value = true
+  try {
+    await fetchSummary({ force: Boolean(opts?.quiet) || !pulseSummary.value })
+    markRepertoireSynced()
+  } catch {
+    /* пульс не блокирует главную */
+  } finally {
+    pulseLoading.value = false
+  }
+}
+
 async function load(opts?: { quiet?: boolean }) {
   if (!opts?.quiet && !upcoming.value) loading.value = true
   error.value = null
@@ -79,8 +94,10 @@ async function load(opts?: { quiet?: boolean }) {
 }
 
 const { markSetlistsSynced } = syncSetlistsOnActivate(() => load({ quiet: true }))
+const { markRepertoireSynced } = syncRepertoireOnActivate(() => loadPulse({ quiet: true }))
 onMounted(() => {
   void load()
+  void loadPulse()
 })
 
 function formatDatePill(iso: string) {
@@ -175,6 +192,11 @@ function formatDatePill(iso: string) {
         </div>
       </AppSection>
 
+      <AppSection v-if="pulseSummary || pulseLoading" :title="t('repertoire.pulseTitle')">
+        <div v-if="pulseLoading && !pulseSummary" class="home-pulse-skeleton app-panel" />
+        <RepertoirePulseCard v-else-if="pulseSummary" :summary="pulseSummary" />
+      </AppSection>
+
       <div class="home-actions">
         <NuxtLink to="/songs" class="home-action app-press">
           <span class="home-action__icon-wrap">
@@ -235,6 +257,11 @@ function formatDatePill(iso: string) {
 
 .home-hero__empty {
   padding: var(--app-space-2) 0;
+}
+
+.home-pulse-skeleton {
+  min-height: 7.5rem;
+  background: color-mix(in srgb, var(--app-surface) 70%, var(--app-hover));
 }
 
 .home-actions {
