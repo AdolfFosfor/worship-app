@@ -292,6 +292,7 @@ async function addToSetlist(setlist: Setlist) {
       <Dialog
         v-model:visible="pickerVisible"
         modal
+        dismissable-mask
         :header="t('songs.addToSetlistDialog')"
         :style="{ width: 'min(24rem, 100%)' }"
         append-to=".app-shell"

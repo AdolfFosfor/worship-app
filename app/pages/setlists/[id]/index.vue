@@ -28,7 +28,114 @@ const busy = ref(false)
 const listEl = ref<HTMLElement | null>(null)
 const sorting = ref(false)
 
+/** Long-press → визуальный «набор» + freeze скролла, затем Sortable drag */
+const DRAG_DELAY_MS = 400
+const SCROLL_FREEZE_MS = 70
+const ARM_CANCEL_PX = 10
+
 let sortable: Sortable | null = null
+let armEl: HTMLElement | null = null
+let armPointerId: number | null = null
+let armOriginX = 0
+let armOriginY = 0
+let freezeTimer: ReturnType<typeof setTimeout> | null = null
+let scrollFrozen = false
+let suppressClick = false
+
+function onFreezeTouchMove(event: TouchEvent) {
+  if (!scrollFrozen && !sorting.value) return
+  event.preventDefault()
+}
+
+function freezePageScroll() {
+  if (scrollFrozen || !import.meta.client) return
+  scrollFrozen = true
+  document.addEventListener('touchmove', onFreezeTouchMove, { passive: false })
+  document.documentElement.classList.add('setlist-drag-freeze')
+}
+
+function unfreezePageScroll() {
+  if (!import.meta.client) return
+  scrollFrozen = false
+  document.removeEventListener('touchmove', onFreezeTouchMove)
+  document.documentElement.classList.remove('setlist-drag-freeze')
+}
+
+function clearFreezeTimer() {
+  if (freezeTimer == null) return
+  clearTimeout(freezeTimer)
+  freezeTimer = null
+}
+
+function clearArming(opts?: { keepFreeze?: boolean }) {
+  clearFreezeTimer()
+  if (armEl) {
+    armEl.classList.remove('setlist-item--arming')
+    armEl = null
+  }
+  armPointerId = null
+  if (!opts?.keepFreeze && !sorting.value) unfreezePageScroll()
+}
+
+function onListPointerDown(event: PointerEvent) {
+  if (event.button !== 0 || !workspace.canEditSetlists || sorting.value) return
+  const item = (event.target as HTMLElement | null)?.closest?.('.setlist-item')
+  if (!(item instanceof HTMLElement) || !listEl.value?.contains(item)) return
+
+  clearArming()
+  armEl = item
+  armPointerId = event.pointerId
+  armOriginX = event.clientX
+  armOriginY = event.clientY
+  item.classList.add('setlist-item--arming')
+  haptics.tap()
+
+  freezeTimer = setTimeout(() => {
+    freezeTimer = null
+    if (armEl) freezePageScroll()
+  }, SCROLL_FREEZE_MS)
+}
+
+function onListPointerMove(event: PointerEvent) {
+  if (armPointerId == null || event.pointerId !== armPointerId || !armEl) return
+  const dx = event.clientX - armOriginX
+  const dy = event.clientY - armOriginY
+  if (Math.hypot(dx, dy) <= ARM_CANCEL_PX) return
+  clearArming()
+}
+
+function onListPointerUp(event: PointerEvent) {
+  if (armPointerId == null || event.pointerId !== armPointerId) return
+  if (!sorting.value) clearArming()
+  else {
+    armPointerId = null
+    clearFreezeTimer()
+  }
+}
+
+function onListClickCapture(event: MouseEvent) {
+  if (!suppressClick) return
+  event.preventDefault()
+  event.stopPropagation()
+  suppressClick = false
+}
+
+function bindArmListeners(el: HTMLElement) {
+  el.addEventListener('pointerdown', onListPointerDown)
+  el.addEventListener('pointermove', onListPointerMove)
+  el.addEventListener('pointerup', onListPointerUp)
+  el.addEventListener('pointercancel', onListPointerUp)
+  el.addEventListener('click', onListClickCapture, true)
+}
+
+function unbindArmListeners(el: HTMLElement | null) {
+  if (!el) return
+  el.removeEventListener('pointerdown', onListPointerDown)
+  el.removeEventListener('pointermove', onListPointerMove)
+  el.removeEventListener('pointerup', onListPointerUp)
+  el.removeEventListener('pointercancel', onListPointerUp)
+  el.removeEventListener('click', onListClickCapture, true)
+}
 
 async function load(opts?: { quiet?: boolean }) {
   if (!opts?.quiet) loading.value = true
@@ -127,6 +234,10 @@ async function persistOrder(orderedIds: string[]) {
 }
 
 function destroySortable() {
+  unbindArmListeners(listEl.value)
+  clearArming()
+  sorting.value = false
+  unfreezePageScroll()
   sortable?.destroy()
   sortable = null
 }
@@ -136,26 +247,50 @@ function setupSortable() {
   if (!import.meta.client || !listEl.value || !workspace.canEditSetlists) return
   if (!setlist.value?.items.length) return
 
+  bindArmListeners(listEl.value)
+
   sortable = Sortable.create(listEl.value, {
-    animation: 180,
+    animation: 200,
     direction: 'vertical',
     draggable: '.setlist-item',
     ghostClass: 'setlist-item--ghost',
     chosenClass: 'setlist-item--chosen',
     dragClass: 'setlist-item--drag',
     forceFallback: true,
-    /** Long-press всей карточки (и мышь, и тач) — иначе мышь крадёт свайп */
-    delay: 480,
+    fallbackOnBody: true,
+    fallbackClass: 'setlist-item--fallback',
+    /** Long-press всей карточки (мышь и тач) — иначе мышь крадёт свайп */
+    delay: DRAG_DELAY_MS,
     delayOnTouchOnly: false,
-    /** Любой сдвиг пальца снимает delay — горизонтальный свайп не перехватывается */
-    touchStartThreshold: 6,
+    /**
+     * После freeze скролла порог можно держать умеренным:
+     * горизонтальный свайп всё ещё отменяет delay до freeze.
+     */
+    touchStartThreshold: 10,
     fallbackTolerance: 12,
+    scroll: true,
+    bubbleScroll: true,
+    scrollSensitivity: 48,
+    scrollSpeed: 14,
+    forceAutoScrollFallback: true,
     onStart: () => {
       sorting.value = true
+      suppressClick = true
+      freezePageScroll()
+      armEl?.classList.remove('setlist-item--arming')
+      armEl = null
+      armPointerId = null
+      clearFreezeTimer()
       haptics.grab()
     },
     onEnd: (evt) => {
       sorting.value = false
+      clearArming()
+      unfreezePageScroll()
+      suppressClick = true
+      window.setTimeout(() => {
+        suppressClick = false
+      }, 320)
       if (evt.oldIndex == null || evt.newIndex == null || evt.oldIndex === evt.newIndex) return
       if (!setlist.value) return
       haptics.drop()
@@ -229,7 +364,13 @@ const availableSongs = computed(() => {
         :description="t('setlist.emptySongsDesc')"
       />
 
-      <div v-else ref="listEl" class="setlist-items app-panel">
+      <div
+        v-else
+        ref="listEl"
+        class="setlist-items app-panel"
+        :class="{ 'setlist-items--sorting': sorting }"
+        :style="{ '--setlist-arm-ms': `${DRAG_DELAY_MS}ms` }"
+      >
         <article
           v-for="(item, index) in setlist.items"
           :key="item.id"
@@ -275,6 +416,7 @@ const availableSongs = computed(() => {
     <Dialog
       v-model:visible="pickerVisible"
       modal
+      dismissable-mask
       :header="t('songs.library')"
       :style="{ width: 'min(24rem, 100%)' }"
       append-to=".app-shell"
@@ -318,11 +460,17 @@ const availableSongs = computed(() => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  --setlist-arm-ms: 400ms;
+}
+
+.setlist-items--sorting {
+  cursor: grabbing;
 }
 
 .setlist-item {
   position: relative;
   background: var(--app-surface);
+  touch-action: manipulation;
 }
 
 .setlist-item:not(:last-child)::after {
@@ -338,21 +486,48 @@ const availableSongs = computed(() => {
 }
 
 .setlist-item--ghost {
-  opacity: 0.4;
+  opacity: 0.28;
 }
 
 .setlist-item--chosen {
-  z-index: 3;
+  z-index: 5;
 }
 
-.setlist-item--chosen::after {
+.setlist-item--chosen::after,
+.setlist-item--arming::after {
   display: none;
 }
 
-.setlist-item--drag {
-  opacity: 0.97;
-  box-shadow: var(--app-shadow-soft);
+.setlist-item--arming {
+  z-index: 4;
+}
+
+.setlist-item--arming .setlist-item__row {
+  position: relative;
+  z-index: 1;
   border-radius: var(--app-radius);
+  background: var(--app-surface);
+  transform-origin: center center;
+  animation: setlist-item-arm var(--setlist-arm-ms) cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  will-change: transform, box-shadow;
+}
+
+.setlist-item--drag,
+.setlist-item--fallback {
+  opacity: 0.98;
+  border-radius: var(--app-radius);
+  box-shadow:
+    0 10px 28px color-mix(in srgb, #000 16%, transparent),
+    0 2px 6px color-mix(in srgb, #000 8%, transparent);
+  cursor: grabbing;
+}
+
+.setlist-item--fallback {
+  background: var(--app-surface);
+}
+
+.setlist-item--fallback::after {
+  display: none;
 }
 
 .setlist-item__row {
@@ -361,6 +536,23 @@ const availableSongs = computed(() => {
   gap: var(--app-space-3);
   min-height: 3.5rem;
   padding: 0.7rem var(--app-space-4);
+  transition:
+    transform 180ms var(--app-ease),
+    box-shadow 180ms var(--app-ease);
+}
+
+@keyframes setlist-item-arm {
+  from {
+    transform: scale(1);
+    box-shadow: 0 0 0 transparent;
+  }
+
+  to {
+    transform: scale(1.045);
+    box-shadow:
+      0 10px 28px color-mix(in srgb, #000 16%, transparent),
+      0 2px 6px color-mix(in srgb, #000 8%, transparent);
+  }
 }
 
 .setlist-item__main {
@@ -448,5 +640,19 @@ const availableSongs = computed(() => {
   color: var(--app-accent-text);
   font-size: var(--app-text-xs);
   font-weight: 700;
+}
+</style>
+
+<style>
+/* Глобально: во время long-press / drag не даём странице скроллиться пальцем */
+html.setlist-drag-freeze,
+html.setlist-drag-freeze body {
+  overscroll-behavior: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+html.setlist-drag-freeze .app-shell__content {
+  overscroll-behavior: none;
 }
 </style>

@@ -27,31 +27,32 @@ const expandNew = ref(false)
 const allQuery = ref('')
 const allSort = ref<RepertoireSongSort>('plays')
 
-function focusSectionFromQuery() {
-  if (route.query.section !== 'stale') return
-  nextTick(() => {
-    document.getElementById('repertoire-stale')?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'start',
-    })
+function sectionIdFromKey(section: unknown) {
+  if (section === 'stale') return 'repertoire-stale'
+  if (section === 'new') return 'repertoire-new'
+  if (section === 'all') return 'repertoire-all'
+  return null
+}
+
+function scrollToSection(id: string) {
+  document.getElementById(id)?.scrollIntoView({
+    behavior: 'smooth',
+    block: 'start',
   })
+}
+
+function focusSectionFromQuery() {
+  const id = sectionIdFromKey(route.query.section)
+  if (!id) return
+  nextTick(() => scrollToSection(id))
 }
 
 const preview = REPERTOIRE_THRESHOLDS.sectionPreviewLimit
 const rangeFrom = computed(() => summary.value?.from ?? '')
 const rangeTo = computed(() => summary.value?.to ?? '')
 
-/** «Новые» за всё время = все песни с историей — показатель ничего не добавляет. */
-const showNewMetric = computed(() => {
-  const s = summary.value
-  if (!s) return false
-  if (period.value === 'all' && s.newSongs >= s.uniqueSongs) return false
-  return true
-})
-
-const newMetricLabel = computed(() =>
-  period.value === 'all' ? t('repertoire.metricFirstPlayed') : t('repertoire.metricNew'),
-)
+/** За всё время «новые» бессмысленны — не показываем. */
+const showNewMetric = computed(() => period.value !== 'all')
 
 const overviewMetricCount = computed(() => 2 + (showNewMetric.value ? 1 : 0))
 
@@ -206,18 +207,31 @@ const sortOptions = computed(() =>
           :class="`pulse-overview--cols-${overviewMetricCount}`"
         >
           <div class="pulse-overview__metrics">
-            <div class="pulse-overview__metric">
+            <button
+              type="button"
+              class="pulse-overview__metric pulse-overview__metric--all app-press"
+              @click="scrollToSection('repertoire-all')"
+            >
               <span class="pulse-overview__value">{{ summary.uniqueSongs }}</span>
               <span class="pulse-overview__label">{{ t('repertoire.metricUnique') }}</span>
-            </div>
-            <div v-if="showNewMetric" class="pulse-overview__metric">
+            </button>
+            <button
+              v-if="showNewMetric"
+              type="button"
+              class="pulse-overview__metric pulse-overview__metric--new app-press"
+              @click="scrollToSection('repertoire-new')"
+            >
               <span class="pulse-overview__value">{{ summary.newSongs }}</span>
-              <span class="pulse-overview__label">{{ newMetricLabel }}</span>
-            </div>
-            <div class="pulse-overview__metric">
+              <span class="pulse-overview__label">{{ t('repertoire.metricNew') }}</span>
+            </button>
+            <button
+              type="button"
+              class="pulse-overview__metric pulse-overview__metric--stale app-press"
+              @click="scrollToSection('repertoire-stale')"
+            >
               <span class="pulse-overview__value">{{ summary.staleCount }}</span>
               <span class="pulse-overview__label">{{ t('repertoire.metricStale') }}</span>
-            </div>
+            </button>
           </div>
         </div>
       </AppSection>
@@ -284,7 +298,7 @@ const sortOptions = computed(() =>
         </div>
       </AppSection>
 
-      <AppSection v-if="showNewMetric" :title="t('repertoire.sectionNew')">
+      <AppSection v-if="showNewMetric" id="repertoire-new" :title="t('repertoire.sectionNew')">
         <AppEmptyState
           v-if="!newestAll.length"
           :title="t('repertoire.emptyNewTitle')"
@@ -314,7 +328,7 @@ const sortOptions = computed(() =>
         </div>
       </AppSection>
 
-      <AppSection :title="t('repertoire.sectionAll')">
+      <AppSection id="repertoire-all" :title="t('repertoire.sectionAll')">
         <div class="pulse-all-tools">
           <div class="pulse-all-search">
             <AppIcon :name="icons.search" class="pulse-all-search__icon" />
@@ -379,7 +393,7 @@ const sortOptions = computed(() =>
 }
 
 .pulse-overview {
-  padding: 0.85rem var(--app-space-4);
+  padding: var(--app-space-3);
 }
 
 .pulse-overview__metrics {
@@ -395,29 +409,55 @@ const sortOptions = computed(() =>
 .pulse-overview__metric {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
   min-width: 0;
+  min-height: 4.1rem;
+  padding: 0.65rem 0.45rem;
+  border: 0;
+  border-radius: var(--app-radius);
+  background: var(--app-hover);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-border) 70%, transparent);
+  font: inherit;
   text-align: center;
+  cursor: pointer;
+}
+
+.pulse-overview__metric--all .pulse-overview__value {
+  color: var(--app-ink);
+}
+
+.pulse-overview__metric--new .pulse-overview__value {
+  color: var(--app-accent-text);
+}
+
+.pulse-overview__metric--stale .pulse-overview__value {
+  color: var(--app-warn);
 }
 
 .pulse-overview__value {
   font-size: var(--app-text-xl);
-  font-weight: 700;
+  font-weight: 750;
   letter-spacing: -0.03em;
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
-  color: var(--app-ink);
 }
 
 .pulse-overview__label {
   font-size: var(--app-text-2xs);
-  font-weight: 550;
+  font-weight: 600;
   line-height: 1.25;
   color: var(--app-muted);
   white-space: normal;
 }
 
 @media (max-width: 360px) {
+  .pulse-overview__metric {
+    min-height: 3.75rem;
+    padding: 0.55rem 0.3rem;
+  }
+
   .pulse-overview__value {
     font-size: var(--app-text-lg);
   }

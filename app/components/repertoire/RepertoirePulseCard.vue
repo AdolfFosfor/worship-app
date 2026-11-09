@@ -22,6 +22,9 @@ const periodCaption = computed(() =>
   t('repertoire.forPeriod', { period: t(periodLabelKey(period.value)) }),
 )
 
+/** За всё время «новые» бессмысленны — не показываем. */
+const showNewMetric = computed(() => period.value !== 'all')
+
 function barWidth(plays: number) {
   if (topPlays.value <= 0 || plays <= 0) return 0
   return Math.round((plays / topPlays.value) * 100)
@@ -45,19 +48,39 @@ function songLink(id: string) {
       </NuxtLink>
     </div>
 
-    <div class="pulse-card__metrics" role="group" :aria-label="t('repertoire.sectionOverview')">
-      <div class="pulse-card__metric">
+    <div
+      class="pulse-card__metrics"
+      :class="{ 'pulse-card__metrics--cols-2': !showNewMetric }"
+      role="group"
+      :aria-label="t('repertoire.sectionOverview')"
+    >
+      <NuxtLink
+        to="/repertoire?section=all"
+        class="pulse-card__metric pulse-card__metric--all app-press"
+        :aria-label="`${summary.uniqueSongs} ${t('repertoire.metricUnique')}`"
+      >
         <span class="pulse-card__value">{{ summary.uniqueSongs }}</span>
         <span class="pulse-card__label">{{ t('repertoire.metricUnique') }}</span>
-      </div>
-      <div class="pulse-card__metric">
+      </NuxtLink>
+
+      <NuxtLink
+        v-if="showNewMetric"
+        to="/repertoire?section=new"
+        class="pulse-card__metric pulse-card__metric--new app-press"
+        :aria-label="`${summary.newSongs} ${t('repertoire.metricNew')}`"
+      >
         <span class="pulse-card__value">{{ summary.newSongs }}</span>
         <span class="pulse-card__label">{{ t('repertoire.metricNew') }}</span>
-      </div>
-      <div class="pulse-card__metric">
+      </NuxtLink>
+
+      <NuxtLink
+        to="/repertoire?section=stale"
+        class="pulse-card__metric pulse-card__metric--stale app-press"
+        :aria-label="`${summary.staleCount} ${t('repertoire.metricStale')}`"
+      >
         <span class="pulse-card__value">{{ summary.staleCount }}</span>
         <span class="pulse-card__label">{{ t('repertoire.metricStale') }}</span>
-      </div>
+      </NuxtLink>
     </div>
 
     <div v-if="frequent.length" class="pulse-card__favorites">
@@ -97,21 +120,7 @@ function songLink(id: string) {
       </ul>
     </div>
 
-    <NuxtLink
-      v-if="summary.staleCount > 0"
-      to="/repertoire?section=stale"
-      class="pulse-card__stale app-press"
-    >
-      <div class="pulse-card__stale-copy">
-        <span class="pulse-card__stale-title">
-          {{ t('repertoire.homeStaleTitle', { count: summary.staleCount }) }}
-        </span>
-        <span class="pulse-card__stale-action">{{ t('repertoire.homeStaleAction') }}</span>
-      </div>
-      <AppIcon :name="icons.chevronRight" class="pulse-card__stale-chevron" size="1.05rem" />
-    </NuxtLink>
-
-    <p v-else-if="summary.executionCount === 0 && !frequent.length" class="pulse-card__hint">
+    <p v-else-if="summary.executionCount === 0" class="pulse-card__hint">
       {{ t('repertoire.homeEmptyHint') }}
     </p>
   </div>
@@ -179,28 +188,68 @@ function songLink(id: string) {
   min-width: 0;
 }
 
+.pulse-card__metrics--cols-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .pulse-card__metric {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
   min-width: 0;
+  min-height: 4.1rem;
+  padding: 0.65rem 0.45rem;
+  border-radius: var(--app-radius);
   text-align: center;
+  text-decoration: none;
+  color: inherit;
+}
+
+.pulse-card__metric--all,
+.pulse-card__metric--new,
+.pulse-card__metric--stale {
+  background: var(--app-hover);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-border) 70%, transparent);
+}
+
+.pulse-card__metric--all .pulse-card__value {
+  color: var(--app-ink);
+}
+
+.pulse-card__metric--all .pulse-card__label {
+  color: var(--app-muted);
+}
+
+.pulse-card__metric--new .pulse-card__value {
+  color: var(--app-accent-text);
+}
+
+.pulse-card__metric--new .pulse-card__label {
+  color: var(--app-muted);
+}
+
+.pulse-card__metric--stale .pulse-card__value {
+  color: var(--app-warn);
+}
+
+.pulse-card__metric--stale .pulse-card__label {
+  color: var(--app-muted);
 }
 
 .pulse-card__value {
   font-size: var(--app-text-xl);
-  font-weight: 700;
+  font-weight: 750;
   letter-spacing: -0.03em;
   line-height: 1.1;
-  color: var(--app-ink);
   font-variant-numeric: tabular-nums;
 }
 
 .pulse-card__label {
   font-size: var(--app-text-2xs);
-  font-weight: 550;
+  font-weight: 600;
   line-height: 1.25;
-  color: var(--app-muted);
   white-space: normal;
   overflow: visible;
   text-overflow: unset;
@@ -321,46 +370,6 @@ function songLink(id: string) {
   background: var(--app-accent);
 }
 
-.pulse-card__stale {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--app-space-3);
-  margin: 0 calc(var(--app-space-4) * -1) calc(var(--app-space-4) * -1);
-  padding: 0.85rem var(--app-space-4);
-  border-top: var(--app-hairline) solid var(--app-border);
-  text-decoration: none;
-  color: inherit;
-}
-
-.pulse-card__stale-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  min-width: 0;
-}
-
-.pulse-card__stale-title {
-  font-size: var(--app-text-sm);
-  font-weight: 650;
-  letter-spacing: -0.01em;
-  line-height: 1.3;
-  color: var(--app-ink);
-}
-
-.pulse-card__stale-action {
-  font-size: var(--app-text-xs);
-  font-weight: 550;
-  line-height: 1.3;
-  color: var(--app-accent-text);
-}
-
-.pulse-card__stale-chevron {
-  flex-shrink: 0;
-  color: var(--app-muted);
-  opacity: 0.45;
-}
-
 .pulse-card__hint {
   margin: 0;
   font-size: var(--app-text-sm);
@@ -372,6 +381,11 @@ function songLink(id: string) {
 @media (max-width: 360px) {
   .pulse-card__metrics {
     gap: var(--app-space-1);
+  }
+
+  .pulse-card__metric {
+    min-height: 3.75rem;
+    padding: 0.55rem 0.3rem;
   }
 
   .pulse-card__value {

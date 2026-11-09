@@ -439,6 +439,11 @@ body {
   gap: var(--app-space-2);
 }
 
+/* Якорный скролл к секции — небольшой отступ сверху */
+.app-section[id] {
+  scroll-margin-top: calc(var(--app-overlay-gap) + var(--app-space-2));
+}
+
 .app-section__title {
   margin: 0;
   padding-inline: var(--app-space-1);
