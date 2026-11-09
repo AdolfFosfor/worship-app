@@ -46,15 +46,33 @@ function autoSectionTitle(sectionId: string) {
   return sectionAutoTitle(chart.value.sections, sectionId, sectionLabel)
 }
 
-const props = defineProps<{
-  modelValue: ChordChart | null
-  legacyChords?: string | null
-}>()
+const props = withDefaults(
+  defineProps<{
+    modelValue: ChordChart | null
+    legacyChords?: string | null
+    /** Optional song tempo; edited next to time signature. */
+    bpm?: number | null
+  }>(),
+  {
+    legacyChords: null,
+    bpm: null,
+  },
+)
 
 const emit = defineEmits<{
   'update:modelValue': [value: ChordChart]
   'update:legacyChords': [value: string | null]
+  'update:bpm': [value: number | null]
 }>()
+
+function onBpmInput(value: number | null | undefined) {
+  if (value == null || !Number.isFinite(Number(value))) {
+    emit('update:bpm', null)
+    return
+  }
+  const n = Math.round(Number(value))
+  emit('update:bpm', Math.max(30, Math.min(300, n)))
+}
 
 const { revealElement, revealSelector } = useEditorReveal()
 
@@ -796,6 +814,22 @@ onBeforeUnmount(() => {
         @update:model-value="setTimeSignature($event as TimeSignature)"
       />
 
+      <div v-if="bpm != null" class="chart-editor__bpm">
+        <InputNumber
+          :model-value="bpm"
+          :min="30"
+          :max="300"
+          :use-grouping="false"
+          :min-fraction-digits="0"
+          :max-fraction-digits="0"
+          inputmode="numeric"
+          :aria-label="t('song.fieldBpm')"
+          class="chart-editor__bpm-input"
+          @update:model-value="onBpmInput($event as number | null)"
+        />
+        <span class="chart-editor__bpm-suffix" aria-hidden="true">{{ t('song.bpmUnit') }}</span>
+      </div>
+
       <div class="chart-editor__history">
         <button type="button" :disabled="!canUndo" :aria-label="t('chart.undo')" @click="undo">
           <AppIcon :name="icons.undo" size="1rem" />
@@ -1091,6 +1125,55 @@ onBeforeUnmount(() => {
 .chart-editor__ts {
   width: 5.25rem;
   min-width: 5.25rem;
+}
+
+.chart-editor__bpm {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  height: 2.875rem;
+  border-radius: var(--app-radius);
+  border: 1px solid var(--app-border);
+  background: var(--app-bg);
+  overflow: hidden;
+}
+
+.chart-editor__bpm-input {
+  width: 4.75rem;
+}
+
+.chart-editor__bpm-input :deep(.p-inputnumber),
+.chart-editor__bpm-input :deep(.p-inputnumber-input) {
+  width: 100%;
+  min-height: 100%;
+  height: 2.875rem;
+}
+
+.chart-editor__bpm-input :deep(.p-inputnumber-input) {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 2.15rem 0 0.55rem !important;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.chart-editor__bpm-suffix {
+  position: absolute;
+  right: 0.45rem;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  font-size: 0.65rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--app-muted);
+  opacity: 0.75;
 }
 
 .chart-editor__history {

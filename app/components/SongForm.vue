@@ -33,24 +33,29 @@ const canSubmit = computed(
   () => props.modelValue.title.trim().length > 0 && Boolean(props.modelValue.key),
 )
 
-export type SongExtraKind = 'lyrics' | 'youtube'
+export type SongExtraKind = 'lyrics' | 'youtube' | 'bpm'
 
 const sheetKind = ref<SongExtraKind | null>(null)
 const sheetDraft = ref('')
 const lyricsInput = ref<HTMLTextAreaElement | null>(null)
 const youtubeInput = ref<HTMLInputElement | null>(null)
+const bpmInput = ref<HTMLInputElement | null>(null)
 /** Держит soft KB в цепочке user-gesture до after-enter реального поля. */
 const focusProxy = ref<HTMLInputElement | null>(null)
 const pendingSheetFocus = ref(false)
 
 const sheetOpen = computed(() => sheetKind.value != null)
 
-const sheetTitle = computed(() =>
-  sheetKind.value === 'youtube' ? t('song.sheetYoutube') : t('song.sheetLyrics'),
-)
+const sheetTitle = computed(() => {
+  if (sheetKind.value === 'youtube') return t('song.sheetYoutube')
+  if (sheetKind.value === 'bpm') return t('song.sheetBpm')
+  return t('song.sheetLyrics')
+})
 
 function sheetField(): HTMLInputElement | HTMLTextAreaElement | null {
-  return sheetKind.value === 'youtube' ? youtubeInput.value : lyricsInput.value
+  if (sheetKind.value === 'youtube') return youtubeInput.value
+  if (sheetKind.value === 'bpm') return bpmInput.value
+  return lyricsInput.value
 }
 
 function focusSheetField() {
@@ -62,10 +67,14 @@ function openExtra(kind: SongExtraKind) {
   focusProxy.value?.focus({ preventScroll: true })
   pendingSheetFocus.value = true
   sheetKind.value = kind
-  sheetDraft.value =
-    kind === 'lyrics'
-      ? (props.modelValue.lyrics ?? '')
-      : (props.modelValue.youtubeUrl ?? '')
+  if (kind === 'lyrics') {
+    sheetDraft.value = props.modelValue.lyrics ?? ''
+  } else if (kind === 'youtube') {
+    sheetDraft.value = props.modelValue.youtubeUrl ?? ''
+  } else {
+    sheetDraft.value =
+      props.modelValue.bpm != null ? String(props.modelValue.bpm) : ''
+  }
 }
 
 function onSheetAfterEnter() {
@@ -84,7 +93,16 @@ function closeSheet() {
   sheetDraft.value = ''
   lyricsInput.value?.blur()
   youtubeInput.value?.blur()
+  bpmInput.value?.blur()
   focusProxy.value?.blur()
+}
+
+function parseBpmDraft(raw: string): number | null {
+  const value = raw.trim()
+  if (!value) return null
+  const n = Math.round(Number(value))
+  if (!Number.isFinite(n)) return null
+  return Math.max(30, Math.min(300, n))
 }
 
 function confirmSheet() {
@@ -93,6 +111,8 @@ function confirmSheet() {
     patch('lyrics', value || null)
   } else if (sheetKind.value === 'youtube') {
     patch('youtubeUrl', value || null)
+  } else if (sheetKind.value === 'bpm') {
+    patch('bpm', parseBpmDraft(value))
   }
   closeSheet()
 }
@@ -158,7 +178,9 @@ defineExpose({
       <ChordChartEditor
         :model-value="form.chordChart ?? null"
         :legacy-chords="form.chords"
+        :bpm="form.bpm ?? null"
         @update:model-value="onChartUpdate"
+        @update:bpm="patch('bpm', $event)"
       />
     </div>
 
@@ -237,6 +259,19 @@ defineExpose({
                 type="url"
                 inputmode="url"
                 :placeholder="t('song.youtubePlaceholder')"
+                enterkeyhint="done"
+                autocomplete="off"
+                @keydown.enter.prevent="confirmSheet"
+              >
+              <input
+                v-show="sheetKind === 'bpm'"
+                ref="bpmInput"
+                v-model="sheetDraft"
+                class="song-top-sheet__field song-top-sheet__field--bpm"
+                type="text"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                :placeholder="t('song.bpmPlaceholder')"
                 enterkeyhint="done"
                 autocomplete="off"
                 @keydown.enter.prevent="confirmSheet"
@@ -451,6 +486,13 @@ defineExpose({
   height: 12rem;
   resize: none;
   -webkit-overflow-scrolling: touch;
+}
+
+.song-top-sheet__field--bpm {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-align: center;
 }
 
 .song-top-sheet-enter-active,

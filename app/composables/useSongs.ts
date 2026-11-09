@@ -38,10 +38,17 @@ function songWritePayload(input: SongInput) {
   const hasChart = Boolean(chart?.sections?.length)
   const plainChart = hasChart ? (JSON.parse(JSON.stringify(chart)) as Json) : null
   const chordsFromChart = hasChart ? serializeChart(chart) : null
+  const bpmRaw = input.bpm
+  const bpm =
+    bpmRaw == null || !Number.isFinite(bpmRaw)
+      ? null
+      : Math.max(30, Math.min(300, Math.round(bpmRaw)))
+
   return {
     title: input.title.trim(),
     key: input.key,
     capo: Math.max(0, Math.min(11, Math.round(input.capo ?? 0))),
+    bpm,
     chords: chordsFromChart ?? (input.chords?.trim() || null),
     chord_chart: plainChart,
     lyrics: input.lyrics?.trim() || null,

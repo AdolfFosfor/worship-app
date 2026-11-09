@@ -38,6 +38,8 @@ export interface DbSong {
   key: string
   /** Capo fret; chords are shapes played with this capo. */
   capo: number
+  /** Optional tempo in BPM (null/absent when unset). */
+  bpm?: number | null
   chords: string | null
   chord_chart?: Json | null
   lyrics: string | null
@@ -120,6 +122,7 @@ export interface Database {
           title: string
           key?: string
           capo?: number
+          bpm?: number | null
           chords?: string | null
           chord_chart?: Json | null
           lyrics?: string | null
@@ -134,6 +137,7 @@ export interface Database {
           title?: string
           key?: string
           capo?: number
+          bpm?: number | null
           chords?: string | null
           chord_chart?: Json | null
           lyrics?: string | null

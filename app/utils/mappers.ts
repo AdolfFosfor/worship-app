@@ -36,6 +36,13 @@ export function mapMember(row: DbWorkspaceMember): WorkspaceMember {
   }
 }
 
+function normalizeBpm(value: number | null | undefined): number | null {
+  if (value == null || !Number.isFinite(value)) return null
+  const n = Math.round(value)
+  if (n < 30 || n > 300) return null
+  return n
+}
+
 export function mapSong(row: DbSong): Song {
   return {
     id: row.id,
@@ -43,6 +50,7 @@ export function mapSong(row: DbSong): Song {
     title: row.title,
     key: row.key,
     capo: Number.isFinite(row.capo) ? Math.max(0, Math.min(11, row.capo)) : 0,
+    bpm: normalizeBpm(row.bpm),
     chords: row.chords,
     chordChart: normalizeChordChart(row.chord_chart),
     lyrics: row.lyrics,

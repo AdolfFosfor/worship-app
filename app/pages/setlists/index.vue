@@ -1,12 +1,23 @@
 <script setup lang="ts">
+import type { Setlist } from '~~/shared/types'
 import { formatServiceDatePill, localTodayKey } from '~/utils/dates'
 import { icons } from '~/utils/icons'
 
 const route = useRoute()
 const workspace = useWorkspaceStore()
 const { t, sessionTitle, locale } = useAppLocale()
-const { setlists, loading, error, fetchSetlists, getUpcoming, upcoming } = useSetlists()
+const {
+  setlists,
+  loading,
+  error,
+  fetchSetlists,
+  getUpcoming,
+  upcoming,
+  deleteSetlist,
+} = useSetlists()
 const { syncSetlistsOnActivate } = useSetlistsRevision()
+const toast = useToast()
+const { requireDanger } = useAppConfirm()
 
 /** Пока нет кэша — не показываем hero без пиллов. */
 const pageReady = ref(Boolean(setlists.value.length || upcoming.value))
@@ -82,6 +93,30 @@ function formatDatePill(iso: string) {
     todayPrefix: (date) => t('dates.todayPrefix', { date }),
   })
 }
+
+function confirmDeleteSetlist(item: Setlist) {
+  if (!workspace.canEditSetlists) return
+  requireDanger({
+    title: t('setlist.deleteConfirmTitle'),
+    message: t('setlist.deleteConfirmMessage'),
+    acceptLabel: t('common.delete'),
+    accept: async () => {
+      try {
+        await deleteSetlist(item.id)
+        if (upcoming.value?.id === item.id) {
+          await getUpcoming()
+        }
+      } catch (e) {
+        toast.add({
+          severity: 'error',
+          summary: t('common.error'),
+          detail: e instanceof Error ? e.message : t('common.deleteFailed'),
+          life: 4000,
+        })
+      }
+    },
+  })
+}
 </script>
 
 <template>
@@ -118,53 +153,71 @@ function formatDatePill(iso: string) {
 
     <template v-else>
       <AppSection v-if="nextUpcoming" :title="t('setlists.sectionNext')">
-        <div class="setlists-hero app-panel app-panel--accent">
-          <NuxtLink :to="`/setlists/${nextUpcoming.id}`" class="setlists-hero__link app-press">
-            <AppPill>{{ formatDatePill(nextUpcoming.serviceDate) }}</AppPill>
-            <span class="setlists-hero__title">{{ sessionTitle(nextUpcoming.title) }}</span>
-            <AppIcon :name="icons.chevronRight" class="setlists-hero__chevron" size="1.05rem" />
-          </NuxtLink>
-          <div
-            v-if="heroItems.length"
-            class="setlists-hero__songs app-chip-row"
-            :aria-label="t('home.ariaSetlistSongs')"
-          >
-            <AppPill
-              v-for="item in heroItems"
-              :key="item.id"
-              tone="soft"
+        <SwipeDeleteRow
+          class="setlists-hero-swipe"
+          :disabled="!workspace.canEditSetlists"
+          @commit="confirmDeleteSetlist(nextUpcoming)"
+        >
+          <div class="setlists-hero app-panel app-panel--accent">
+            <NuxtLink :to="`/setlists/${nextUpcoming.id}`" class="setlists-hero__link app-press">
+              <AppPill>{{ formatDatePill(nextUpcoming.serviceDate) }}</AppPill>
+              <span class="setlists-hero__title">{{ sessionTitle(nextUpcoming.title) }}</span>
+              <AppIcon :name="icons.chevronRight" class="setlists-hero__chevron" size="1.05rem" />
+            </NuxtLink>
+            <div
+              v-if="heroItems.length"
+              class="setlists-hero__songs app-chip-row"
+              :aria-label="t('home.ariaSetlistSongs')"
             >
-              {{ item.song.title }}
-            </AppPill>
+              <AppPill
+                v-for="item in heroItems"
+                :key="item.id"
+                tone="soft"
+              >
+                {{ item.song.title }}
+              </AppPill>
+            </div>
           </div>
-        </div>
+        </SwipeDeleteRow>
 
         <div v-if="otherUpcoming.length" class="setlists-stack">
-          <NuxtLink
+          <SwipeDeleteRow
             v-for="item in otherUpcoming"
             :key="item.id"
-            :to="`/setlists/${item.id}`"
-            class="setlists-card app-press"
+            class="setlists-card-swipe"
+            :disabled="!workspace.canEditSetlists"
+            @commit="confirmDeleteSetlist(item)"
           >
-            <AppPill size="sm">{{ formatDatePill(item.serviceDate) }}</AppPill>
-            <span class="setlists-card__title">{{ sessionTitle(item.title) }}</span>
-            <AppIcon :name="icons.chevronRight" class="setlists-card__chevron" size="1rem" />
-          </NuxtLink>
+            <NuxtLink
+              :to="`/setlists/${item.id}`"
+              class="setlists-card app-press"
+            >
+              <AppPill size="sm">{{ formatDatePill(item.serviceDate) }}</AppPill>
+              <span class="setlists-card__title">{{ sessionTitle(item.title) }}</span>
+              <AppIcon :name="icons.chevronRight" class="setlists-card__chevron" size="1rem" />
+            </NuxtLink>
+          </SwipeDeleteRow>
         </div>
       </AppSection>
 
       <AppSection v-if="past.length" :title="t('setlists.sectionHistory')">
         <div class="setlists-stack">
-          <NuxtLink
+          <SwipeDeleteRow
             v-for="item in past"
             :key="item.id"
-            :to="`/setlists/${item.id}`"
-            class="setlists-card setlists-card--past app-press"
+            class="setlists-card-swipe"
+            :disabled="!workspace.canEditSetlists"
+            @commit="confirmDeleteSetlist(item)"
           >
-            <AppPill tone="muted" size="sm">{{ formatDatePill(item.serviceDate) }}</AppPill>
-            <span class="setlists-card__title">{{ sessionTitle(item.title) }}</span>
-            <AppIcon :name="icons.chevronRight" class="setlists-card__chevron" size="1rem" />
-          </NuxtLink>
+            <NuxtLink
+              :to="`/setlists/${item.id}`"
+              class="setlists-card setlists-card--past app-press"
+            >
+              <AppPill tone="muted" size="sm">{{ formatDatePill(item.serviceDate) }}</AppPill>
+              <span class="setlists-card__title">{{ sessionTitle(item.title) }}</span>
+              <AppIcon :name="icons.chevronRight" class="setlists-card__chevron" size="1rem" />
+            </NuxtLink>
+          </SwipeDeleteRow>
         </div>
       </AppSection>
     </template>
@@ -172,8 +225,14 @@ function formatDatePill(iso: string) {
 </template>
 
 <style scoped>
+.setlists-hero-swipe,
+.setlists-card-swipe {
+  border-radius: var(--app-radius-lg);
+}
+
 .setlists-hero {
   overflow: hidden;
+  background: var(--app-surface);
 }
 
 .setlists-hero__link {

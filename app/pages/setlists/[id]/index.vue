@@ -9,7 +9,6 @@ const workspace = useWorkspaceStore()
 const { t, sessionTitle, locale } = useAppLocale()
 const {
   getSetlist,
-  deleteSetlist,
   addSongToSetlist,
   removeItem,
   reorderItems,
@@ -27,6 +26,7 @@ const error = ref<string | null>(null)
 const pickerVisible = ref(false)
 const busy = ref(false)
 const listEl = ref<HTMLElement | null>(null)
+const sorting = ref(false)
 
 let sortable: Sortable | null = null
 
@@ -70,7 +70,7 @@ function formatDate(iso: string) {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
-    }).format(new Date(iso + 'T12:00:00'))
+    }).format(new Date(`${iso}T12:00:00`))
   } catch {
     return iso
   }
@@ -138,21 +138,29 @@ function setupSortable() {
 
   sortable = Sortable.create(listEl.value, {
     animation: 180,
-    handle: '.setlist-item__handle',
+    direction: 'vertical',
     draggable: '.setlist-item',
     ghostClass: 'setlist-item--ghost',
     chosenClass: 'setlist-item--chosen',
     dragClass: 'setlist-item--drag',
     forceFallback: true,
-    fallbackTolerance: 4,
+    /** Long-press всей карточки (и мышь, и тач) — иначе мышь крадёт свайп */
+    delay: 420,
+    delayOnTouchOnly: false,
+    touchStartThreshold: 12,
+    fallbackTolerance: 8,
     onStart: () => {
+      sorting.value = true
       haptics.grab()
     },
     onEnd: (evt) => {
+      sorting.value = false
       if (evt.oldIndex == null || evt.newIndex == null || evt.oldIndex === evt.newIndex) return
       if (!setlist.value) return
       haptics.drop()
-      const orderedIds = Array.from(listEl.value?.querySelectorAll<HTMLElement>('.setlist-item') ?? [])
+      const orderedIds = Array.from(
+        listEl.value?.querySelectorAll<HTMLElement>('.setlist-item') ?? [],
+      )
         .map((el) => el.dataset.itemId)
         .filter((itemId): itemId is string => Boolean(itemId))
       void persistOrder(orderedIds)
@@ -170,7 +178,7 @@ watch(
 
 onBeforeUnmount(destroySortable)
 
-async function remove(item: SetlistItemWithSong) {
+async function doRemove(item: SetlistItemWithSong) {
   try {
     await removeItem(item.id)
     if (setlist.value) {
@@ -189,24 +197,12 @@ async function remove(item: SetlistItemWithSong) {
   }
 }
 
-function confirmDelete() {
+function confirmRemove(item: SetlistItemWithSong) {
   requireDanger({
-    title: t('setlist.deleteConfirmTitle'),
-    message: t('setlist.deleteConfirmMessage'),
-    acceptLabel: t('common.delete'),
-    accept: async () => {
-      try {
-        await deleteSetlist(id.value)
-        await navigateTo('/setlists')
-      } catch (e) {
-        toast.add({
-          severity: 'error',
-          summary: t('common.error'),
-          detail: e instanceof Error ? e.message : t('common.deleteFailed'),
-          life: 4000,
-        })
-      }
-    },
+    title: t('setlist.removeSongConfirmTitle'),
+    message: t('setlist.removeSongConfirmMessage', { title: item.song.title }),
+    acceptLabel: t('setlist.ariaRemove'),
+    accept: () => doRemove(item),
   })
 }
 
@@ -238,52 +234,39 @@ const availableSongs = computed(() => {
           :key="item.id"
           class="setlist-item"
           :data-item-id="item.id"
+          data-haptic-drag
         >
-          <button
-            v-if="workspace.canEditSetlists"
-            type="button"
-            class="setlist-item__handle"
-            :aria-label="t('setlist.ariaDrag')"
+          <SwipeDeleteRow
+            :disabled="!workspace.canEditSetlists || sorting"
+            @commit="confirmRemove(item)"
           >
-            <AppIcon :name="icons.grip" size="1.15rem" />
-          </button>
-
-          <NuxtLink
-            :to="{
-              path: `/songs/${item.songId}`,
-              query: { key: effectiveKey(item), from: `/setlists/${id}` },
-            }"
-            class="setlist-item__main"
-          >
-            <span class="setlist-item__pos">{{ index + 1 }}</span>
-            <span class="setlist-item__text">
-              <span class="setlist-item__title">{{ item.song.title }}</span>
-              <AppPill size="sm">{{ songKeyLabel(item) }}</AppPill>
-            </span>
-          </NuxtLink>
-
-          <button
-            v-if="workspace.canEditSetlists"
-            type="button"
-            class="setlist-item__remove"
-            :aria-label="t('setlist.ariaRemove')"
-            @click="remove(item)"
-          >
-            <AppIcon :name="icons.close" size="1.1rem" />
-          </button>
+            <div class="setlist-item__row">
+              <NuxtLink
+                :to="{
+                  path: `/songs/${item.songId}`,
+                  query: { key: effectiveKey(item), from: `/setlists/${id}` },
+                }"
+                class="setlist-item__main"
+              >
+                <span class="setlist-item__pos">{{ index + 1 }}</span>
+                <span class="setlist-item__title">{{ item.song.title }}</span>
+              </NuxtLink>
+              <span class="setlist-item__key" aria-hidden="true">{{ songKeyLabel(item) }}</span>
+            </div>
+          </SwipeDeleteRow>
         </article>
       </div>
 
       <div v-if="workspace.canEditSetlists" class="setlist-footer">
-        <Button
-          :label="t('setlist.addSong')"
-          class="w-full"
-          :loading="busy"
+        <button
+          type="button"
+          class="app-cta setlist-footer__cta"
+          :disabled="busy"
+          :aria-label="t('setlist.addSong')"
           @click="openPicker"
-        />
-        <button type="button" class="setlist-footer__delete app-cta--danger" @click="confirmDelete">
-          <AppIcon :name="icons.trash" size="1.05rem" />
-          {{ t('setlist.deleteSetlist') }}
+        >
+          <AppIcon :name="icons.add" size="1.1rem" />
+          {{ t('setlist.addSong') }}
         </button>
       </div>
     </template>
@@ -321,44 +304,36 @@ const availableSongs = computed(() => {
   padding-top: var(--app-space-4);
 }
 
-.setlist-footer__delete {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--app-space-2);
+.setlist-footer__cta {
   width: 100%;
-  min-height: var(--app-touch-min);
-  border: 0;
-  border-radius: var(--app-radius-lg);
-  font: inherit;
-  font-weight: 650;
-  cursor: pointer;
+}
+
+.setlist-footer__cta:disabled {
+  opacity: 0.65;
+  cursor: wait;
 }
 
 .setlist-items {
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .setlist-item {
   position: relative;
-  display: flex;
-  align-items: center;
-  gap: var(--app-space-1);
-  min-height: 3.5rem;
-  padding: 0.55rem var(--app-space-2) 0.55rem var(--app-space-1);
-  background: transparent;
-  touch-action: none;
+  background: var(--app-surface);
 }
 
 .setlist-item:not(:last-child)::after {
   content: '';
   position: absolute;
-  left: 2.75rem;
+  left: var(--app-space-4);
   right: 0;
   bottom: 0;
+  z-index: 2;
   height: var(--app-hairline);
   background: var(--app-border);
+  pointer-events: none;
 }
 
 .setlist-item--ghost {
@@ -366,9 +341,7 @@ const availableSongs = computed(() => {
 }
 
 .setlist-item--chosen {
-  background: var(--app-hover);
-  border-radius: var(--app-radius);
-  z-index: 1;
+  z-index: 3;
 }
 
 .setlist-item--chosen::after {
@@ -376,30 +349,17 @@ const availableSongs = computed(() => {
 }
 
 .setlist-item--drag {
-  opacity: 0.95;
+  opacity: 0.97;
   box-shadow: var(--app-shadow-soft);
   border-radius: var(--app-radius);
-  background: var(--app-surface);
 }
 
-.setlist-item__handle {
-  display: inline-flex;
+.setlist-item__row {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  flex-shrink: 0;
-  border: 0;
-  border-radius: var(--app-radius-pill);
-  background: transparent;
-  color: var(--app-faint);
-  cursor: grab;
-  touch-action: none;
-}
-
-.setlist-item__handle:active {
-  cursor: grabbing;
-  color: var(--app-muted);
+  gap: var(--app-space-3);
+  min-height: 3.5rem;
+  padding: 0.7rem var(--app-space-4);
 }
 
 .setlist-item__main {
@@ -410,7 +370,6 @@ const availableSongs = computed(() => {
   flex: 1;
   color: inherit;
   text-decoration: none;
-  padding-block: 0.2rem;
 }
 
 .setlist-item__pos {
@@ -420,14 +379,6 @@ const availableSongs = computed(() => {
   font-variant-numeric: tabular-nums;
   font-weight: 650;
   font-size: var(--app-text-sm);
-}
-
-.setlist-item__text {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.3rem;
-  min-width: 0;
 }
 
 .setlist-item__title {
@@ -440,24 +391,21 @@ const availableSongs = computed(() => {
   max-width: 100%;
 }
 
-.setlist-item__remove {
+.setlist-item__key {
+  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  flex-shrink: 0;
-  border: 0;
+  min-width: 2.6rem;
+  min-height: 2rem;
+  padding: 0 0.7rem;
   border-radius: var(--app-radius-pill);
-  background: transparent;
-  color: var(--app-destructive);
-  opacity: 0.75;
-  cursor: pointer;
-}
-
-.setlist-item__remove:active {
-  background: color-mix(in srgb, var(--app-destructive) 12%, transparent);
-  opacity: 1;
+  background: var(--app-accent-muted);
+  color: var(--app-accent-text);
+  font-size: var(--app-text-md);
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
 }
 
 .picker-row {

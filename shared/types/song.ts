@@ -11,6 +11,8 @@ export interface Song extends Timestamps {
   key: SongKey
   /** Capo fret (0 = none). Chords are written as shapes with this capo. */
   capo: number
+  /** Optional tempo in BPM; null when unset. */
+  bpm: number | null
   /** Legacy / denormalized plain-text chord sheet. */
   chords: string | null
   /** Structured chord chart (preferred when present). */
@@ -24,6 +26,7 @@ export interface SongInput {
   title: string
   key: SongKey
   capo?: number
+  bpm?: number | null
   chords?: string | null
   chordChart?: ChordChart | null
   lyrics?: string | null

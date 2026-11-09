@@ -1,6 +1,7 @@
 /**
  * iOS-like edge-swipe назад: контент уезжает вправо с сопротивлением,
- * снизу параллакс «предыдущего» экрана. На ПК — жест трекпада.
+ * снизу параллакс «предыдущего» экрана.
+ * На ПК: трекпад (deltaX) и Shift+колёсико мыши как горизонтальный жест.
  */
 
 const EDGE_PX = 24
@@ -415,19 +416,49 @@ export function useEdgeSwipeBack(shellRef: Ref<HTMLElement | null>) {
       ) {
         return
       }
-      if (event.ctrlKey || event.deltaMode !== WheelEvent.DOM_DELTA_PIXEL) {
+      // Pinch-zoom / page zoom
+      if (event.ctrlKey) {
         return
       }
       if (isEditableTarget(event.target)) {
         return
       }
+      // Над карточкой со свайп-удалением — wheel забирает SwipeDeleteRow
+      if (
+        event.target instanceof Element &&
+        event.target.closest('.swipe-delete')
+      ) {
+        return
+      }
 
-      const absX = Math.abs(event.deltaX)
-      const absY = Math.abs(event.deltaY)
-      const pull = -event.deltaX
+      // LINE/PAGE → грубо в пиксели, чтобы жест работал и на мышиных колёсах
+      const scale =
+        event.deltaMode === WheelEvent.DOM_DELTA_LINE
+          ? 16
+          : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
+            ? widthOf()
+            : 1
+      const rawX = event.deltaX * scale
+      const rawY = event.deltaY * scale
+
+      // Shift+колёсико = горизонтальный жест (браузер кладёт в deltaX или оставляет deltaY).
+      // Трекпад без Shift: natural scroll, палец вправо → deltaX < 0 → экран вправо.
+      let pull: number
+      let absX: number
+      let absY: number
+      if (event.shiftKey) {
+        const horizontal = Math.abs(rawX) >= Math.abs(rawY) ? rawX : rawY
+        pull = horizontal
+        absX = Math.abs(horizontal)
+        absY = 0
+      } else {
+        pull = -rawX
+        absX = Math.abs(rawX)
+        absY = Math.abs(rawY)
+      }
 
       if (!wheelTracking) {
-        if (absX < WHEEL_START_PX || absY >= absX || pull <= 0) {
+        if (absX < WHEEL_START_PX || absY > absX * 1.25 || pull <= 0) {
           return
         }
         wheelTracking = true
@@ -443,12 +474,17 @@ export function useEdgeSwipeBack(shellRef: Ref<HTMLElement | null>) {
         if (shade) {
           shade.style.transition = 'none'
         }
-      } else if (absY > absX * 1.6 && offset < COMMIT_PX * 0.35) {
+      } else if (
+        !event.shiftKey &&
+        absY > absX * 1.6 &&
+        offset < COMMIT_PX * 0.35
+      ) {
         reset(true)
         return
       }
 
       event.preventDefault()
+      event.stopPropagation()
 
       const dt = Math.max(1, event.timeStamp - lastWheelT)
       wheelVelocity = pull / dt
@@ -497,7 +533,8 @@ export function useEdgeSwipeBack(shellRef: Ref<HTMLElement | null>) {
     shell.addEventListener('touchmove', onMove, { passive: false })
     shell.addEventListener('touchend', onEnd)
     shell.addEventListener('touchcancel', onCancel)
-    shell.addEventListener('wheel', onWheel, { passive: false })
+    // capture: жест «назад» работает и над списками / горизонтальными скроллами
+    shell.addEventListener('wheel', onWheel, { passive: false, capture: true })
 
     detach = () => {
       stopWatch()
@@ -505,7 +542,7 @@ export function useEdgeSwipeBack(shellRef: Ref<HTMLElement | null>) {
       shell.removeEventListener('touchmove', onMove)
       shell.removeEventListener('touchend', onEnd)
       shell.removeEventListener('touchcancel', onCancel)
-      shell.removeEventListener('wheel', onWheel)
+      shell.removeEventListener('wheel', onWheel, true)
       clearWheelIdle()
       clearSettleTimer()
       if (raf) {

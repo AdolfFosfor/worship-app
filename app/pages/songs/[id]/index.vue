@@ -6,7 +6,6 @@ import { transposeChart } from '~/utils/music/chart'
 import { keyDistance, transposeKeyLabel } from '~/utils/music/keys'
 import { transposeText } from '~/utils/music/transpose'
 import { localTodayKey } from '~/utils/dates'
-import { safeInternalPath } from '~/utils/safeInternalPath'
 
 const route = useRoute()
 const workspace = useWorkspaceStore()
@@ -15,11 +14,10 @@ const { t, sessionTitle, locale } = useAppLocale()
 const dateLocaleTag = computed(
   () => ({ ru: 'ru-RU', ro: 'ro-RO', en: 'en-GB' })[locale.value] ?? 'en-GB',
 )
-const { getSong, deleteSong } = useSongs()
+const { getSong } = useSongs()
 const { syncSongsOnActivate } = useSongsRevision()
 const { fetchSetlists, songInSetlist, addSongToSetlist } = useSetlists()
 const toast = useToast()
-const { requireDanger } = useAppConfirm()
 
 const song = ref<Song | null>(null)
 const loading = ref(true)
@@ -46,7 +44,6 @@ const capoOpen = ref(false)
 const stageFullscreen = ref(false)
 
 const id = computed(() => String(route.params.id))
-const backTo = computed(() => safeInternalPath(route.query.from, '/songs'))
 const showAddToSetlist = computed(() => workspace.canEditSetlists)
 const showSongManage = computed(() => workspace.canEditSongs)
 
@@ -194,27 +191,6 @@ async function addToSetlist(setlist: Setlist) {
   }
 }
 
-function confirmDelete() {
-  requireDanger({
-    title: t('songs.deleteConfirmTitle'),
-    message: t('songs.deleteConfirmMessage'),
-    acceptLabel: t('common.delete'),
-    accept: async () => {
-      try {
-        await deleteSong(id.value)
-        toast.add({ severity: 'success', summary: t('common.deleted'), life: 2000 })
-        await navigateTo(backTo.value.startsWith('/setlists/') ? '/songs' : backTo.value)
-      } catch (e) {
-        toast.add({
-          severity: 'error',
-          summary: t('common.error'),
-          detail: e instanceof Error ? e.message : t('common.deleteFailed'),
-          life: 4000,
-        })
-      }
-    },
-  })
-}
 </script>
 
 <template>
@@ -241,6 +217,10 @@ function confirmDelete() {
           <div class="song-view__copy">
             <span class="song-view__label">{{ t('songs.originalKey') }}</span>
             <p class="song-view__original">{{ originalSounding }}</p>
+            <p v-if="song.bpm" class="song-view__bpm">
+              {{ song.bpm }}
+              <span>{{ t('song.bpmUnit') }}</span>
+            </p>
           </div>
           <button
             type="button"
@@ -307,10 +287,6 @@ function confirmDelete() {
           <AppIcon :name="icons.edit" size="1.05rem" />
           {{ t('common.edit') }}
         </NuxtLink>
-        <button type="button" class="song-view__delete" @click="confirmDelete">
-          <AppIcon :name="icons.trash" size="1.05rem" />
-          {{ t('songs.deleteSong') }}
-        </button>
       </div>
 
       <Dialog
@@ -403,6 +379,22 @@ function confirmDelete() {
   font-weight: 700;
   letter-spacing: -0.03em;
   color: var(--app-ink);
+}
+
+.song-view__bpm {
+  margin: 0.15rem 0 0;
+  font-size: var(--app-text-sm);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  color: var(--app-muted);
+}
+
+.song-view__bpm span {
+  margin-left: 0.2rem;
+  font-size: var(--app-text-xs);
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 .song-view__capo-btn {
@@ -551,8 +543,7 @@ function confirmDelete() {
   padding-top: var(--app-space-4);
 }
 
-.song-view__edit,
-.song-view__delete {
+.song-view__edit {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -562,19 +553,11 @@ function confirmDelete() {
   border: 0;
   border-radius: var(--app-radius-lg);
   background: var(--app-surface);
+  color: var(--app-accent-text);
   font: inherit;
   font-weight: 650;
   text-decoration: none;
   cursor: pointer;
-}
-
-.song-view__edit {
-  color: var(--app-accent-text);
-}
-
-.song-view__delete {
-  background: color-mix(in srgb, var(--app-destructive) 12%, var(--app-surface));
-  color: var(--app-destructive);
 }
 
 .song-view__picker-row {

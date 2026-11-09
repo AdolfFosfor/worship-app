@@ -19,6 +19,7 @@ const form = ref<SongInput>({
   title: '',
   key: 'G',
   capo: 0,
+  bpm: null,
   chords: null,
   chordChart: null,
   lyrics: '',
@@ -41,6 +42,7 @@ onMounted(async () => {
       title: song.title,
       key: song.key,
       capo: song.capo,
+      bpm: song.bpm,
       chords: song.chords,
       chordChart: song.chordChart,
       lyrics: song.lyrics,
@@ -156,6 +158,17 @@ async function save() {
             <AppIcon :name="icons.youtube" :size="18" />
           </span>
           <span class="app-create-menu__label">{{ t('song.extraYoutube') }}</span>
+        </button>
+        <button
+          type="button"
+          class="app-create-menu__item app-create-menu__item--song"
+          role="menuitem"
+          @click="pickExtra('bpm')"
+        >
+          <span class="app-create-menu__icon">
+            <AppIcon :name="icons.music" :size="18" />
+          </span>
+          <span class="app-create-menu__label">{{ t('song.fieldBpm') }}</span>
         </button>
       </div>
     </Popover>
