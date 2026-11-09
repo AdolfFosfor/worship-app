@@ -1,17 +1,24 @@
 <script setup lang="ts">
+import type { RepertoirePeriodKey } from '~~/shared/repertoire/thresholds'
 import type { RepertoireSongDetail } from '~~/shared/types'
 import { formatServiceDatePill } from '~/utils/dates'
 import { icons } from '~/utils/icons'
+import { REPERTOIRE_PERIODS, periodLabelKey } from '~/utils/repertoire/period'
 import { formatSinceLast } from '~/utils/repertoire/status'
 
 const route = useRoute()
 const { t, locale, sessionTitle } = useAppLocale()
-const { fetchSongDetail, loadingDetail } = useRepertoirePulse()
+const { fetchSongDetail, loadingDetail, period } = useRepertoirePulse()
 
 const id = computed(() => String(route.params.id))
 const detail = ref<RepertoireSongDetail | null>(null)
 const error = ref<string | null>(null)
 const ready = ref(false)
+
+function onPeriod(next: RepertoirePeriodKey) {
+  if (next === period.value) return
+  period.value = next
+}
 
 async function load() {
   ready.value = false
@@ -75,9 +82,29 @@ const sinceLabel = computed(() => {
         <p v-if="sinceLabel" class="song-pulse__since">{{ sinceLabel }}</p>
       </section>
 
-      <AppSection v-if="detail.monthly.length" :title="t('repertoire.sectionDynamics')">
+      <AppSection v-if="detail.totalAll > 0" :title="t('repertoire.sectionDynamics')">
+        <div class="song-pulse__periods" role="tablist" :aria-label="t('repertoire.periodAria')">
+          <button
+            v-for="key in REPERTOIRE_PERIODS"
+            :key="key"
+            type="button"
+            class="song-pulse__period"
+            :class="{ 'song-pulse__period--on': period === key }"
+            role="tab"
+            :aria-selected="period === key"
+            @click="onPeriod(key)"
+          >
+            {{ t(periodLabelKey(key)) }}
+          </button>
+        </div>
         <div class="app-panel song-pulse__dyn">
-          <SongMonthlyBars :monthly="detail.monthly" />
+          <p class="song-pulse__dyn-caption">{{ t('repertoire.dynamicsCaption') }}</p>
+          <SongMonthlyBars
+            :monthly="detail.monthly"
+            :period="period"
+            :first-date="detail.firstDate"
+            :locale="locale"
+          />
         </div>
       </AppSection>
 
@@ -155,8 +182,40 @@ const sinceLabel = computed(() => {
   color: var(--app-accent-text);
 }
 
+.song-pulse__periods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: var(--app-space-2);
+}
+
+.song-pulse__period {
+  min-height: 2rem;
+  padding: 0 0.75rem;
+  border: 0;
+  border-radius: var(--app-radius-pill);
+  background: var(--app-hover);
+  color: var(--app-muted);
+  font: inherit;
+  font-size: var(--app-text-sm);
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.song-pulse__period--on {
+  background: var(--app-accent-muted);
+  color: var(--app-accent-text);
+}
+
 .song-pulse__dyn {
-  padding: 0 var(--app-space-4) var(--app-space-3);
+  padding: var(--app-space-3) var(--app-space-4) var(--app-space-3);
+}
+
+.song-pulse__dyn-caption {
+  margin: 0 0 var(--app-space-1);
+  font-size: var(--app-text-xs);
+  font-weight: 550;
+  color: var(--app-muted);
 }
 
 .song-pulse__history {
