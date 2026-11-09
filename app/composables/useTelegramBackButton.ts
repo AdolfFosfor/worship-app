@@ -54,6 +54,7 @@ export function useTelegramBackButton() {
   function goBack() {
     const { markPopNavigation } = useNavigationDirection()
     markPopNavigation()
+    useHaptics().impact('soft')
 
     const from = safeInternalPath(route.query.from, '')
     if (from) {

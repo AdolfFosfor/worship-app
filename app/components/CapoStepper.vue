@@ -3,6 +3,7 @@ import { icons } from '~/utils/icons'
 import { clampCapo } from '~/utils/music/capo'
 
 const { t } = useAppLocale()
+const haptics = useHaptics()
 
 const props = defineProps<{
   modelValue: number
@@ -13,7 +14,10 @@ const emit = defineEmits<{
 }>()
 
 function shift(delta: number) {
-  emit('update:modelValue', clampCapo(props.modelValue + delta))
+  const next = clampCapo(props.modelValue + delta)
+  if (next === clampCapo(props.modelValue)) return
+  emit('update:modelValue', next)
+  haptics.tick()
 }
 
 const fret = computed(() => clampCapo(props.modelValue))

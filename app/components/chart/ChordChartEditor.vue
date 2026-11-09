@@ -37,6 +37,7 @@ import { icons } from '~/utils/icons'
 import { useEditorReveal } from '~/composables/useEditorReveal'
 
 const { t } = useAppLocale()
+const haptics = useHaptics()
 
 function sectionLabel(type: string) {
   return t(`chart.section.${type}`)
@@ -478,6 +479,7 @@ function startItemDrag(sectionId: string, barId: string, itemId: string, e: Poin
   clearLongPress()
   longPressTimer.value = setTimeout(() => {
     drag.value = { kind: 'item', sectionId, barId, itemId }
+    haptics.grab()
   }, e.pointerType === 'touch' ? 320 : 0)
 }
 
@@ -487,8 +489,20 @@ function startBarDrag(sectionId: string, barId: string, e: PointerEvent) {
   clearLongPress()
   longPressTimer.value = setTimeout(() => {
     drag.value = { kind: 'bar', sectionId, barId }
+    haptics.grab()
   }, e.pointerType === 'touch' ? 320 : 0)
 }
+
+watch(
+  () =>
+    dropHint.value
+      ? `${dropHint.value.sectionId}:${dropHint.value.barId ?? ''}:${dropHint.value.index}:${dropHint.value.edge ?? ''}`
+      : null,
+  (next, prev) => {
+    if (!drag.value || !next || next === prev) return
+    haptics.tick()
+  },
+)
 
 function itemDropHintFromBar(
   bar: HTMLElement,
@@ -562,6 +576,7 @@ function onPointerMove(e: PointerEvent) {
 
 function onPointerUp() {
   clearLongPress()
+  let moved = false
   if (drag.value && dropHint.value) {
     if (drag.value.kind === 'item' && dropHint.value.barId) {
       const sameBar =
@@ -594,6 +609,7 @@ function onPointerUp() {
           barId: dropHint.value.barId,
           insertIndex: dropHint.value.index + 1,
         }
+        moved = true
       }
     } else if (drag.value.kind === 'bar') {
       const same =
@@ -609,9 +625,11 @@ function onPointerUp() {
             { sectionId: dropHint.value.sectionId, index: dropHint.value.index },
           ),
         )
+        moved = true
       }
     }
   }
+  if (moved) haptics.drop()
   drag.value = null
   dropHint.value = null
 }

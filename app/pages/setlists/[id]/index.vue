@@ -18,6 +18,7 @@ const { syncSetlistsOnActivate } = useSetlistsRevision()
 const { fetchSongs, songs } = useSongs()
 const toast = useToast()
 const { requireDanger } = useAppConfirm()
+const haptics = useHaptics()
 
 const id = computed(() => String(route.params.id))
 const setlist = ref<SetlistWithItems | null>(null)
@@ -144,9 +145,13 @@ function setupSortable() {
     dragClass: 'setlist-item--drag',
     forceFallback: true,
     fallbackTolerance: 4,
+    onStart: () => {
+      haptics.grab()
+    },
     onEnd: (evt) => {
       if (evt.oldIndex == null || evt.newIndex == null || evt.oldIndex === evt.newIndex) return
       if (!setlist.value) return
+      haptics.drop()
       const orderedIds = Array.from(listEl.value?.querySelectorAll<HTMLElement>('.setlist-item') ?? [])
         .map((el) => el.dataset.itemId)
         .filter((itemId): itemId is string => Boolean(itemId))

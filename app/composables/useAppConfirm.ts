@@ -16,8 +16,10 @@ type AppConfirmOptions = {
 export function useAppConfirm() {
   const confirm = useConfirm()
   const { t } = useAppLocale()
+  const haptics = useHaptics()
 
   function requireDanger(options: AppConfirmOptions) {
+    haptics.warning()
     const payload: ConfirmationOptions = {
       position: 'bottom',
       header: options.title,
@@ -28,6 +30,7 @@ export function useAppConfirm() {
       blockScroll: true,
       appendTo: '.app-shell',
       accept: () => {
+        haptics.impact('heavy')
         void options.accept()
       },
     }

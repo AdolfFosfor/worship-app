@@ -3,6 +3,7 @@ import { icons } from '~/utils/icons'
 import { transposeKeyLabel } from '~/utils/music/keys'
 
 const { t } = useAppLocale()
+const haptics = useHaptics()
 
 const props = defineProps<{
   modelValue: string
@@ -13,7 +14,10 @@ const emit = defineEmits<{
 }>()
 
 function shift(delta: number) {
-  emit('update:modelValue', transposeKeyLabel(props.modelValue, delta))
+  const next = transposeKeyLabel(props.modelValue, delta)
+  if (next === props.modelValue) return
+  emit('update:modelValue', next)
+  haptics.tick()
 }
 </script>
 

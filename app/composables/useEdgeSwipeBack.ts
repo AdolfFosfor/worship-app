@@ -84,6 +84,7 @@ export function useEdgeSwipeBack(shellRef: Ref<HTMLElement | null>) {
   function navigateBack() {
     const { markPopNavigation } = useNavigationDirection()
     markPopNavigation()
+    useHaptics().impact('soft')
 
     const before = route.fullPath
     const fallback = fallbackParent(route.path)
