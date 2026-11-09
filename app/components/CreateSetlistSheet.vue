@@ -163,6 +163,8 @@ defineExpose({
                 class="w-full"
                 show-icon
                 :manual-input="false"
+                append-to=".app-shell"
+                panel-class="create-setlist-datepicker"
               />
             </label>
 
@@ -296,5 +298,18 @@ defineExpose({
 .create-setlist-sheet-enter-from .create-setlist-sheet,
 .create-setlist-sheet-leave-to .create-setlist-sheet {
   transform: translateY(100%);
+}
+
+/*
+  Панель DatePicker иначе оказывается под sheet (z-index 1200) или
+  absolute уезжает за колонку shell — как у Popover.
+*/
+.app-shell > .p-datepicker-panel.create-setlist-datepicker,
+.app-shell .p-datepicker-panel.create-setlist-datepicker {
+  position: fixed !important;
+  z-index: 1300 !important;
+  /* Небольшой зазор снизу: safe-area + чуть-чуть */
+  translate: 0 calc(-1 * var(--app-safe-bottom));
+  padding-bottom: var(--app-space-1) !important;
 }
 </style>

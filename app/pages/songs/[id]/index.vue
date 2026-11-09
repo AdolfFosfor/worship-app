@@ -132,7 +132,6 @@ onMounted(() => {
 })
 
 async function openSetlistPicker() {
-  pickerVisible.value = true
   pickerLoading.value = true
   try {
     const today = localTodayKey()
@@ -141,8 +140,9 @@ async function openSetlistPicker() {
       .filter((s) => s.serviceDate >= today)
       .slice()
       .sort((a, b) => a.serviceDate.localeCompare(b.serviceDate))
+    // Открываем после данных — иначе Dialog фокусирует close до появления CTA.
+    pickerVisible.value = true
   } catch (e) {
-    pickerVisible.value = false
     toast.add({
       severity: 'error',
       summary: t('common.error'),
@@ -300,6 +300,7 @@ async function addToSetlist(setlist: Setlist) {
         <AppLoading v-if="pickerLoading" />
         <AppEmptyState
           v-else-if="!upcomingSetlists.length"
+          compact
           :title="t('songs.noUpcomingSetlists')"
           :description="t('songs.noUpcomingHint')"
         >
@@ -307,6 +308,7 @@ async function addToSetlist(setlist: Setlist) {
             <button
               type="button"
               class="song-view__picker-cta"
+              autofocus
               @click="openCreateSetlistFromPicker"
             >
               <AppIcon :name="icons.add" size="1.1rem" />
@@ -316,10 +318,11 @@ async function addToSetlist(setlist: Setlist) {
         </AppEmptyState>
         <AppSurfaceList v-else>
           <button
-            v-for="item in upcomingSetlists"
+            v-for="(item, index) in upcomingSetlists"
             :key="item.id"
             type="button"
             class="song-view__picker-row"
+            :autofocus="index === 0"
             :disabled="pickerBusy"
             @click="addToSetlist(item)"
           >

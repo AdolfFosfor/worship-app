@@ -326,13 +326,33 @@ const confirmPt = {
   box-shadow: var(--app-shadow-soft) !important;
 }
 
+.p-dialog .p-dialog-header {
+  align-items: center !important;
+  gap: var(--app-space-2) !important;
+  padding: 0.7rem var(--app-space-4) !important;
+  min-height: 0 !important;
+}
+
+.p-dialog .p-dialog-title {
+  font-size: var(--app-text-lg) !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+  line-height: 1.25 !important;
+}
+
 .p-dialog .p-dialog-title,
 .p-dialog .p-dialog-content,
 .p-dialog .p-confirm-dialog-message {
   color: var(--app-ink) !important;
 }
 
+.p-dialog .p-dialog-content {
+  padding-top: var(--app-space-2) !important;
+}
+
 .p-dialog .p-dialog-close-button {
+  width: 2.25rem !important;
+  height: 2.25rem !important;
   color: var(--app-muted) !important;
   background: transparent !important;
   border: 0 !important;

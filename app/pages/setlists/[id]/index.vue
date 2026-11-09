@@ -421,7 +421,7 @@ const availableSongs = computed(() => {
       :style="{ width: 'min(24rem, 100%)' }"
       append-to=".app-shell"
     >
-      <AppEmptyState v-if="!availableSongs.length" :title="t('setlist.pickerEmpty')" />
+      <AppEmptyState v-if="!availableSongs.length" compact :title="t('setlist.pickerEmpty')" />
       <AppSurfaceList v-else>
         <button
           v-for="song in availableSongs"

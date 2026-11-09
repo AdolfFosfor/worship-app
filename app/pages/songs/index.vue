@@ -89,7 +89,6 @@ function confirmDeleteSong(song: Song) {
 async function openAddToSetlist(song: Song) {
   if (!workspace.canEditSetlists) return
   pendingSong.value = song
-  pickerVisible.value = true
   pickerLoading.value = true
   try {
     const today = localTodayKey()
@@ -98,8 +97,9 @@ async function openAddToSetlist(song: Song) {
       .filter((s) => s.serviceDate >= today)
       .slice()
       .sort((a, b) => a.serviceDate.localeCompare(b.serviceDate))
+    // Открываем после данных — иначе Dialog фокусирует close до появления CTA.
+    pickerVisible.value = true
   } catch (e) {
-    pickerVisible.value = false
     pendingSong.value = null
     toast.add({
       severity: 'error',
@@ -220,6 +220,7 @@ const canSwipeAdd = computed(() => workspace.canEditSetlists)
       <AppLoading v-if="pickerLoading" />
       <AppEmptyState
         v-else-if="!upcomingSetlists.length"
+        compact
         :title="t('songs.noUpcomingSetlists')"
         :description="t('songs.noUpcomingHint')"
       >
@@ -227,6 +228,7 @@ const canSwipeAdd = computed(() => workspace.canEditSetlists)
           <button
             type="button"
             class="songs-picker-cta"
+            autofocus
             @click="openCreateSetlistFromPicker"
           >
             <AppIcon :name="icons.add" size="1.1rem" />
@@ -236,10 +238,11 @@ const canSwipeAdd = computed(() => workspace.canEditSetlists)
       </AppEmptyState>
       <AppSurfaceList v-else>
         <button
-          v-for="item in upcomingSetlists"
+          v-for="(item, index) in upcomingSetlists"
           :key="item.id"
           type="button"
           class="songs-picker-row"
+          :autofocus="index === 0"
           :disabled="pickerBusy"
           @click="addPendingToSetlist(item)"
         >
