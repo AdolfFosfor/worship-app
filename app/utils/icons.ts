@@ -21,8 +21,10 @@ export const icons = {
   trash: 'trash-bin-trash-linear',
   edit: 'pen-linear',
   save: 'diskette-bold',
-  /** Текст / доп. мета песни — iOS-вес как у add-circle */
+  /** Текст песни (lyrics) */
   documentText: 'document-text-bold',
+  /** Доп. данные песни: текст, YouTube, BPM… */
+  extras: 'paperclip-rounded-2-bold',
   copy: 'copy-linear',
   share: 'share-bold',
   link: 'link-round-linear',

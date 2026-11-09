@@ -100,7 +100,7 @@ async function save() {
             aria-haspopup="menu"
             @click="toggleExtras"
           >
-            <AppIcon :name="icons.documentText" />
+            <AppIcon :name="icons.extras" />
           </button>
         </div>
       </template>
