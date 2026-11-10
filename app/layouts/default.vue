@@ -310,6 +310,18 @@ const confirmPt = {
   color: var(--app-success) !important;
 }
 
+/*
+  Dialog appendTo=".app-shell": fixed иначе на ПК кроет весь viewport.
+  Absolute — маска и «фулскрин» только внутри колонки приложения.
+*/
+.app-shell > .p-dialog-mask,
+.app-shell .p-dialog-mask {
+  position: absolute !important;
+  inset: 0 !important;
+  width: auto !important;
+  height: auto !important;
+}
+
 .p-dialog-mask {
   padding-top: var(--app-safe-top);
   padding-bottom: var(--app-safe-bottom);
@@ -324,6 +336,30 @@ const confirmPt = {
   border: 0 !important;
   border-radius: var(--app-radius-xl) !important;
   box-shadow: var(--app-shadow-soft) !important;
+}
+
+/* Пикер песен на весь .app-shell (не viewport) */
+.p-dialog.setlist-song-picker {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  margin: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.p-dialog.setlist-song-picker .p-dialog-header {
+  flex-shrink: 0;
+}
+
+.p-dialog.setlist-song-picker .p-dialog-content,
+.p-dialog.setlist-song-picker .setlist-song-picker__content {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
 }
 
 .p-dialog .p-dialog-header {

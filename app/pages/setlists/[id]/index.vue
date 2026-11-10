@@ -26,6 +26,7 @@ const setlist = ref<SetlistWithItems | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 const pickerVisible = ref(false)
+const pickerQuery = ref('')
 const busy = ref(false)
 const listEl = ref<HTMLElement | null>(null)
 const sorting = ref(false)
@@ -390,6 +391,7 @@ async function commitDate(value?: Date | Date[] | null) {
 }
 
 async function openPicker() {
+  pickerQuery.value = ''
   await fetchSongs()
   pickerVisible.value = true
 }
@@ -552,6 +554,16 @@ const availableSongs = computed(() => {
   const used = new Set(setlist.value?.items.map((i) => i.songId) ?? [])
   return songs.value.filter((s) => !used.has(s.id))
 })
+
+const filteredPickerSongs = computed(() => {
+  const q = pickerQuery.value.trim().toLocaleLowerCase()
+  if (!q) return availableSongs.value
+  return availableSongs.value.filter(
+    (s) =>
+      s.title.toLocaleLowerCase().includes(q) ||
+      s.key.toLocaleLowerCase().includes(q),
+  )
+})
 </script>
 
 <template>
@@ -676,22 +688,49 @@ const availableSongs = computed(() => {
       modal
       dismissable-mask
       :header="t('songs.library')"
-      :style="{ width: 'min(24rem, 100%)' }"
+      class="setlist-song-picker"
+      :pt="{
+        root: { class: 'setlist-song-picker' },
+        content: { class: 'setlist-song-picker__content' },
+      }"
       append-to=".app-shell"
+      @hide="pickerQuery = ''"
     >
-      <AppEmptyState v-if="!availableSongs.length" compact :title="t('setlist.pickerEmpty')" />
-      <AppSurfaceList v-else>
-        <button
-          v-for="song in availableSongs"
-          :key="song.id"
-          type="button"
-          class="picker-row"
-          @click="pickSong(song)"
-        >
-          <span>{{ song.title }}</span>
-          <span class="picker-row__key">{{ song.key }}</span>
-        </button>
-      </AppSurfaceList>
+      <div class="setlist-picker">
+        <div class="setlist-picker__search">
+          <AppIcon :name="icons.search" class="setlist-picker__search-icon" />
+          <InputText
+            v-model="pickerQuery"
+            class="w-full setlist-picker__search-input"
+            :placeholder="t('songs.searchPlaceholder')"
+          />
+        </div>
+
+        <AppEmptyState
+          v-if="!availableSongs.length"
+          compact
+          :title="t('setlist.pickerEmpty')"
+        />
+        <AppEmptyState
+          v-else-if="!filteredPickerSongs.length"
+          compact
+          :title="t('setlist.pickerNoResults')"
+        />
+        <div v-else class="setlist-picker__list">
+          <AppSurfaceList>
+            <button
+              v-for="song in filteredPickerSongs"
+              :key="song.id"
+              type="button"
+              class="picker-row"
+              @click="pickSong(song)"
+            >
+              <span>{{ song.title }}</span>
+              <span class="picker-row__key">{{ song.key }}</span>
+            </button>
+          </AppSurfaceList>
+        </div>
+      </div>
     </Dialog>
   </div>
 </template>
@@ -857,6 +896,49 @@ const availableSongs = computed(() => {
   font-weight: 750;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
+}
+
+.setlist-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+  min-height: 0;
+  height: 100%;
+}
+
+.setlist-picker__search {
+  position: relative;
+  flex-shrink: 0;
+  width: 100%;
+}
+
+.setlist-picker__search-icon {
+  position: absolute;
+  left: 0.9rem;
+  top: 50%;
+  z-index: 1;
+  width: 1.1rem;
+  height: 1.1rem;
+  transform: translateY(-50%);
+  color: var(--app-muted);
+  pointer-events: none;
+}
+
+.setlist-picker__search :deep(.setlist-picker__search-input),
+.setlist-picker__search :deep(input) {
+  min-height: 2.75rem;
+  padding-left: 2.5rem;
+  padding-block: 0.7rem;
+  border-radius: var(--app-radius-pill) !important;
+  border: 1px solid var(--app-border) !important;
+  background: var(--app-bg) !important;
+}
+
+.setlist-picker__list {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .picker-row {
