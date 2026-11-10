@@ -59,6 +59,21 @@ export function useTelegramBackButton() {
     useHaptics().impact('soft')
 
     const from = safeInternalPath(route.query.from, '')
+    const key = typeof route.query.key === 'string' ? route.query.key : ''
+
+    // Редактор песни: назад в карточку с тем же контекстом сет-листа (from/key)
+    const editMatch = route.path.match(/^\/songs\/([^/]+)\/edit\/?$/)
+    if (editMatch) {
+      void navigateTo({
+        path: `/songs/${editMatch[1]}`,
+        query: {
+          ...(from ? { from } : {}),
+          ...(key ? { key } : {}),
+        },
+      })
+      return
+    }
+
     if (from) {
       void navigateTo(from)
       return

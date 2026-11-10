@@ -12,6 +12,8 @@ const toast = useToast()
 const config = useRuntimeConfig()
 const { t } = useAppLocale()
 
+const DEV_EMAIL_KEY = 'worship-dev-email'
+
 const email = ref('')
 const sent = ref(false)
 const busy = ref(false)
@@ -74,10 +76,25 @@ async function loginEmail() {
 }
 
 async function loginDev() {
-  if (!allowDevSession.value || !email.value.trim()) return
+  if (!allowDevSession.value) return
+  const trimmed = email.value.trim()
+  if (!trimmed) {
+    toast.add({
+      severity: 'warn',
+      summary: t('auth.devLoginTitle'),
+      detail: t('settings.emailPlaceholder'),
+      life: 2500,
+    })
+    return
+  }
   busy.value = true
   try {
-    await auth.signInWithDevSession(email.value.trim())
+    await auth.signInWithDevSession(trimmed)
+    try {
+      localStorage.setItem(DEV_EMAIL_KEY, trimmed)
+    } catch {
+      /* ignore */
+    }
     const workspace = useWorkspaceStore()
     await workspace.loadCurrent()
     await navigateTo(workspace.hasWorkspace ? '/' : '/onboarding')
@@ -94,6 +111,14 @@ async function loginDev() {
 }
 
 onMounted(async () => {
+  if (import.meta.client && allowDevSession.value) {
+    try {
+      const saved = localStorage.getItem(DEV_EMAIL_KEY)?.trim()
+      if (saved && !email.value) email.value = saved
+    } catch {
+      /* ignore */
+    }
+  }
   if (auth.isAuthenticated) {
     await navigateTo('/')
     return
@@ -137,7 +162,6 @@ onMounted(async () => {
             type="submit"
             :label="t('auth.devLogin')"
             class="w-full"
-            :disabled="!email.trim()"
             :loading="busy"
           />
           <Button
@@ -145,7 +169,7 @@ onMounted(async () => {
             :label="t('auth.sendMagicLink')"
             :severity="allowDevSession ? 'secondary' : undefined"
             class="w-full"
-            :disabled="!email.trim() || busy"
+            :disabled="busy"
             :loading="busy && !allowDevSession"
             @click="loginEmail"
           />

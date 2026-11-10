@@ -10,7 +10,7 @@ export type SectionType =
   | 'outro'
   | 'custom'
 
-export type AnnotationPreset = 'x2' | 'x3' | 'stop' | 'inst' | 'vox' | 'cresc' | 'dim'
+export type AnnotationPreset = 'x2' | 'x3' | 'x4' | 'stop' | 'inst' | 'vox' | 'cresc' | 'dim'
 
 /** Optional rhythmic placement inside a bar (hybrid mode — often omitted). */
 export interface ChordDuration {
@@ -78,6 +78,7 @@ export const SECTION_LABELS: Record<SectionType, string> = {
 export const ANNOTATION_PRESETS: { preset: AnnotationPreset; text: string }[] = [
   { preset: 'x2', text: '×2' },
   { preset: 'x3', text: '×3' },
+  { preset: 'x4', text: '×4' },
   { preset: 'stop', text: 'STOP' },
   { preset: 'inst', text: 'Inst' },
   { preset: 'vox', text: 'Vocal' },

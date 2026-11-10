@@ -5,7 +5,7 @@ import type {
   ChordChart,
   SectionType,
 } from '~~/shared/types'
-import { cloneChart, createBar, createSection } from './factory'
+import { cloneBar, cloneBarItem, cloneChart, createBar, createSection } from './factory'
 
 export type ItemPath = { sectionId: string; barId: string; itemId: string }
 export type BarPath = { sectionId: string; barId: string }
@@ -33,13 +33,32 @@ export function addSection(
   title?: string,
 ): ChordChart {
   return withChart(chart, (d) => {
-    d.sections.push(createSection(type, title))
+    // Новый блок без пустого такта — пользователь добавит или перетащит
+    d.sections.push(createSection(type, title, []))
   })
 }
 
 export function removeSection(chart: ChordChart, sectionId: string): ChordChart {
   return withChart(chart, (d) => {
     d.sections = d.sections.filter((s) => s.id !== sectionId)
+  })
+}
+
+export function moveSection(
+  chart: ChordChart,
+  sectionId: string,
+  toIndex: number,
+): ChordChart {
+  return withChart(chart, (d) => {
+    const fromIdx = d.sections.findIndex((s) => s.id === sectionId)
+    if (fromIdx < 0) return
+    const [sec] = d.sections.splice(fromIdx, 1)
+    if (!sec) return
+    // toIndex — позиция в исходном списке; после splice сдвигаем, если брали слева
+    let insertAt = toIndex
+    if (fromIdx < insertAt) insertAt -= 1
+    insertAt = Math.max(0, Math.min(insertAt, d.sections.length))
+    d.sections.splice(insertAt, 0, sec)
   })
 }
 
@@ -83,7 +102,6 @@ export function removeBar(chart: ChordChart, sectionId: string, barId: string): 
     const s = findSection(d, sectionId)
     if (!s) return
     s.bars = s.bars.filter((b) => b.id !== barId)
-    if (!s.bars.length) s.bars.push(createBar())
   })
 }
 
@@ -181,11 +199,34 @@ export function moveItem(
       return
     }
 
-    let insertAt = Math.max(0, Math.min(to.index, toBar.items.length))
+    let insertAt = to.index
     if (from.barId === to.barId && from.sectionId === to.sectionId && itemIdx < insertAt) {
       insertAt -= 1
     }
+    insertAt = Math.max(0, Math.min(insertAt, toBar.items.length))
     toBar.items.splice(insertAt, 0, item)
+  })
+}
+
+/** Вставить копию чипа (оригинал на месте). */
+export function duplicateItem(
+  chart: ChordChart,
+  from: ItemPath,
+  to: { sectionId: string; barId: string; index: number },
+): ChordChart {
+  return withChart(chart, (d) => {
+    const fromSec = findSection(d, from.sectionId)
+    const fromBar = fromSec ? findBar(fromSec, from.barId) : null
+    const source = fromBar?.items.find((i) => i.id === from.itemId)
+    if (!source) return
+
+    const toSec = findSection(d, to.sectionId)
+    const toBar = toSec ? findBar(toSec, to.barId) : null
+    if (!toBar) return
+
+    const copy = cloneBarItem(source)
+    const insertAt = Math.max(0, Math.min(to.index, toBar.items.length))
+    toBar.items.splice(insertAt, 0, copy)
   })
 }
 
@@ -219,16 +260,54 @@ export function moveBar(
     if (fromIdx < 0) return
     const [bar] = fromSec.bars.splice(fromIdx, 1)
     if (!bar) return
-    if (!fromSec.bars.length) fromSec.bars.push(createBar())
 
     const toSec = findSection(d, to.sectionId)
     if (!toSec) {
       fromSec.bars.splice(fromIdx, 0, bar)
       return
     }
-    let insertAt = Math.max(0, Math.min(to.index, toSec.bars.length))
-    if (from.sectionId === to.sectionId && fromIdx < insertAt) insertAt -= 1
+
+    // В пустой/заготовочный блок — заменить пустые такты перенесённым
+    const crossSection = from.sectionId !== to.sectionId
+    const onlyBlanks =
+      toSec.bars.length === 0 || toSec.bars.every((b) => b.items.length === 0)
+    if (crossSection && onlyBlanks) {
+      toSec.bars = [bar]
+      return
+    }
+
+    let insertAt = to.index
+    if (!crossSection && fromIdx < insertAt) insertAt -= 1
+    insertAt = Math.max(0, Math.min(insertAt, toSec.bars.length))
     toSec.bars.splice(insertAt, 0, bar)
+  })
+}
+
+/** Вставить копию такта (оригинал на месте). ⌥/Alt+drag. */
+export function duplicateBar(
+  chart: ChordChart,
+  from: BarPath,
+  to: { sectionId: string; index: number },
+): ChordChart {
+  return withChart(chart, (d) => {
+    const fromSec = findSection(d, from.sectionId)
+    const source = fromSec ? findBar(fromSec, from.barId) : null
+    if (!source) return
+
+    const toSec = findSection(d, to.sectionId)
+    if (!toSec) return
+
+    const copy = cloneBar(source)
+    const crossSection = from.sectionId !== to.sectionId
+    const onlyBlanks =
+      toSec.bars.length === 0 || toSec.bars.every((b) => b.items.length === 0)
+    if (crossSection && onlyBlanks) {
+      toSec.bars = [copy]
+      return
+    }
+
+    const insertAt = Math.max(0, Math.min(to.index, toSec.bars.length))
+    toSec.bars.splice(insertAt, 0, copy)
   })
 }
 

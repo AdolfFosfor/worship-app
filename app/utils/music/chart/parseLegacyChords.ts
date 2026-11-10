@@ -30,7 +30,7 @@ const HEADER_PREFIX = new RegExp(`^${SECTION_NAME}(?=$|[\\s.:\\-–—|\\d])`, '
 const ANNOTATION_MAP: { pattern: RegExp; preset: AnnotationPreset; text: string }[] = [
   { pattern: /^[x×]2$/i, preset: 'x2', text: '×2' },
   { pattern: /^[x×]3$/i, preset: 'x3', text: '×3' },
-  { pattern: /^[x×]4$/i, preset: 'x2', text: '×4' },
+  { pattern: /^[x×]4$/i, preset: 'x4', text: '×4' },
   { pattern: /^stop$/i, preset: 'stop', text: 'STOP' },
   { pattern: /^\(?inst(?:rumental)?\.?\)?$/i, preset: 'inst', text: 'Inst' },
   { pattern: /^\(?(?:vox|vocal|только\s*вокал)\)?$/i, preset: 'vox', text: 'Vocal' },

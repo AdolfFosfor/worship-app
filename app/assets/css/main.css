@@ -57,6 +57,8 @@
   --app-hairline: 0.5px;
   --app-focus-ring: 0 0 0 2px var(--app-bg),
     0 0 0 4px color-mix(in srgb, var(--app-accent) 45%, transparent);
+  --app-hover-outline: color-mix(in srgb, var(--app-accent-text) 55%, transparent);
+  --app-hover-outline-gap: 3px;
 
   --app-space-1: 0.25rem;
   --app-space-2: 0.5rem;
@@ -177,6 +179,24 @@
   --chart-accent-custom: #f472b6;
   --chart-annotation-bg: color-mix(in srgb, var(--app-warn) 18%, transparent);
   --chart-annotation-ink: var(--app-warn);
+}
+
+/* Outline-hover для pill/икон-кнопок — класс .app-ring-hover */
+.app-ring-hover {
+  outline: 1.5px solid transparent;
+  outline-offset: var(--app-hover-outline-gap);
+  transition:
+    background-color var(--app-duration) var(--app-ease),
+    color var(--app-duration) var(--app-ease),
+    transform var(--app-duration) var(--app-ease),
+    opacity var(--app-duration) var(--app-ease),
+    outline-color var(--app-duration) var(--app-ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .app-ring-hover:hover:not(:disabled):not([aria-disabled='true']) {
+    outline-color: var(--app-hover-outline);
+  }
 }
 
 html,
@@ -508,9 +528,12 @@ body {
   letter-spacing: -0.01em;
   text-decoration: none;
   cursor: pointer;
+  outline: 1.5px solid transparent;
+  outline-offset: var(--app-hover-outline-gap);
   transition:
     transform var(--app-duration) var(--app-ease),
-    opacity var(--app-duration) var(--app-ease);
+    opacity var(--app-duration) var(--app-ease),
+    outline-color var(--app-duration) var(--app-ease);
 }
 
 .app-cta:active {
@@ -526,6 +549,20 @@ body {
 .app-cta--danger {
   background: color-mix(in srgb, var(--app-destructive) 14%, var(--app-surface));
   color: var(--app-destructive);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .app-cta:hover {
+    outline-color: color-mix(in srgb, var(--app-accent) 65%, transparent);
+  }
+
+  .app-cta--ghost:hover {
+    outline-color: var(--app-hover-outline);
+  }
+
+  .app-cta--danger:hover {
+    outline-color: color-mix(in srgb, var(--app-destructive) 55%, transparent);
+  }
 }
 
 .app-press {
@@ -592,10 +629,26 @@ body {
   text-decoration: none;
   cursor: pointer;
   flex-shrink: 0;
+  outline: 1.5px solid transparent;
+  outline-offset: var(--app-hover-outline-gap);
   transition:
     background-color var(--app-duration) var(--app-ease),
-    transform var(--app-duration) var(--app-ease);
+    transform var(--app-duration) var(--app-ease),
+    outline-color var(--app-duration) var(--app-ease);
 }
+
+@media (hover: hover) and (pointer: fine) {
+  .app-header-action:hover {
+    background: color-mix(in srgb, var(--app-accent-text) 12%, transparent);
+    outline-color: var(--app-hover-outline);
+  }
+
+  .app-header-action--danger:hover {
+    outline-color: color-mix(in srgb, var(--app-destructive) 50%, transparent);
+  }
+}
+
+/* Уже встроенный ring у .app-cta / .app-header-action — .app-ring-hover для остальных */
 
 .app-header-action:active {
   background: var(--app-press);
@@ -628,62 +681,7 @@ body {
   height: 1.15rem !important;
 }
 
-/*
-  Popover appendTo=".app-shell": PrimeVue пишет viewport-координаты
-  (inset-inline-start/top). На ПК shell — узкая колонка с position:relative,
-  absolute уезжает за overflow:hidden. fixed совпадает с VV-координатами.
-*/
-.app-shell > .p-popover,
-.app-shell .p-popover {
-  position: fixed !important;
-}
-
-/*
-  Плавный enter/leave для Popover (PrimeVue: transition name=p-anchored-overlay).
-  Enter с opacity 0 скрывает кламп к колонке в первом кадре.
-*/
-.app-shell .p-popover.p-anchored-overlay-enter-active,
-.app-shell .p-popover.p-anchored-overlay-leave-active {
-  transition:
-    opacity 180ms cubic-bezier(0.32, 0.72, 0, 1),
-    transform 180ms cubic-bezier(0.32, 0.72, 0, 1);
-  transform-origin: top right;
-  will-change: opacity, transform;
-}
-
-.app-shell .p-popover.p-anchored-overlay-enter-from,
-.app-shell .p-popover.p-anchored-overlay-leave-to {
-  opacity: 0;
-  transform: translate3d(0, -6px, 0) scale(0.96);
-}
-
-.app-shell .p-popover.p-anchored-overlay-enter-to,
-.app-shell .p-popover.p-anchored-overlay-leave-from {
-  opacity: 1;
-  transform: translate3d(0, 0, 0) scale(1);
-}
-
-/* Quick-create Popover — ширина относительно колонки shell, не viewport */
-.app-create-popover.p-popover {
-  width: min(14.5rem, calc(100% - 1rem));
-  max-width: min(14.5rem, 26rem);
-  border: 0;
-  border-radius: var(--app-radius-lg);
-  background: var(--app-surface);
-  color: var(--app-ink);
-  box-shadow: var(--app-shadow-soft);
-  z-index: 1200;
-}
-
-.app-create-popover.p-popover::before,
-.app-create-popover.p-popover::after {
-  display: none;
-}
-
-.app-create-popover .p-popover-content {
-  padding: 0.35rem;
-}
-
+/* Меню «Создать» / extras — оболочка в AppAnchoredMenu */
 .app-create-menu {
   display: flex;
   flex-direction: column;

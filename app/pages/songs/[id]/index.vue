@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import type { Setlist, Song } from '~~/shared/types'
+import type { Setlist, SetlistWithItems, Song } from '~~/shared/types'
+import type { StagePlaylistInfo } from '~/components/chart/ChordStageView.vue'
 import { icons } from '~/utils/icons'
 import { clampCapo, soundingKey } from '~/utils/music/capo'
 import { transposeChart } from '~/utils/music/chart'
 import { keyDistance, transposeKeyLabel } from '~/utils/music/keys'
 import { transposeText } from '~/utils/music/transpose'
 import { localTodayKey } from '~/utils/dates'
+import { safeInternalPath } from '~/utils/safeInternalPath'
 
 const route = useRoute()
 const workspace = useWorkspaceStore()
@@ -16,7 +18,7 @@ const dateLocaleTag = computed(
 )
 const { getSong } = useSongs()
 const { syncSongsOnActivate } = useSongsRevision()
-const { fetchSetlists, songInSetlist, addSongToSetlist } = useSetlists()
+const { fetchSetlists, songInSetlist, addSongToSetlist, getSetlist } = useSetlists()
 const toast = useToast()
 
 const song = ref<Song | null>(null)
@@ -41,7 +43,8 @@ const viewSounding = ref('C')
 const viewCapo = ref(0)
 /** Capo controls hidden by default — open via the round button. */
 const capoOpen = ref(false)
-const stageFullscreen = ref(false)
+/** Держим FS между песнями сет-листа (навигация remount'ит страницу). */
+const stageFullscreen = useState('chord-stage-fullscreen', () => false)
 
 const id = computed(() => String(route.params.id))
 const showAddToSetlist = computed(() => workspace.canEditSetlists)
@@ -83,6 +86,108 @@ const displayChart = computed(() => {
   if (!chart) return null
   return transposeChart(chart, semitones.value)
 })
+
+/** Если открыли песню из сет-листа — листаем соседние в фуллскрине. */
+const fromPath = computed(() => safeInternalPath(route.query.from, ''))
+const setlistContextId = computed(() => {
+  const match = fromPath.value.match(/^\/setlists\/([^/?#]+)$/)
+  return match?.[1] ?? null
+})
+const setlistContext = useState<SetlistWithItems | null>('chord-stage-setlist', () => null)
+
+watch(
+  setlistContextId,
+  async (sid) => {
+    if (!sid) {
+      if (setlistContext.value) setlistContext.value = null
+      return
+    }
+    if (setlistContext.value?.id === sid) return
+    try {
+      setlistContext.value = await getSetlist(sid)
+    } catch {
+      setlistContext.value = null
+    }
+  },
+  { immediate: true },
+)
+
+watch(
+  () => route.path,
+  (path) => {
+    if (!path.startsWith('/songs/')) stageFullscreen.value = false
+  },
+)
+
+const setlistIndex = computed(() => {
+  const sl = setlistContext.value
+  if (!sl?.items.length || !setlistContextId.value) return -1
+  return sl.items.findIndex((item) => item.songId === id.value)
+})
+
+const stagePlaylist = computed<StagePlaylistInfo | null>(() => {
+  const idx = setlistIndex.value
+  const sl = setlistContext.value
+  if (idx < 0 || !sl) return null
+  return {
+    index: idx + 1,
+    total: sl.items.length,
+    canPrev: idx > 0,
+    canNext: idx < sl.items.length - 1,
+  }
+})
+
+const setlistNav = computed(() => {
+  const idx = setlistIndex.value
+  const sl = setlistContext.value
+  if (idx < 0 || !sl || sl.items.length < 2) return null
+  const prev = sl.items[idx - 1]
+  const next = sl.items[idx + 1]
+  return {
+    index: idx + 1,
+    total: sl.items.length,
+    canPrev: Boolean(prev),
+    canNext: Boolean(next),
+    prevTitle: prev?.song.title ?? '',
+    nextTitle: next?.song.title ?? '',
+  }
+})
+
+function setlistNeighbor(dir: 'prev' | 'next') {
+  const sl = setlistContext.value
+  if (!sl) return null
+  const idx = setlistIndex.value
+  if (idx < 0) return null
+  const item = sl.items[dir === 'prev' ? idx - 1 : idx + 1]
+  if (!item) return null
+  return {
+    songId: item.songId,
+    key: item.key ?? item.song.key,
+    hasChart: Boolean(item.song.chordChart),
+  }
+}
+
+let setlistNavBusy = false
+
+async function goSetlistNeighbor(dir: 'prev' | 'next') {
+  if (setlistNavBusy) return
+  const neighbor = setlistNeighbor(dir)
+  if (!neighbor) return
+  setlistNavBusy = true
+  useHaptics().selection()
+  if (!neighbor.hasChart) stageFullscreen.value = false
+  try {
+    await navigateTo({
+      path: `/songs/${neighbor.songId}`,
+      query: {
+        key: neighbor.key,
+        from: fromPath.value,
+      },
+    })
+  } finally {
+    setlistNavBusy = false
+  }
+}
 
 function syncViewFromSong(next: Song) {
   const keyFromQuery = typeof route.query.key === 'string' ? route.query.key : null
@@ -129,6 +234,11 @@ async function load(opts?: { quiet?: boolean }) {
 const { markSongsSynced } = syncSongsOnActivate(() => load({ quiet: true }))
 onMounted(() => {
   void load()
+})
+
+onActivated(() => {
+  // KeepAlive: при возврате на закэшированную песню подтягиваем актуальные данные
+  if (song.value?.id !== id.value) void load({ quiet: true })
 })
 
 async function openSetlistPicker() {
@@ -212,6 +322,40 @@ async function addToSetlist(setlist: Setlist) {
         </template>
       </AppHeader>
 
+      <nav
+        v-if="setlistNav"
+        class="song-view__setlist-nav"
+        :aria-label="t('stage.setlistPos', { index: setlistNav.index, total: setlistNav.total })"
+      >
+        <div class="song-view__setlist-side song-view__setlist-side--prev">
+          <button
+            v-if="setlistNav.canPrev"
+            type="button"
+            class="song-view__setlist-btn app-ring-hover"
+            :aria-label="t('stage.prevSong')"
+            @click="goSetlistNeighbor('prev')"
+          >
+            <AppIcon :name="icons.arrowLeft" size="1.05rem" />
+            <span class="song-view__setlist-peer">{{ setlistNav.prevTitle }}</span>
+          </button>
+        </div>
+        <span class="song-view__setlist-pos" aria-hidden="true">
+          {{ setlistNav.index }}/{{ setlistNav.total }}
+        </span>
+        <div class="song-view__setlist-side song-view__setlist-side--next">
+          <button
+            v-if="setlistNav.canNext"
+            type="button"
+            class="song-view__setlist-btn song-view__setlist-btn--next app-ring-hover"
+            :aria-label="t('stage.nextSong')"
+            @click="goSetlistNeighbor('next')"
+          >
+            <span class="song-view__setlist-peer">{{ setlistNav.nextTitle }}</span>
+            <AppIcon :name="icons.chevronRight" size="1.05rem" />
+          </button>
+        </div>
+      </nav>
+
       <section class="song-view__panel app-panel">
         <div class="song-view__row song-view__row--head">
           <div class="song-view__copy">
@@ -224,7 +368,7 @@ async function addToSetlist(setlist: Setlist) {
           </div>
           <button
             type="button"
-            class="song-view__capo-btn"
+            class="song-view__capo-btn app-ring-hover"
             :class="{ 'song-view__capo-btn--open': capoOpen }"
             :aria-label="capoToggleAria"
             :aria-expanded="capoOpen"
@@ -249,8 +393,12 @@ async function addToSetlist(setlist: Setlist) {
       <AppSection v-if="displayChart" :title="t('song.fieldChords')">
         <ChordStageView
           :chart="displayChart"
+          :title="song.title"
+          :playlist="stagePlaylist"
           :fullscreen="stageFullscreen"
           @update:fullscreen="stageFullscreen = $event"
+          @prev="goSetlistNeighbor('prev')"
+          @next="goSetlistNeighbor('next')"
         />
       </AppSection>
       <AppSection v-else-if="displayChords" :title="t('song.fieldChords')">
@@ -283,7 +431,16 @@ async function addToSetlist(setlist: Setlist) {
       </a>
 
       <div v-if="showSongManage" class="song-view__footer">
-        <NuxtLink :to="`/songs/${song.id}/edit`" class="song-view__edit">
+        <NuxtLink
+          :to="{
+            path: `/songs/${song.id}/edit`,
+            query: {
+              ...(fromPath ? { from: fromPath } : {}),
+              ...(typeof route.query.key === 'string' ? { key: route.query.key } : {}),
+            },
+          }"
+          class="song-view__edit"
+        >
           <AppIcon :name="icons.edit" size="1.05rem" />
           {{ t('common.edit') }}
         </NuxtLink>
@@ -338,6 +495,72 @@ async function addToSetlist(setlist: Setlist) {
 </template>
 
 <style scoped>
+.song-view__setlist-nav {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--app-space-2);
+  margin: -0.35rem 0 0.15rem;
+  padding: 0.2rem 0;
+}
+
+.song-view__setlist-side {
+  display: flex;
+  min-width: 0;
+}
+
+.song-view__setlist-side--prev {
+  justify-content: flex-start;
+}
+
+.song-view__setlist-side--next {
+  justify-content: flex-end;
+}
+
+.song-view__setlist-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 2.25rem;
+  margin: 0;
+  padding: 0.3rem 0.55rem;
+  border: 0;
+  border-radius: var(--app-radius-pill);
+  background: var(--app-hover);
+  color: var(--app-accent-text);
+  font: inherit;
+  font-size: var(--app-text-xs);
+  font-weight: 650;
+  line-height: 1.2;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color var(--app-duration) var(--app-ease),
+    opacity var(--app-duration) var(--app-ease),
+    outline-color var(--app-duration) var(--app-ease);
+}
+
+.song-view__setlist-btn--next {
+  text-align: right;
+}
+
+.song-view__setlist-peer {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.song-view__setlist-pos {
+  justify-self: center;
+  font-size: var(--app-text-2xs);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--app-muted);
+}
+
 .song-view__panel {
   display: flex;
   flex-direction: column;
@@ -417,7 +640,8 @@ async function addToSetlist(setlist: Setlist) {
   -webkit-tap-highlight-color: transparent;
   transition:
     background-color var(--app-duration) var(--app-ease),
-    transform var(--app-duration) var(--app-ease);
+    transform var(--app-duration) var(--app-ease),
+    outline-color var(--app-duration) var(--app-ease);
 }
 
 .song-view__capo-btn:active {

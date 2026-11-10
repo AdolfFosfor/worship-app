@@ -1,10 +1,5 @@
 <script setup lang="ts">
-import type Popover from 'primevue/popover'
 import { formatServiceDatePill } from '~/utils/dates'
-import {
-  clampOverlayToFrameAfterShow,
-  resolvePopoverEl,
-} from '~/utils/dom/clampOverlayToFrame'
 import { icons, type AppIconName } from '~/utils/icons'
 
 const workspace = useWorkspaceStore()
@@ -18,7 +13,8 @@ const loading = ref(!upcoming.value)
 const error = ref<string | null>(null)
 const pulseLoading = ref(!pulseSummary.value)
 
-const createPopover = useTemplateRef<InstanceType<typeof Popover>>('createPopover')
+const createMenuOpen = ref(false)
+const createMenu = ref<{ toggle: (event: Event) => void; close: () => void } | null>(null)
 const createSetlistOpen = ref(false)
 const createSetlistSheet = ref<{ open: () => void } | null>(null)
 
@@ -52,15 +48,11 @@ const createOptions = computed(() => {
 })
 
 function toggleCreateMenu(event: Event) {
-  createPopover.value?.toggle(event)
-}
-
-function onCreateShow() {
-  clampOverlayToFrameAfterShow(resolvePopoverEl(createPopover.value))
+  createMenu.value?.toggle(event)
 }
 
 async function onCreatePick(option: (typeof createOptions.value)[number]) {
-  createPopover.value?.hide()
+  createMenu.value?.close()
   if (option.kind === 'setlist') {
     createSetlistSheet.value?.open()
     return
@@ -124,13 +116,12 @@ function formatDatePill(iso: string) {
       </template>
     </AppHeader>
 
-    <Popover
-      ref="createPopover"
-      class="app-create-popover"
-      append-to=".app-shell"
-      @show="onCreateShow"
+    <AppAnchoredMenu
+      ref="createMenu"
+      v-model:open="createMenuOpen"
+      :label="t('common.create')"
     >
-      <div class="app-create-menu" role="menu" :aria-label="t('common.create')">
+      <div class="app-create-menu">
         <button
           v-for="option in createOptions"
           :key="option.kind"
@@ -146,7 +137,7 @@ function formatDatePill(iso: string) {
           <span class="app-create-menu__label">{{ option.label }}</span>
         </button>
       </div>
-    </Popover>
+    </AppAnchoredMenu>
 
     <CreateSetlistSheet ref="createSetlistSheet" v-model:open="createSetlistOpen" />
 

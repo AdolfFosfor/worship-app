@@ -1,12 +1,7 @@
 <script setup lang="ts">
-import type Popover from 'primevue/popover'
 import type { SongInput } from '~~/shared/types'
 import type { SongExtraKind } from '~/components/SongForm.vue'
 import { icons } from '~/utils/icons'
-import {
-  clampOverlayToFrameAfterShow,
-  resolvePopoverEl,
-} from '~/utils/dom/clampOverlayToFrame'
 
 const workspace = useWorkspaceStore()
 const { t } = useAppLocale()
@@ -25,7 +20,8 @@ const form = ref<SongInput>({
 })
 const busy = ref(false)
 const songForm = ref<{ openExtra: (kind: SongExtraKind) => void } | null>(null)
-const extrasPopover = useTemplateRef<InstanceType<typeof Popover>>('extrasPopover')
+const extrasMenuOpen = ref(false)
+const extrasMenu = ref<{ toggle: (event: Event) => void; close: () => void } | null>(null)
 
 onMounted(() => {
   if (!workspace.canEditSongs) {
@@ -34,17 +30,13 @@ onMounted(() => {
 })
 
 function toggleExtras(event: Event) {
-  extrasPopover.value?.toggle(event)
-}
-
-function onExtrasShow() {
-  clampOverlayToFrameAfterShow(resolvePopoverEl(extrasPopover.value))
+  extrasMenu.value?.toggle(event)
 }
 
 function pickExtra(kind: SongExtraKind) {
   // openExtra сначала: proxy-focus в том же жесте, потом закрываем меню
   songForm.value?.openExtra(kind)
-  extrasPopover.value?.hide()
+  extrasMenu.value?.close()
 }
 
 const hasLyrics = computed(() => Boolean(form.value.lyrics?.trim()))
@@ -106,13 +98,12 @@ async function save() {
       </template>
     </AppHeader>
 
-    <Popover
-      ref="extrasPopover"
-      class="app-create-popover"
-      append-to=".app-shell"
-      @show="onExtrasShow"
+    <AppAnchoredMenu
+      ref="extrasMenu"
+      v-model:open="extrasMenuOpen"
+      :label="t('songs.extrasMenuAria')"
     >
-      <div class="app-create-menu" role="menu" :aria-label="t('songs.extrasMenuAria')">
+      <div class="app-create-menu">
         <button
           type="button"
           class="app-create-menu__item app-create-menu__item--song"
@@ -147,7 +138,7 @@ async function save() {
           <span class="app-create-menu__label">{{ t('song.fieldBpm') }}</span>
         </button>
       </div>
-    </Popover>
+    </AppAnchoredMenu>
 
     <SongForm
       ref="songForm"

@@ -109,7 +109,7 @@ onBeforeUnmount(() => {
         <h3 class="pulse-card__title">{{ t('repertoire.pulseTitle') }}</h3>
         <button
           type="button"
-          class="pulse-card__period-pill"
+          class="pulse-card__period-pill app-ring-hover"
           :class="{ 'is-open': Boolean(periodMenu), 'is-busy': periodBusy || loadingSummary }"
           :aria-label="t('repertoire.periodAria')"
           :aria-expanded="Boolean(periodMenu)"
@@ -121,9 +121,9 @@ onBeforeUnmount(() => {
           <AppIcon :name="icons.down" size="0.85rem" class="pulse-card__period-chevron" />
         </button>
       </div>
-      <NuxtLink to="/repertoire" class="pulse-card__more app-press">
-        {{ t('repertoire.more') }}
-        <AppIcon :name="icons.chevronRight" size="0.95rem" />
+      <NuxtLink to="/repertoire" class="pulse-card__more">
+        <span class="pulse-card__more-label">{{ t('repertoire.more') }}</span>
+        <AppIcon :name="icons.chevronRight" size="0.95rem" class="pulse-card__more-chevron" />
       </NuxtLink>
     </div>
 
@@ -288,7 +288,8 @@ onBeforeUnmount(() => {
   cursor: pointer;
   transition:
     background-color var(--app-duration) var(--app-ease),
-    color var(--app-duration) var(--app-ease);
+    color var(--app-duration) var(--app-ease),
+    outline-color var(--app-duration) var(--app-ease);
 }
 
 .pulse-card__period-pill:hover,
@@ -315,16 +316,37 @@ onBeforeUnmount(() => {
 .pulse-card__more {
   display: inline-flex;
   align-items: center;
-  gap: 0.1rem;
+  gap: 0.05rem;
   flex-shrink: 0;
   margin-top: 0.1rem;
-  margin-right: -0.25rem;
-  padding: 0.15rem 0.25rem;
-  border-radius: var(--app-radius-sm);
+  margin-right: -0.35rem;
+  padding: 0.15rem 0.15rem;
   font-size: var(--app-text-sm);
   font-weight: 600;
+  line-height: 1.2;
   color: var(--app-accent-text);
   text-decoration: none;
+}
+
+.pulse-card__more-label {
+  text-decoration: none;
+  text-underline-offset: 0.18em;
+  text-decoration-thickness: 1.5px;
+  transition: text-decoration-color var(--app-duration) var(--app-ease);
+}
+
+.pulse-card__more-chevron {
+  display: block;
+  flex-shrink: 0;
+  /* Иконка оптически сидит выше капса текста */
+  transform: translateY(0.06em);
+  opacity: 0.85;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pulse-card__more:hover .pulse-card__more-label {
+    text-decoration: underline;
+  }
 }
 
 .pulse-card__metrics {

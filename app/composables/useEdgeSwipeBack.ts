@@ -44,7 +44,7 @@ function isHorizontalGestureRegion(target: EventTarget | null): boolean {
 function hasBlockingOverlay(): boolean {
   return Boolean(
     document.querySelector(
-      '.app-sheet, .app-top-sheet, .create-setlist-sheet-mask, .member-sheet-mask, .p-dialog-mask',
+      '.app-sheet, .app-top-sheet, .create-setlist-sheet-mask, .member-sheet-mask, .p-dialog-mask, .chord-stage--fullscreen, [data-no-edge-swipe]',
     ),
   )
 }
@@ -92,12 +92,17 @@ function preferReducedMotion(): boolean {
 export function useEdgeSwipeBack(shellRef: Ref<HTMLElement | null>) {
   const route = useRoute()
   const router = useRouter()
+  /** Фуллскрин аккордов — листание сет-листа, не «назад» */
+  const stageFullscreen = useState('chord-stage-fullscreen', () => false)
 
   const swiping = ref(false)
   const progressing = ref(false)
 
   const canSwipeBack = computed(
-    () => !ROOT_PATHS.has(route.path) && !route.path.endsWith('/edit'),
+    () =>
+      !ROOT_PATHS.has(route.path) &&
+      !route.path.endsWith('/edit') &&
+      !stageFullscreen.value,
   )
 
   function navigateBack() {

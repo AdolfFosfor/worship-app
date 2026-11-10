@@ -39,8 +39,19 @@ export function createAnnotation(
   }
 }
 
+/** Копия чипа с новым id (Alt/Option+drag). */
+export function cloneBarItem(item: BarItem): BarItem {
+  if (item.kind === 'chord') return createChord(item.symbol, item.duration)
+  return createAnnotation(item.text, item.preset)
+}
+
 export function createBar(items: BarItem[] = []): ChartBar {
   return { id: uid('bar'), items }
+}
+
+/** Копия такта с новыми id у такта и всех чипов. */
+export function cloneBar(bar: ChartBar): ChartBar {
+  return createBar(bar.items.map(cloneBarItem))
 }
 
 export function createSection(

@@ -321,6 +321,7 @@ const ru: MessageDict = {
   'chart.sectionTypeAria': 'Тип секции: {title}',
   'chart.addFirstBar': 'Добавить первый такт',
   'chart.moveBar': 'Переместить такт',
+  'chart.moveSection': 'Переместить секцию',
   'chart.deleteBar': 'Удалить такт',
   'chart.addChord': 'Добавить аккорд',
   'chart.insertHere': 'Вставить сюда',
@@ -365,6 +366,9 @@ const ru: MessageDict = {
   'stage.fullscreen': 'Экран',
   'stage.ariaFullscreenDialog': 'Аккорды на весь экран',
   'stage.ariaExitFullscreen': 'Закрыть полноэкранный режим',
+  'stage.setlistPos': '{index} / {total}',
+  'stage.prevSong': 'Предыдущая песня',
+  'stage.nextSong': 'Следующая песня',
 }
 
 const ro: MessageDict = {
@@ -685,6 +689,7 @@ const ro: MessageDict = {
   'chart.sectionTypeAria': 'Tip secțiune: {title}',
   'chart.addFirstBar': 'Adaugă prima măsură',
   'chart.moveBar': 'Mută măsura',
+  'chart.moveSection': 'Mută secțiunea',
   'chart.deleteBar': 'Șterge măsura',
   'chart.addChord': 'Adaugă acord',
   'chart.insertHere': 'Inserează aici',
@@ -729,6 +734,9 @@ const ro: MessageDict = {
   'stage.fullscreen': 'Ecran',
   'stage.ariaFullscreenDialog': 'Acorduri pe tot ecranul',
   'stage.ariaExitFullscreen': 'Închide ecranul complet',
+  'stage.setlistPos': '{index} / {total}',
+  'stage.prevSong': 'Cântecul anterior',
+  'stage.nextSong': 'Cântecul următor',
 }
 
 const en: MessageDict = {
@@ -1049,6 +1057,7 @@ const en: MessageDict = {
   'chart.sectionTypeAria': 'Section type: {title}',
   'chart.addFirstBar': 'Add first bar',
   'chart.moveBar': 'Move bar',
+  'chart.moveSection': 'Move section',
   'chart.deleteBar': 'Delete bar',
   'chart.addChord': 'Add chord',
   'chart.insertHere': 'Insert here',
@@ -1093,6 +1102,9 @@ const en: MessageDict = {
   'stage.fullscreen': 'Screen',
   'stage.ariaFullscreenDialog': 'Chords fullscreen',
   'stage.ariaExitFullscreen': 'Exit fullscreen',
+  'stage.setlistPos': '{index} / {total}',
+  'stage.prevSong': 'Previous song',
+  'stage.nextSong': 'Next song',
 }
 
 export const messages: Record<AppLocale, MessageDict> = { ru, ro, en }

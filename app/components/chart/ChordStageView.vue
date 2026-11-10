@@ -10,18 +10,37 @@ import {
 } from '~/utils/music/chart'
 import { icons } from '~/utils/icons'
 
+export type StagePlaylistInfo = {
+  index: number
+  total: number
+  canPrev: boolean
+  canNext: boolean
+}
+
 const { t } = useAppLocale()
 
 const props = defineProps<{
   chart: ChordChart
   fullscreen?: boolean
+  /** Название текущей песни — в фуллскрине */
+  title?: string
+  /** Контекст сет-листа: позиция и возможность листания */
+  playlist?: StagePlaylistInfo | null
 }>()
 
 const emit = defineEmits<{
   'update:fullscreen': [value: boolean]
+  prev: []
+  next: []
 }>()
 
 const size = ref<StageChordSize>(readStageChordSize())
+const fsRoot = ref<HTMLElement | null>(null)
+/**
+ * KeepAlive + Teleport: при уходе на другую песню оверлей остаётся в `.app-shell`
+ * и перехватывает клики. Показываем FS только пока страница активна.
+ */
+const pageActive = ref(true)
 
 const sizeOptions: { value: StageChordSize; label: string }[] = [
   { value: 'compact', label: 'S' },
@@ -30,6 +49,8 @@ const sizeOptions: { value: StageChordSize; label: string }[] = [
 ]
 
 watch(size, (v) => writeStageChordSize(v))
+
+const showFullscreen = computed(() => Boolean(props.fullscreen && pageActive.value))
 
 function setFullscreen(value: boolean) {
   emit('update:fullscreen', value)
@@ -42,6 +63,137 @@ function sectionLabel(type: string) {
 function autoSectionTitle(sectionId: string) {
   return sectionAutoTitle(props.chart.sections, sectionId, sectionLabel)
 }
+
+const showPlaylistNav = computed(
+  () => Boolean(props.playlist && props.playlist.total > 1),
+)
+
+function goPrev() {
+  if (!props.playlist?.canPrev) return
+  emit('prev')
+}
+
+function goNext() {
+  if (!props.playlist?.canNext) return
+  emit('next')
+}
+
+/* —— только горизонтальное листание сет-листа в фуллскрине —— */
+const SWIPE_MIN = 48
+const WHEEL_STEP = 80
+
+let touchX = 0
+let touchY = 0
+let touchActive = false
+/** Захватили горизонтальный жест — не отдаём скроллу */
+let touchLockedH = false
+let wheelAcc = 0
+let wheelResetTimer = 0
+
+function isUiControlTarget(target: EventTarget | null) {
+  return target instanceof Element && Boolean(target.closest('button, a, input, textarea, select'))
+}
+
+function onTouchStart(event: TouchEvent) {
+  if (!showPlaylistNav.value || !showFullscreen.value) return
+  // Тап по ←/→ и тулбару — не начинаем свайп (иначе preventDefault съедает click)
+  if (isUiControlTarget(event.target)) {
+    touchActive = false
+    touchLockedH = false
+    return
+  }
+  const t0 = event.touches[0]
+  if (!t0) return
+  touchActive = true
+  touchLockedH = false
+  touchX = t0.clientX
+  touchY = t0.clientY
+}
+
+function onTouchMove(event: TouchEvent) {
+  if (!touchActive || !showPlaylistNav.value) return
+  const t0 = event.touches[0]
+  if (!t0) return
+  const dx = t0.clientX - touchX
+  const dy = t0.clientY - touchY
+  if (!touchLockedH) {
+    if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return
+    // Горизонталь доминирует → листание песен
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      touchLockedH = true
+    } else {
+      // Вертикаль — обычный скролл аккордов
+      touchActive = false
+      return
+    }
+  }
+  event.preventDefault()
+}
+
+function onTouchEnd(event: TouchEvent) {
+  if (!touchActive || !showPlaylistNav.value) return
+  touchActive = false
+  const wasLocked = touchLockedH
+  touchLockedH = false
+  const t0 = event.changedTouches[0]
+  if (!t0) return
+  const dx = t0.clientX - touchX
+  const dy = t0.clientY - touchY
+  if (Math.abs(dx) < SWIPE_MIN) return
+  if (!wasLocked && Math.abs(dx) < Math.abs(dy)) return
+  // ← следующий, → предыдущий
+  if (dx < 0) goNext()
+  else goPrev()
+}
+
+function onWheel(event: WheelEvent) {
+  if (!showPlaylistNav.value || !showFullscreen.value) return
+
+  // Только горизонталь / Shift+колёсико — без вертикальной перемотки песен
+  const horizontal =
+    Math.abs(event.deltaX) > Math.abs(event.deltaY) * 0.85 ||
+    (event.shiftKey && Math.abs(event.deltaY) > 0)
+  if (!horizontal) return
+
+  const delta =
+    event.shiftKey && Math.abs(event.deltaX) < 1 ? event.deltaY : event.deltaX
+  wheelAcc += delta
+  window.clearTimeout(wheelResetTimer)
+  wheelResetTimer = window.setTimeout(() => {
+    wheelAcc = 0
+  }, 120)
+  if (Math.abs(wheelAcc) < WHEEL_STEP) return
+  event.preventDefault()
+  // natural scroll: палец влево → deltaX > 0 → next
+  if (wheelAcc > 0) goNext()
+  else goPrev()
+  wheelAcc = 0
+}
+
+watch(showFullscreen, (open) => {
+  wheelAcc = 0
+  touchActive = false
+  touchLockedH = false
+  if (!open || !import.meta.client) return
+  nextTick(() => {
+    fsRoot.value?.scrollTo({ top: 0 })
+  })
+})
+
+onActivated(() => {
+  pageActive.value = true
+})
+
+onDeactivated(() => {
+  pageActive.value = false
+  touchActive = false
+  touchLockedH = false
+  wheelAcc = 0
+})
+
+onBeforeUnmount(() => {
+  window.clearTimeout(wheelResetTimer)
+})
 </script>
 
 <template>
@@ -61,7 +213,7 @@ function autoSectionTitle(sectionId: string) {
       </div>
       <button
         type="button"
-        class="chord-stage__fs"
+        class="chord-stage__fs app-ring-hover"
         :aria-label="t('stage.ariaFullscreen')"
         @click="setFullscreen(true)"
       >
@@ -114,11 +266,18 @@ function autoSectionTitle(sectionId: string) {
 
   <Teleport to=".app-shell">
     <div
-      v-if="fullscreen"
+      v-if="showFullscreen"
+      ref="fsRoot"
       class="chord-stage chord-stage--fullscreen"
       :class="`chord-stage--${size}`"
       role="dialog"
+      data-no-edge-swipe
       :aria-label="t('stage.ariaFullscreenDialog')"
+      @touchstart.passive="onTouchStart"
+      @touchmove="onTouchMove"
+      @touchend="onTouchEnd"
+      @touchcancel="onTouchEnd"
+      @wheel="onWheel"
     >
       <div class="chord-stage__toolbar">
         <div class="chord-stage__sizes" role="group" :aria-label="t('stage.ariaSize')">
@@ -135,13 +294,48 @@ function autoSectionTitle(sectionId: string) {
         </div>
         <button
           type="button"
-          class="chord-stage__fs"
+          class="chord-stage__fs app-ring-hover"
           :aria-label="t('stage.ariaExitFullscreen')"
           @click="setFullscreen(false)"
         >
           <AppIcon :name="icons.close" size="1.1rem" />
           <span>{{ t('common.close') }}</span>
         </button>
+      </div>
+
+      <div
+        v-if="title || showPlaylistNav"
+        class="chord-stage__titlebar"
+        :class="{ 'chord-stage__titlebar--solo': !showPlaylistNav }"
+      >
+        <button
+          v-if="showPlaylistNav && playlist?.canPrev"
+          type="button"
+          class="chord-stage__nav app-ring-hover"
+          :aria-label="t('stage.prevSong')"
+          @click.stop="goPrev"
+        >
+          <AppIcon :name="icons.arrowLeft" size="1.15rem" />
+        </button>
+        <span v-else-if="showPlaylistNav" class="chord-stage__nav-spacer" aria-hidden="true" />
+
+        <div class="chord-stage__title-block">
+          <h2 v-if="title" class="chord-stage__song-title">{{ title }}</h2>
+          <p v-if="playlist" class="chord-stage__song-pos">
+            {{ t('stage.setlistPos', { index: playlist.index, total: playlist.total }) }}
+          </p>
+        </div>
+
+        <button
+          v-if="showPlaylistNav && playlist?.canNext"
+          type="button"
+          class="chord-stage__nav app-ring-hover"
+          :aria-label="t('stage.nextSong')"
+          @click.stop="goNext"
+        >
+          <AppIcon :name="icons.chevronRight" size="1.15rem" />
+        </button>
+        <span v-else-if="showPlaylistNav" class="chord-stage__nav-spacer" aria-hidden="true" />
       </div>
 
       <div class="chord-stage__body">
@@ -196,16 +390,23 @@ function autoSectionTitle(sectionId: string) {
 }
 
 .chord-stage--fullscreen {
-  position: fixed;
+  /* absolute внутри .app-shell — на ПК ширина колонки, не весь viewport */
+  position: absolute;
   inset: 0;
   z-index: 80;
+  width: 100%;
+  max-width: 100%;
   padding-top: var(--app-safe-top);
   padding-right: var(--app-safe-right);
   padding-bottom: var(--app-safe-bottom);
   padding-left: var(--app-safe-left);
   background: var(--app-bg);
   overflow: auto;
-  gap: var(--app-space-4);
+  gap: var(--app-space-3);
+  box-sizing: border-box;
+  overscroll-behavior-y: contain;
+  /* pan-y: вертикальный скролл аккордов; горизонталь — наш свайп песен */
+  touch-action: pan-y;
 }
 
 .chord-stage__toolbar {
@@ -217,6 +418,67 @@ function autoSectionTitle(sectionId: string) {
 
 .chord-stage--fullscreen .chord-stage__toolbar {
   padding: var(--app-space-2) var(--app-space-4) 0;
+}
+
+.chord-stage__titlebar {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr) 2.5rem;
+  align-items: center;
+  gap: var(--app-space-1);
+  padding: 0 var(--app-space-3);
+}
+
+.chord-stage__titlebar--solo {
+  grid-template-columns: minmax(0, 1fr);
+  padding-inline: var(--app-space-4);
+}
+
+.chord-stage__title-block {
+  min-width: 0;
+  text-align: center;
+}
+
+.chord-stage__song-title {
+  margin: 0;
+  font-size: var(--app-text-md);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  color: var(--app-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chord-stage__song-pos {
+  margin: 0.15rem 0 0;
+  font-size: var(--app-text-2xs);
+  font-weight: 650;
+  color: var(--app-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.chord-stage__nav {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  margin: 0;
+  border: 0;
+  border-radius: var(--app-radius-pill);
+  background: var(--app-hover);
+  color: var(--app-accent-text);
+  cursor: pointer;
+  transition:
+    background-color var(--app-duration) var(--app-ease),
+    opacity var(--app-duration) var(--app-ease),
+    outline-color var(--app-duration) var(--app-ease);
+}
+
+.chord-stage__nav-spacer {
+  width: 2.5rem;
+  height: 2.5rem;
 }
 
 .chord-stage__body {
@@ -269,6 +531,9 @@ function autoSectionTitle(sectionId: string) {
   font-size: var(--app-text-sm);
   font-weight: 650;
   cursor: pointer;
+  transition:
+    background-color var(--app-duration) var(--app-ease),
+    outline-color var(--app-duration) var(--app-ease);
 }
 
 .chord-stage__section {

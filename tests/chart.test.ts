@@ -87,6 +87,7 @@ describe('chord chart', () => {
     expect(chart.sections).toHaveLength(0)
     chart = addSection(chart, 'verse')
     expect(chart.sections).toHaveLength(1)
+    expect(chart.sections[0]!.bars).toHaveLength(0)
     chart = removeSection(chart, chart.sections[0]!.id)
     expect(chart.sections).toHaveLength(0)
   })

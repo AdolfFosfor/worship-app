@@ -20,10 +20,13 @@ import {
 import {
   addBar,
   addSection,
-  clearBar,
-  mergeBars,
+  // clearBar,
+  // mergeBars,
   moveBar,
   moveItem,
+  moveSection,
+  duplicateBar,
+  duplicateItem,
   swapItems,
   removeBar,
   removeItem,
@@ -116,12 +119,14 @@ const typeMenuCurrentType = computed(() => {
   return chart.value.sections.find((s) => s.id === id)?.type ?? null
 })
 
-type DragKind = 'item' | 'bar'
+type DragKind = 'item' | 'bar' | 'section'
 const drag = ref<{
   kind: DragKind
   sectionId: string
-  barId: string
+  barId?: string
   itemId?: string
+  /** Alt/Option — дублировать чип при дропе */
+  duplicate?: boolean
 } | null>(null)
 const dropHint = ref<{
   sectionId: string
@@ -133,6 +138,38 @@ const dropHint = ref<{
   mode?: 'insert' | 'swap'
 } | null>(null)
 const longPressTimer = ref<ReturnType<typeof setTimeout> | null>(null)
+const sectionDragArmed = ref<{
+  sectionId: string
+  x: number
+  y: number
+} | null>(null)
+const sectionDragSuppressClick = ref(false)
+const barGripSuppressClick = ref(false)
+/** Grip: ждать сдвиг, иначе это клик → выбор такта */
+const barDragArmed = ref<{
+  sectionId: string
+  barId: string
+  x: number
+  y: number
+  itemCount: number
+} | null>(null)
+
+/** ⌥-copy для тактов и чипов */
+const isCopyDragActive = computed(
+  () => drag.value?.kind === 'item' || drag.value?.kind === 'bar',
+)
+const {
+  wantsCopy: dragWantsCopy,
+  isDuplicating: isDragDuplicating,
+  armFromPointerEvent: armDragCopyFromPointer,
+  reset: resetDragCopyModifier,
+} = useCopyDragModifier(isCopyDragActive)
+
+watch(dragWantsCopy, (on) => {
+  if (!on || !drag.value || drag.value.duplicate) return
+  if (drag.value.kind !== 'item' && drag.value.kind !== 'bar') return
+  drag.value = { ...drag.value, duplicate: true }
+})
 
 function syncHistoryFlags() {
   canUndo.value = history.canUndo
@@ -292,12 +329,6 @@ function startFirstBar(sectionId: string) {
 function onAddSection(type: SectionType) {
   const next = addSection(currentChart(), type)
   commit(next)
-  const added = next.sections[next.sections.length - 1]
-  const bar = added?.bars[0]
-  if (added && bar) {
-    selected.value = { sectionId: added.id, barId: bar.id, insertIndex: 0 }
-    openKeyboard()
-  }
 }
 
 function onRemoveSection(sectionId: string) {
@@ -335,6 +366,16 @@ function toggleTypeMenu(event: MouseEvent, sectionId: string) {
   }
 }
 
+function onSectionBadgeClick(event: MouseEvent, sectionId: string) {
+  if (sectionDragSuppressClick.value) {
+    sectionDragSuppressClick.value = false
+    event.preventDefault()
+    event.stopPropagation()
+    return
+  }
+  toggleTypeMenu(event, sectionId)
+}
+
 function pickSectionType(type: SectionType) {
   const sectionId = typeMenu.value?.sectionId
   if (sectionId) changeSectionType(sectionId, type)
@@ -357,8 +398,17 @@ function selectInsert(sectionId: string, barId: string, insertIndex: number) {
 
 function selectBar(sectionId: string, barId: string, itemCount: number) {
   selected.value = { sectionId, barId, insertIndex: itemCount }
-  barMenuId.value = barMenuId.value === barId ? null : barId
+  // Пока только выбор такта — меню отключено
+  // barMenuId.value = barMenuId.value === barId ? null : barId
   revealSelection()
+}
+
+function onBarGripClick(sectionId: string, barId: string, itemCount: number) {
+  if (barGripSuppressClick.value) {
+    barGripSuppressClick.value = false
+    return
+  }
+  selectBar(sectionId, barId, itemCount)
 }
 
 function selectItem(sectionId: string, barId: string, itemId: string, afterIndex: number) {
@@ -386,21 +436,22 @@ function onRemoveBar(sectionId: string, barId: string) {
   if (selected.value?.barId === barId) selected.value = null
 }
 
-function onClearBar(sectionId: string, barId: string) {
-  commit(clearBar(currentChart(), sectionId, barId))
-  if (selected.value?.barId === barId) {
-    selected.value = { sectionId, barId, insertIndex: 0 }
-  }
-}
-
-function onMergeWithNext(sectionId: string, barId: string) {
-  const section = currentChart().sections.find((s) => s.id === sectionId)
-  if (!section) return
-  const idx = section.bars.findIndex((b) => b.id === barId)
-  const next = section.bars[idx + 1]
-  if (!next) return
-  commit(mergeBars(currentChart(), sectionId, barId, next.id))
-}
+// Меню такта временно отключено
+// function onClearBar(sectionId: string, barId: string) {
+//   commit(clearBar(currentChart(), sectionId, barId))
+//   if (selected.value?.barId === barId) {
+//     selected.value = { sectionId, barId, insertIndex: 0 }
+//   }
+// }
+//
+// function onMergeWithNext(sectionId: string, barId: string) {
+//   const section = currentChart().sections.find((s) => s.id === sectionId)
+//   if (!section) return
+//   const idx = section.bars.findIndex((b) => b.id === barId)
+//   const next = section.bars[idx + 1]
+//   if (!next) return
+//   commit(mergeBars(currentChart(), sectionId, barId, next.id))
+// }
 
 function resolveInsertTarget(base: ChordChart) {
   const target = selected.value
@@ -476,25 +527,213 @@ function clearLongPress() {
   }
 }
 
-function startItemDrag(sectionId: string, barId: string, itemId: string, e: PointerEvent) {
-  const el = e.currentTarget as HTMLElement
-  el.setPointerCapture?.(e.pointerId)
-  clearLongPress()
-  longPressTimer.value = setTimeout(() => {
-    drag.value = { kind: 'item', sectionId, barId, itemId }
-    haptics.grab()
-  }, e.pointerType === 'touch' ? 320 : 0)
+function updateItemDropHintAt(clientX: number, clientY: number) {
+  if (drag.value?.kind !== 'item' || !drag.value.itemId) return
+  const target = document.elementFromPoint(clientX, clientY) as HTMLElement | null
+  if (!target) return
+  const sectionDrop = target.closest('[data-drop-section]') as HTMLElement | null
+  if (sectionDrop?.dataset.sectionId) {
+    dropHint.value = {
+      sectionId: sectionDrop.dataset.sectionId,
+      barId: sectionDrop.dataset.barId || undefined,
+      index: 0,
+      mode: 'insert',
+    }
+    return
+  }
+  const bar = target.closest('[data-drop-bar]') as HTMLElement | null
+  if (!bar) return
+  dropHint.value = itemDropHintFromBar(bar, clientX, drag.value.itemId)
 }
 
-function startBarDrag(sectionId: string, barId: string, e: PointerEvent) {
+function startItemDrag(sectionId: string, barId: string, itemId: string, e: PointerEvent) {
+  e.preventDefault()
+  clearLongPress()
+  // Без setPointerCapture: ⌥+drag на macOS отменяет capture и рвёт pointer-поток
+  resetDragCopyModifier()
+  armDragCopyFromPointer(e)
+
+  const begin = () => {
+    if (drag.value?.kind === 'item' && drag.value.itemId === itemId) return
+    drag.value = {
+      kind: 'item',
+      sectionId,
+      barId,
+      itemId,
+      duplicate: dragWantsCopy.value,
+    }
+    haptics.grab()
+  }
+
+  if (e.pointerType === 'touch') {
+    longPressTimer.value = setTimeout(begin, 320)
+  } else {
+    begin()
+  }
+}
+
+function beginSectionDrag(sectionId: string) {
+  if (drag.value) return
+  clearLongPress()
+  closeTypeMenu()
+  sectionDragSuppressClick.value = true
+  barMenuId.value = null
+  drag.value = { kind: 'section', sectionId }
+  haptics.grab()
+}
+
+function startSectionDrag(sectionId: string, e: PointerEvent) {
+  if (e.button != null && e.button !== 0) return
   const el = e.currentTarget as HTMLElement
   el.setPointerCapture?.(e.pointerId)
   clearLongPress()
+  sectionDragSuppressClick.value = false
+  sectionDragArmed.value = { sectionId, x: e.clientX, y: e.clientY }
   longPressTimer.value = setTimeout(() => {
-    barMenuId.value = null
-    drag.value = { kind: 'bar', sectionId, barId }
-    haptics.grab()
-  }, e.pointerType === 'touch' ? 320 : 0)
+    beginSectionDrag(sectionId)
+  }, 320)
+}
+
+function beginBarDrag(sectionId: string, barId: string) {
+  if (drag.value?.kind === 'bar' && drag.value.barId === barId) return
+  barMenuId.value = null
+  barDragArmed.value = null
+  drag.value = {
+    kind: 'bar',
+    sectionId,
+    barId,
+    duplicate: dragWantsCopy.value,
+  }
+  haptics.grab()
+}
+
+function startBarDrag(
+  sectionId: string,
+  barId: string,
+  e: PointerEvent,
+  itemCount = 0,
+) {
+  // Не preventDefault на pointerdown — иначе клик выбора не приходит
+  clearLongPress()
+  resetDragCopyModifier()
+  armDragCopyFromPointer(e)
+  barGripSuppressClick.value = false
+  barDragArmed.value = {
+    sectionId,
+    barId,
+    x: e.clientX,
+    y: e.clientY,
+    itemCount,
+  }
+
+  // Touch: long-press сразу в drag; мышь — только после сдвига ≥8px
+  if (e.pointerType === 'touch') {
+    longPressTimer.value = setTimeout(() => {
+      beginBarDrag(sectionId, barId)
+    }, 320)
+  }
+}
+
+function updateBarDropHintAt(clientX: number, clientY: number) {
+  if (drag.value?.kind !== 'bar' || !drag.value.barId) return
+  const target = document.elementFromPoint(clientX, clientY) as HTMLElement | null
+  if (!target) return
+
+  // Явные слоты: начало секции / «+ такт» в конце
+  const sectionDrop = target.closest(
+    '[data-drop-section], [data-drop-section-end]',
+  ) as HTMLElement | null
+  if (sectionDrop?.dataset.sectionId) {
+    dropHint.value = {
+      sectionId: sectionDrop.dataset.sectionId,
+      index: Number(sectionDrop.dataset.barIndex ?? 0),
+      mode: 'insert',
+      edge: Number(sectionDrop.dataset.barIndex ?? 0) === 0 ? 'before' : 'after',
+    }
+    return
+  }
+
+  const bar = target.closest('[data-drop-bar]') as HTMLElement | null
+  if (bar && bar.dataset.barId !== drag.value.barId) {
+    dropHint.value = barDropHintFromBar(bar, clientX)
+    return
+  }
+
+  // Весь блок секции: верх → в начало, низ → в конец
+  const block = target.closest('[data-drop-section-block]') as HTMLElement | null
+  if (!block?.dataset.sectionId) return
+  const sectionId = block.dataset.sectionId
+  const bars = [
+    ...block.querySelectorAll<HTMLElement>(':scope [data-drop-bar]'),
+  ]
+  if (!bars.length) {
+    dropHint.value = { sectionId, index: 0, edge: 'before', mode: 'insert' }
+    return
+  }
+  const first = bars[0]!.getBoundingClientRect()
+  const last = bars[bars.length - 1]!.getBoundingClientRect()
+  if (clientY < first.top + Math.min(28, first.height * 0.45)) {
+    dropHint.value = { sectionId, index: 0, edge: 'before', mode: 'insert' }
+    return
+  }
+  if (clientY > last.bottom - Math.min(28, last.height * 0.45)) {
+    dropHint.value = {
+      sectionId,
+      index: bars.length,
+      edge: 'after',
+      mode: 'insert',
+    }
+    return
+  }
+  // Ближайший такт по Y
+  let best: HTMLElement | null = null
+  let bestDist = Infinity
+  for (const b of bars) {
+    if (b.dataset.barId === drag.value.barId) continue
+    const r = b.getBoundingClientRect()
+    const cy = (r.top + r.bottom) / 2
+    const d = Math.abs(clientY - cy)
+    if (d < bestDist) {
+      bestDist = d
+      best = b
+    }
+  }
+  if (best) dropHint.value = barDropHintFromBar(best, clientX)
+}
+
+/** Индекс вставки секции по Y: верх первой → 0, низ последней → length. */
+function sectionDropHintFromY(clientY: number): {
+  sectionId: string
+  index: number
+  edge: 'before' | 'after'
+  mode: 'insert'
+} | null {
+  const blocks = [
+    ...document.querySelectorAll<HTMLElement>('[data-drop-section-block]'),
+  ]
+  if (!blocks.length) return null
+
+  for (let i = 0; i < blocks.length; i++) {
+    const block = blocks[i]!
+    const rect = block.getBoundingClientRect()
+    const mid = rect.top + rect.height / 2
+    if (clientY < mid) {
+      return {
+        sectionId: block.dataset.sectionId!,
+        index: i,
+        edge: 'before',
+        mode: 'insert',
+      }
+    }
+  }
+
+  const last = blocks[blocks.length - 1]!
+  return {
+    sectionId: last.dataset.sectionId!,
+    index: blocks.length,
+    edge: 'after',
+    mode: 'insert',
+  }
 }
 
 function barDropHintFromBar(
@@ -628,107 +867,309 @@ function itemDropHintFromBar(
   }
 }
 
+function maybeStartArmedBarDrag(clientX: number, clientY: number) {
+  const armed = barDragArmed.value
+  if (!armed || drag.value) return false
+  if (Math.hypot(clientX - armed.x, clientY - armed.y) < 8) return false
+  beginBarDrag(armed.sectionId, armed.barId)
+  return true
+}
+
 function onPointerMove(e: PointerEvent) {
+  if (sectionDragArmed.value && !drag.value) {
+    const armed = sectionDragArmed.value
+    if (Math.hypot(e.clientX - armed.x, e.clientY - armed.y) >= 8) {
+      beginSectionDrag(armed.sectionId)
+    }
+  }
+  if (barDragArmed.value && !drag.value) {
+    armDragCopyFromPointer(e)
+    maybeStartArmedBarDrag(e.clientX, e.clientY)
+  }
   if (!drag.value) return
-  const target = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null
-  if (!target) return
+
+  if (drag.value.kind === 'section') {
+    const hint = sectionDropHintFromY(e.clientY)
+    if (hint) dropHint.value = hint
+    return
+  }
 
   if (drag.value.kind === 'item') {
-    const bar = target.closest('[data-drop-bar]') as HTMLElement | null
-    if (!bar || !drag.value.itemId) return
-    dropHint.value = itemDropHintFromBar(bar, e.clientX, drag.value.itemId)
-  } else {
-    const bar = target.closest('[data-drop-bar]') as HTMLElement | null
-    if (!bar) return
-    // Не целимся в сам перетаскиваемый такт — иначе линия «мигает» на нём
-    if (bar.dataset.barId === drag.value.barId) return
-    dropHint.value = barDropHintFromBar(bar, e.clientX)
+    armDragCopyFromPointer(e)
+    updateItemDropHintAt(e.clientX, e.clientY)
+    return
+  }
+
+  if (drag.value.kind === 'bar') {
+    armDragCopyFromPointer(e)
+    updateBarDropHintAt(e.clientX, e.clientY)
+    return
   }
 }
 
-function onPointerUp() {
+/** Защита от двойного pointerup+mouseup */
+let dragFinishLock = false
+
+function onPointerCancel(e: Event) {
+  // ⌥: cancel без цели — ждём mouseup; с целью — коммитим сразу
+  if (
+    (drag.value?.kind === 'item' || drag.value?.kind === 'bar') &&
+    !dropHint.value
+  ) {
+    return
+  }
+  finishDrag(e)
+}
+
+function onMouseDragMove(e: MouseEvent) {
+  if (barDragArmed.value && !drag.value) {
+    armDragCopyFromPointer({
+      altKey: e.altKey,
+      ctrlKey: e.ctrlKey,
+      shiftKey: e.shiftKey,
+      pointerType: 'mouse',
+    })
+    maybeStartArmedBarDrag(e.clientX, e.clientY)
+  }
+  if (drag.value?.kind !== 'item' && drag.value?.kind !== 'bar') return
+  armDragCopyFromPointer({
+    altKey: e.altKey,
+    ctrlKey: e.ctrlKey,
+    shiftKey: e.shiftKey,
+    pointerType: 'mouse',
+  })
+  if (drag.value.duplicate !== true && dragWantsCopy.value) {
+    drag.value = { ...drag.value, duplicate: true }
+  }
+  if (drag.value.kind === 'item') updateItemDropHintAt(e.clientX, e.clientY)
+  else updateBarDropHintAt(e.clientX, e.clientY)
+}
+
+function onMouseDragUp(e: MouseEvent) {
+  if (barDragArmed.value && !drag.value) {
+    finishArmedBarTap()
+    return
+  }
+  if (drag.value?.kind !== 'item' && drag.value?.kind !== 'bar') return
+  finishDrag(e)
+}
+
+function onPointerUp(e?: Event) {
+  if (barDragArmed.value && !drag.value) {
+    // Мышь: selection через mouseup/click; touch — здесь
+    if (e instanceof PointerEvent && e.pointerType === 'mouse') return
+    finishArmedBarTap()
+    return
+  }
+  finishDrag(e)
+}
+
+/** Короткий тап по grip без сдвига → выбрать такт */
+function finishArmedBarTap() {
+  const armed = barDragArmed.value
   clearLongPress()
+  barDragArmed.value = null
+  resetDragCopyModifier()
+  if (!armed) return
+  selectBar(armed.sectionId, armed.barId, armed.itemCount)
+  barGripSuppressClick.value = true
+}
+
+function finishDrag(e?: Event) {
+  if (!drag.value || dragFinishLock) return
+  dragFinishLock = true
+
+  clearLongPress()
+  sectionDragArmed.value = null
+  barDragArmed.value = null
+
+  // Финальная точка + модификаторы с события отпускания
+  if (
+    (drag.value.kind === 'item' || drag.value.kind === 'bar') &&
+    e &&
+    'clientX' in e
+  ) {
+    const ev = e as PointerEvent | MouseEvent
+    armDragCopyFromPointer({
+      altKey: ev.altKey,
+      ctrlKey: ev.ctrlKey,
+      shiftKey: ev.shiftKey,
+      pointerType: 'pointerType' in ev ? (ev.pointerType as string) : 'mouse',
+    })
+    if (dragWantsCopy.value) {
+      drag.value = { ...drag.value, duplicate: true }
+    }
+    if (drag.value.kind === 'item') updateItemDropHintAt(ev.clientX, ev.clientY)
+    else updateBarDropHintAt(ev.clientX, ev.clientY)
+  }
+
   let moved = false
-  if (drag.value && dropHint.value) {
-    if (drag.value.kind === 'item' && dropHint.value.barId && drag.value.itemId) {
+  if (dropHint.value) {
+    if (drag.value.kind === 'item' && drag.value.itemId) {
       const fromPath = {
         sectionId: drag.value.sectionId,
-        barId: drag.value.barId,
+        barId: drag.value.barId!,
         itemId: drag.value.itemId,
       }
-      if (
-        dropHint.value.mode === 'swap' &&
-        dropHint.value.overItemId &&
-        dropHint.value.overItemId !== drag.value.itemId
-      ) {
-        const toPath = {
-          sectionId: dropHint.value.sectionId,
-          barId: dropHint.value.barId,
-          itemId: dropHint.value.overItemId,
+      let toBarId = dropHint.value.barId
+      let baseChart = currentChart()
+      if (!toBarId) {
+        const sec = baseChart.sections.find((s) => s.id === dropHint.value!.sectionId)
+        toBarId = sec?.bars[0]?.id
+        if (!toBarId && dropHint.value.sectionId) {
+          baseChart = addBar(baseChart, dropHint.value.sectionId)
+          toBarId = baseChart.sections
+            .find((s) => s.id === dropHint.value!.sectionId)
+            ?.bars[0]?.id
         }
-        const next = swapItems(currentChart(), fromPath, toPath)
+      }
+      if (!toBarId) {
+        /* нет куда вставить */
+      } else {
+        const toTarget = {
+          sectionId: dropHint.value.sectionId,
+          barId: toBarId,
+          index: dropHint.value.index,
+        }
+        const wantsDuplicate = Boolean(drag.value.duplicate) || dragWantsCopy.value
+
+        if (wantsDuplicate) {
+          const next = duplicateItem(baseChart, fromPath, toTarget)
+          commit(next)
+          const copy = next.sections
+            .find((s) => s.id === toTarget.sectionId)
+            ?.bars.find((b) => b.id === toTarget.barId)?.items[toTarget.index]
+          selected.value = {
+            sectionId: toTarget.sectionId,
+            barId: toTarget.barId,
+            insertIndex: toTarget.index + 1,
+            itemId: copy?.id,
+          }
+          moved = true
+        } else if (
+          dropHint.value.mode === 'swap' &&
+          dropHint.value.overItemId &&
+          dropHint.value.overItemId !== drag.value.itemId
+        ) {
+          const toPath = {
+            sectionId: dropHint.value.sectionId,
+            barId: toBarId,
+            itemId: dropHint.value.overItemId,
+          }
+          const next = swapItems(baseChart, fromPath, toPath)
+          commit(next)
+          const bar = next.sections
+            .find((s) => s.id === toPath.sectionId)
+            ?.bars.find((b) => b.id === toPath.barId)
+          const newIdx = bar?.items.findIndex((i) => i.id === fromPath.itemId) ?? -1
+          selected.value = {
+            sectionId: toPath.sectionId,
+            barId: toPath.barId,
+            insertIndex: newIdx >= 0 ? newIdx + 1 : dropHint.value.index,
+          }
+          moved = true
+        } else if (dropHint.value.mode !== 'swap') {
+          const sameBar =
+            drag.value.sectionId === dropHint.value.sectionId &&
+            drag.value.barId === toBarId
+          const fromBar = baseChart.sections
+            .find((s) => s.id === drag.value!.sectionId)
+            ?.bars.find((b) => b.id === drag.value!.barId)
+          const fromIdx = fromBar?.items.findIndex((i) => i.id === drag.value!.itemId) ?? -1
+          const unchanged =
+            sameBar && (fromIdx === dropHint.value.index || fromIdx + 1 === dropHint.value.index)
+          if (!unchanged) {
+            commit(moveItem(baseChart, fromPath, toTarget))
+            selected.value = {
+              sectionId: toTarget.sectionId,
+              barId: toTarget.barId,
+              insertIndex: toTarget.index + 1,
+            }
+            moved = true
+          }
+        }
+      }
+    } else if (drag.value.kind === 'bar' && drag.value.barId) {
+      const barId = drag.value.barId
+      const fromIdx =
+        currentChart()
+          .sections.find((s) => s.id === drag.value!.sectionId)
+          ?.bars.findIndex((b) => b.id === barId) ?? -1
+      const toSectionId = dropHint.value.sectionId
+      const toIndex = dropHint.value.index
+      const wantsDuplicate = Boolean(drag.value.duplicate) || dragWantsCopy.value
+
+      if (wantsDuplicate && fromIdx >= 0) {
+        const next = duplicateBar(
+          currentChart(),
+          { sectionId: drag.value.sectionId, barId },
+          { sectionId: toSectionId, index: toIndex },
+        )
         commit(next)
-        const bar = next.sections
-          .find((s) => s.id === toPath.sectionId)
-          ?.bars.find((b) => b.id === toPath.barId)
-        const newIdx = bar?.items.findIndex((i) => i.id === fromPath.itemId) ?? -1
-        selected.value = {
-          sectionId: toPath.sectionId,
-          barId: toPath.barId,
-          insertIndex: newIdx >= 0 ? newIdx + 1 : dropHint.value.index,
+        const sec = next.sections.find((s) => s.id === toSectionId)
+        const placedBar = sec
+          ? (sec.bars[Math.min(toIndex, Math.max(0, sec.bars.length - 1))] ??
+            sec.bars[0])
+          : undefined
+        if (placedBar) {
+          selected.value = {
+            sectionId: toSectionId,
+            barId: placedBar.id,
+            insertIndex: placedBar.items.length,
+          }
         }
         moved = true
-      } else if (dropHint.value.mode !== 'swap') {
-        const sameBar =
-          drag.value.sectionId === dropHint.value.sectionId &&
-          drag.value.barId === dropHint.value.barId
-        const fromBar = currentChart()
-          .sections.find((s) => s.id === drag.value!.sectionId)
-          ?.bars.find((b) => b.id === drag.value!.barId)
-        const fromIdx = fromBar?.items.findIndex((i) => i.id === drag.value!.itemId) ?? -1
+      } else {
+        const sameSection = drag.value.sectionId === toSectionId
         const unchanged =
-          sameBar && (fromIdx === dropHint.value.index || fromIdx + 1 === dropHint.value.index)
-        if (!unchanged) {
-          commit(
-            moveItem(currentChart(), fromPath, {
-              sectionId: dropHint.value.sectionId,
-              barId: dropHint.value.barId,
-              index: dropHint.value.index,
-            }),
+          sameSection &&
+          fromIdx >= 0 &&
+          (fromIdx === toIndex || fromIdx + 1 === toIndex)
+        if (!unchanged && fromIdx >= 0) {
+          const next = moveBar(
+            currentChart(),
+            { sectionId: drag.value.sectionId, barId },
+            { sectionId: toSectionId, index: toIndex },
           )
+          commit(next)
           selected.value = {
-            sectionId: dropHint.value.sectionId,
-            barId: dropHint.value.barId,
-            insertIndex: dropHint.value.index + 1,
+            sectionId: toSectionId,
+            barId,
+            insertIndex:
+              next.sections
+                .find((s) => s.id === toSectionId)
+                ?.bars.find((b) => b.id === barId)?.items.length ?? 0,
           }
           moved = true
         }
       }
-    } else if (drag.value.kind === 'bar') {
-      const fromIdx =
-        currentChart()
-          .sections.find((s) => s.id === drag.value!.sectionId)
-          ?.bars.findIndex((b) => b.id === drag.value!.barId) ?? -1
-      const sameSection = drag.value.sectionId === dropHint.value.sectionId
+    } else if (drag.value.kind === 'section') {
+      const fromIdx = currentChart().sections.findIndex(
+        (s) => s.id === drag.value!.sectionId,
+      )
       const unchanged =
-        sameSection &&
         fromIdx >= 0 &&
         (fromIdx === dropHint.value.index || fromIdx + 1 === dropHint.value.index)
       if (!unchanged && fromIdx >= 0) {
-        commit(
-          moveBar(
-            currentChart(),
-            { sectionId: drag.value.sectionId, barId: drag.value.barId },
-            { sectionId: dropHint.value.sectionId, index: dropHint.value.index },
-          ),
-        )
+        commit(moveSection(currentChart(), drag.value.sectionId, dropHint.value.index))
         moved = true
       }
     }
   }
-  if (moved) haptics.drop()
+  const wasBarDrag = drag.value?.kind === 'bar'
+  if (moved) {
+    if (wasBarDrag) barGripSuppressClick.value = true
+    haptics.drop()
+  } else if (wasBarDrag) {
+    // Был drag (даже без move) — не дублировать select через click
+    barGripSuppressClick.value = true
+  }
   drag.value = null
   dropHint.value = null
+  resetDragCopyModifier()
+  queueMicrotask(() => {
+    dragFinishLock = false
+  })
 }
 
 function onKeydown(e: KeyboardEvent) {
@@ -794,6 +1235,42 @@ function isBarDropEdge(barId: string, edge: 'before' | 'after') {
   )
 }
 
+function isSectionDrop(sectionId: string) {
+  return (
+    drag.value?.kind === 'bar' &&
+    dropHint.value?.mode === 'insert' &&
+    dropHint.value.sectionId === sectionId &&
+    !dropHint.value.barId
+  )
+}
+
+function isBarInsertAt(sectionId: string, index: number) {
+  return (
+    drag.value?.kind === 'bar' &&
+    dropHint.value?.mode === 'insert' &&
+    dropHint.value.sectionId === sectionId &&
+    dropHint.value.index === index &&
+    !dropHint.value.barId
+  )
+}
+
+function isItemSectionDrop(sectionId: string) {
+  return (
+    drag.value?.kind === 'item' &&
+    dropHint.value?.mode === 'insert' &&
+    dropHint.value.sectionId === sectionId
+  )
+}
+
+function isSectionBlockDrop(sectionId: string, edge: 'before' | 'after') {
+  return (
+    drag.value?.kind === 'section' &&
+    dropHint.value?.mode === 'insert' &&
+    dropHint.value.sectionId === sectionId &&
+    dropHint.value.edge === edge
+  )
+}
+
 watch(keyboardOpen, (open) => {
   if (!open) return
   void nextTick(() => revealSelection({ force: true }))
@@ -814,13 +1291,18 @@ onMounted(() => {
   } else if (props.modelValue) {
     draftChart.value = props.modelValue
   }
-  window.addEventListener('keydown', onKeydown)
-  document.addEventListener('pointerdown', onTypeMenuPointerDown, true)
 })
 
+useEventListener(window, 'pointermove', onPointerMove, { passive: true })
+useEventListener(window, 'pointerup', onPointerUp)
+useEventListener(window, 'pointercancel', onPointerCancel)
+// Fallback: если pointer-поток умер на ⌥ — mouse* всё ещё идут
+useEventListener(window, 'mousemove', onMouseDragMove, { passive: true, capture: true })
+useEventListener(window, 'mouseup', onMouseDragUp, { capture: true })
+useEventListener(window, 'keydown', onKeydown)
+useEventListener(document, 'pointerdown', onTypeMenuPointerDown, true)
+
 onBeforeUnmount(() => {
-  window.removeEventListener('keydown', onKeydown)
-  document.removeEventListener('pointerdown', onTypeMenuPointerDown, true)
   clearLongPress()
   document.documentElement.style.setProperty('--chart-kb-inset', '0px')
 })
@@ -833,10 +1315,9 @@ onBeforeUnmount(() => {
       'chart-editor--kb-open': keyboardOpen,
       'chart-editor--dragging': Boolean(drag),
       'chart-editor--dragging-bar': drag?.kind === 'bar',
+      'chart-editor--dragging-section': drag?.kind === 'section',
+      'chart-editor--duplicating': isDragDuplicating,
     }"
-    @pointermove="onPointerMove"
-    @pointerup="onPointerUp"
-    @pointercancel="onPointerUp"
   >
     <div v-if="showConvert || showReconvert" class="chart-editor__banner">
       <p>{{ showConvert ? t('chart.convertAsk') : t('chart.reconvertAsk') }}</p>
@@ -905,9 +1386,17 @@ onBeforeUnmount(() => {
         </button>
       </div>
       <section
-        v-for="section in chart.sections"
+        v-for="(section, sectionIndex) in chart.sections"
         :key="section.id"
         class="chart-section"
+        :class="{
+          'chart-section--dragging': drag?.kind === 'section' && drag.sectionId === section.id,
+          'chart-section--drop-before': isSectionBlockDrop(section.id, 'before'),
+          'chart-section--drop-after': isSectionBlockDrop(section.id, 'after'),
+        }"
+        data-drop-section-block
+        :data-section-id="section.id"
+        :data-section-index="sectionIndex"
         :style="{
           '--section-wash': SECTION_COLOR_VAR[section.type] ?? SECTION_COLOR_VAR.custom,
           '--section-accent': SECTION_ACCENT_VAR[section.type] ?? SECTION_ACCENT_VAR.custom,
@@ -926,25 +1415,54 @@ onBeforeUnmount(() => {
           <button
             type="button"
             class="chart-section__badge"
-            :aria-label="t('chart.sectionTypeAria', { title: autoSectionTitle(section.id) })"
+            :aria-label="t('chart.moveSection')"
             aria-haspopup="menu"
-            @click="toggleTypeMenu($event, section.id)"
+            @pointerdown="startSectionDrag(section.id, $event)"
+            @click="onSectionBadgeClick($event, section.id)"
           >
             <span class="chart-section__dot" aria-hidden="true" />
             <span>{{ autoSectionTitle(section.id) }}</span>
           </button>
         </header>
 
-        <button
-          v-if="sectionShowsEmptyCta(section.id)"
-          type="button"
-          class="chart-bar-add chart-bar-add--first"
-          @click="startFirstBar(section.id)"
+        <div
+          v-if="!section.bars.length || sectionShowsEmptyCta(section.id)"
+          class="chart-section__empty"
         >
-          {{ t('chart.addFirstBar') }}
-        </button>
+          <div
+            v-if="drag?.kind === 'bar' || drag?.kind === 'item'"
+            class="chart-section__drop"
+            :class="{
+              'chart-section__drop--on':
+                isSectionDrop(section.id) || isItemSectionDrop(section.id),
+            }"
+            data-drop-section
+            :data-section-id="section.id"
+            :data-bar-id="section.bars[0]?.id"
+            data-bar-index="0"
+          >
+            {{ t('chart.addFirstBar') }}
+          </div>
+          <button
+            v-else
+            type="button"
+            class="chart-bar-add chart-bar-add--first"
+            @click="startFirstBar(section.id)"
+          >
+            {{ t('chart.addFirstBar') }}
+          </button>
+        </div>
 
         <div v-else class="chart-section__flow">
+          <div
+            v-if="drag?.kind === 'bar'"
+            class="chart-bar-drop-start"
+            :class="{ 'chart-bar-drop-start--on': isBarInsertAt(section.id, 0) }"
+            data-drop-section
+            :data-section-id="section.id"
+            data-bar-index="0"
+            :aria-hidden="true"
+          />
           <div
             v-for="(bar, barIndex) in section.bars"
             :key="bar.id"
@@ -967,8 +1485,9 @@ onBeforeUnmount(() => {
               type="button"
               class="chart-bar__grip"
               :aria-label="t('chart.moveBar')"
-              @pointerdown.stop="startBarDrag(section.id, bar.id, $event)"
-              @click.stop
+              @pointerdown.stop="startBarDrag(section.id, bar.id, $event, bar.items.length)"
+              @dragstart.prevent
+              @click.stop="onBarGripClick(section.id, bar.id, bar.items.length)"
             >
               <AppIcon :name="icons.grip" size="0.9rem" />
             </button>
@@ -1013,6 +1532,7 @@ onBeforeUnmount(() => {
                   :data-bar-id="bar.id"
                   :data-item-index="itemIndex"
                   @pointerdown.stop="startItemDrag(section.id, bar.id, item.id, $event)"
+                  @dragstart.prevent
                   @click.stop="selectItem(section.id, bar.id, item.id, itemIndex)"
                 >
                   <template v-if="item.kind === 'chord'">
@@ -1049,6 +1569,7 @@ onBeforeUnmount(() => {
               <AppIcon :name="icons.trash" size="0.85rem" />
             </button>
 
+            <!-- Меню такта временно отключено — оставляем только выбор
             <div
               v-if="barMenuId === bar.id"
               class="chart-bar__menu"
@@ -1075,11 +1596,16 @@ onBeforeUnmount(() => {
                 {{ t('common.delete') }}
               </button>
             </div>
+            -->
           </div>
 
           <button
             type="button"
             class="chart-bar-add"
+            :class="{ 'chart-bar-add--drop-on': isSectionDrop(section.id) }"
+            data-drop-section-end
+            :data-section-id="section.id"
+            :data-bar-index="section.bars.length"
             :aria-label="t('chart.addBar')"
             @click="onAddBar(section.id, section.bars[section.bars.length - 1]?.id)"
           >
@@ -1131,6 +1657,11 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: var(--app-space-3);
+}
+
+.chart-editor--duplicating,
+.chart-editor--duplicating * {
+  cursor: copy !important;
 }
 
 .chart-editor--kb-open {
@@ -1309,6 +1840,37 @@ onBeforeUnmount(() => {
   border-left: 3px solid var(--section-accent);
   background: var(--section-wash);
   overflow: visible;
+  transition: opacity var(--app-duration) var(--app-ease);
+}
+
+.chart-section--dragging {
+  opacity: 0.45;
+}
+
+.chart-section--drop-before,
+.chart-section--drop-after {
+  z-index: 1;
+}
+
+.chart-section--drop-before::before,
+.chart-section--drop-after::after {
+  content: '';
+  position: absolute;
+  left: 0.35rem;
+  right: 0.35rem;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--app-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--app-accent) 28%, transparent);
+  pointer-events: none;
+}
+
+.chart-section--drop-before::before {
+  top: -0.2rem;
+}
+
+.chart-section--drop-after::after {
+  bottom: -0.2rem;
 }
 
 .chart-section__head {
@@ -1333,11 +1895,17 @@ onBeforeUnmount(() => {
   font-weight: 700;
   letter-spacing: -0.01em;
   line-height: 1.2;
-  cursor: pointer;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
 }
 
 .chart-section__badge:hover {
   background: color-mix(in srgb, var(--section-accent) 24%, transparent);
+}
+
+.chart-editor--dragging-section .chart-section__badge {
+  cursor: grabbing;
 }
 
 .chart-section__dot {
@@ -1379,6 +1947,23 @@ onBeforeUnmount(() => {
   align-items: flex-start;
   column-gap: 0.15rem;
   row-gap: 0.45rem;
+}
+
+.chart-bar-drop-start {
+  flex: 0 0 4px;
+  align-self: stretch;
+  min-height: 1.75rem;
+  margin-right: 0.1rem;
+  border-radius: 999px;
+  background: transparent;
+  transition:
+    background-color var(--app-duration) var(--app-ease),
+    box-shadow var(--app-duration) var(--app-ease);
+}
+
+.chart-bar-drop-start--on {
+  background: var(--app-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--app-accent) 28%, transparent);
 }
 
 .chart-bar {
@@ -1436,6 +2021,8 @@ onBeforeUnmount(() => {
   width: 1.25rem;
   height: 1.75rem;
   padding: 0;
+  user-select: none;
+  -webkit-user-drag: none;
   border: 0;
   background: transparent;
   color: var(--app-faint);
@@ -1570,6 +2157,8 @@ onBeforeUnmount(() => {
   letter-spacing: -0.02em;
   cursor: pointer;
   touch-action: none;
+  user-select: none;
+  -webkit-user-drag: none;
   transition:
     transform var(--app-duration) var(--app-ease),
     box-shadow var(--app-duration) var(--app-ease),
@@ -1660,6 +2249,26 @@ onBeforeUnmount(() => {
   padding: 0 0.75rem;
   border-radius: var(--app-radius);
   font-size: var(--app-text-xs);
+}
+
+.chart-bar-add--drop-on,
+.chart-section__drop--on {
+  background: color-mix(in srgb, var(--app-accent) 18%, var(--app-hover));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--app-accent) 40%, transparent);
+}
+
+.chart-section__drop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 2rem;
+  padding: 0 0.75rem;
+  border-radius: var(--app-radius);
+  background: var(--app-hover);
+  color: var(--app-accent-text);
+  font-size: var(--app-text-xs);
+  font-weight: 750;
 }
 
 .chart-editor__add-sections {
