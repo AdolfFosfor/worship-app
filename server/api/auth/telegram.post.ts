@@ -1,3 +1,4 @@
+import { isDevAuthAllowed } from '../../utils/devAuthGate'
 import { createServiceClient } from '../../utils/supabase'
 import {
   findOrCreateTelegramUser,
@@ -16,7 +17,7 @@ export default defineEventHandler(async (event) => {
 
   const config = useRuntimeConfig()
   const botToken = config.telegramBotToken as string
-  const allowDevMock = Boolean(config.public.allowTelegramDevMock)
+  const allowDevMock = isDevAuthAllowed(config)
 
   if (!botToken && !allowDevMock) {
     throw createError({

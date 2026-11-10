@@ -87,7 +87,7 @@ export default defineNuxtConfig({
         process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY ||
         process.env.SUPABASE_KEY ||
         '',
-      // Explicit opt-in only — production Cloudflare must not enable this by default
+      // Local browser mock only. Server also refuses mock/dev-session when NODE_ENV=production.
       allowTelegramDevMock: process.env.NUXT_PUBLIC_ALLOW_TELEGRAM_DEV_MOCK === 'true',
       // Bot username without @ — for t.me/?startapp= invite links (not secret)
       telegramBotUsername:

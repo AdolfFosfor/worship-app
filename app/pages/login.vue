@@ -12,16 +12,23 @@ const toast = useToast()
 const config = useRuntimeConfig()
 const { t } = useAppLocale()
 
-const email = ref('adolffosfor@gmail.com')
+const email = ref('')
 const sent = ref(false)
 const busy = ref(false)
+const telegramFailed = ref(false)
 
 /** Real Mini App only — browser mock uses Magic Link / dev session. */
 const showTelegram = computed(() => telegram.isTelegramEnvironment.value)
-const allowDevSession = computed(() => Boolean(config.public.allowTelegramDevMock))
+/** Dev-вход только вне Telegram и только при явном флаге. */
+const allowDevSession = computed(
+  () => Boolean(config.public.allowTelegramDevMock) && !showTelegram.value,
+)
+/** В настоящем TMA — только Telegram, без email/dev. */
+const showEmailForm = computed(() => !showTelegram.value)
 
 async function loginTelegram() {
   busy.value = true
+  telegramFailed.value = false
   try {
     const raw = telegram.getInitDataRaw()
     if (!raw) {
@@ -30,11 +37,12 @@ async function loginTelegram() {
     await auth.signInWithTelegram(raw)
     await navigateTo('/')
   } catch (e) {
+    telegramFailed.value = true
     toast.add({
       severity: 'error',
       summary: t('auth.toastTitle'),
-      detail: authErrorMessage(e, 'common.genericError'),
-      life: 5000,
+      detail: authErrorMessage(e, 'auth.telegramRetryHint'),
+      life: 6000,
     })
   } finally {
     busy.value = false
@@ -66,7 +74,7 @@ async function loginEmail() {
 }
 
 async function loginDev() {
-  if (!email.value.trim()) return
+  if (!allowDevSession.value || !email.value.trim()) return
   busy.value = true
   try {
     await auth.signInWithDevSession(email.value.trim())
@@ -111,39 +119,43 @@ onMounted(async () => {
         @click="loginTelegram"
       />
 
-      <div v-if="showTelegram" class="login__divider">{{ t('auth.orEmail') }}</div>
-
-      <form class="login__email" @submit.prevent="allowDevSession ? loginDev() : loginEmail()">
-        <InputText
-          v-model="email"
-          type="email"
-          class="w-full"
-          :placeholder="t('settings.emailPlaceholder')"
-          autocomplete="email"
-        />
-        <Button
-          v-if="allowDevSession"
-          type="submit"
-          :label="t('auth.devLogin')"
-          class="w-full"
-          :disabled="!email.trim()"
-          :loading="busy"
-        />
-        <Button
-          type="button"
-          :label="t('auth.sendMagicLink')"
-          :severity="allowDevSession || showTelegram ? 'secondary' : undefined"
-          class="w-full"
-          :disabled="!email.trim() || busy"
-          :loading="busy && !allowDevSession"
-          @click="loginEmail"
-        />
-      </form>
-
-      <p v-if="allowDevSession" class="login__dev-hint">
-        {{ t('auth.devHint') }}
+      <p v-if="showTelegram && telegramFailed" class="login__tg-hint">
+        {{ t('auth.telegramRetryHint') }}
       </p>
-      <p v-if="sent" class="login__hint">{{ t('auth.checkEmailHint') }}</p>
+
+      <template v-if="showEmailForm">
+        <form class="login__email" @submit.prevent="allowDevSession ? loginDev() : loginEmail()">
+          <InputText
+            v-model="email"
+            type="email"
+            class="w-full"
+            :placeholder="t('settings.emailPlaceholder')"
+            autocomplete="email"
+          />
+          <Button
+            v-if="allowDevSession"
+            type="submit"
+            :label="t('auth.devLogin')"
+            class="w-full"
+            :disabled="!email.trim()"
+            :loading="busy"
+          />
+          <Button
+            type="button"
+            :label="t('auth.sendMagicLink')"
+            :severity="allowDevSession ? 'secondary' : undefined"
+            class="w-full"
+            :disabled="!email.trim() || busy"
+            :loading="busy && !allowDevSession"
+            @click="loginEmail"
+          />
+        </form>
+
+        <p v-if="allowDevSession" class="login__dev-hint">
+          {{ t('auth.devHint') }}
+        </p>
+        <p v-if="sent" class="login__hint">{{ t('auth.checkEmailHint') }}</p>
+      </template>
     </div>
   </div>
 </template>
@@ -172,15 +184,6 @@ onMounted(async () => {
   line-height: 1.4;
 }
 
-.login__divider {
-  text-align: center;
-  color: var(--app-muted);
-  font-size: var(--app-text-2xs);
-  font-weight: 650;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
 .login__email {
   display: flex;
   flex-direction: column;
@@ -193,10 +196,15 @@ onMounted(async () => {
   font-size: var(--app-text-sm);
 }
 
-.login__dev-hint {
+.login__dev-hint,
+.login__tg-hint {
   margin: 0;
   color: var(--app-muted);
   font-size: var(--app-text-xs);
   line-height: 1.4;
+}
+
+.login__tg-hint {
+  color: var(--app-accent-text);
 }
 </style>

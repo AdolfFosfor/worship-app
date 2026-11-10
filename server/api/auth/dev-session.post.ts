@@ -1,14 +1,15 @@
 import { createSessionForUser } from '../../utils/authSession'
+import { isDevAuthAllowed } from '../../utils/devAuthGate'
 import { createServiceClient } from '../../utils/supabase'
 import { findUserByEmail } from '../../utils/telegramAccounts'
 
 /**
  * Dev-only: mint a session without sending Magic Link mail.
- * Gated by NUXT_PUBLIC_ALLOW_TELEGRAM_DEV_MOCK (local browser work).
+ * Local only — blocked in production even if the public flag leaks.
  */
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
-  if (!config.public.allowTelegramDevMock) {
+  if (!isDevAuthAllowed(config)) {
     throw createError({ statusCode: 404, statusMessage: 'Not found' })
   }
 

@@ -287,6 +287,7 @@ const ru: MessageDict = {
   'auth.magicLinkDetail': 'Откройте ссылку из письма в этом браузере',
   'auth.devLoginTitle': 'Dev-вход',
   'auth.noTelegramData': 'Нет данных Telegram. Откройте приложение внутри Telegram.',
+  'auth.telegramRetryHint': 'Не удалось войти. Закройте мини-приложение полностью и откройте снова.',
   'auth.signingIn': 'Входим…',
   'auth.rateLimit': 'Слишком много писем. Подождите и попробуйте снова.',
 
@@ -650,6 +651,7 @@ const ro: MessageDict = {
   'auth.magicLinkDetail': 'Deschideți linkul din email în acest browser',
   'auth.devLoginTitle': 'Dev login',
   'auth.noTelegramData': 'Lipsesc datele Telegram. Deschideți aplicația în Telegram.',
+  'auth.telegramRetryHint': 'Autentificarea a eșuat. Închideți complet mini-aplicația și deschideți-o din nou.',
   'auth.signingIn': 'Se autentifică…',
   'auth.rateLimit': 'Prea multe emailuri. Așteptați și încercați din nou.',
 
@@ -1013,6 +1015,7 @@ const en: MessageDict = {
   'auth.magicLinkDetail': 'Open the link from the email in this browser',
   'auth.devLoginTitle': 'Dev sign-in',
   'auth.noTelegramData': 'No Telegram data. Open the app inside Telegram.',
+  'auth.telegramRetryHint': 'Sign-in failed. Fully close the Mini App and open it again.',
   'auth.signingIn': 'Signing in…',
   'auth.rateLimit': 'Too many emails. Wait and try again.',
 

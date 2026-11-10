@@ -13,17 +13,21 @@ export default defineNuxtPlugin(async () => {
 
   await auth.init()
 
-  // Auto Telegram sign-in only inside a real Mini App (not browser mock).
-  // Browser mock uses Magic Link; Telegram button on /login is manual.
-  if (!auth.isAuthenticated && telegram.isTelegramEnvironment.value) {
+  async function tryTelegramSignIn(): Promise<boolean> {
+    if (!telegram.isTelegramEnvironment.value) return false
     const initDataRaw = telegram.getInitDataRaw()
-    if (initDataRaw) {
-      try {
-        await auth.signInWithTelegram(initDataRaw)
-      } catch {
-        // Leave unauthenticated; login page / guards handle UX
-      }
+    if (!initDataRaw) return false
+    try {
+      await auth.signInWithTelegram(initDataRaw)
+      return true
+    } catch {
+      return false
     }
+  }
+
+  // Auto Telegram sign-in only inside a real Mini App (not browser mock).
+  if (!auth.isAuthenticated) {
+    await tryTelegramSignIn()
   }
 
   if (auth.isAuthenticated) {
@@ -46,14 +50,31 @@ export default defineNuxtPlugin(async () => {
 
   await openPendingInvite()
 
+  let recovering = false
   watch(
     () => auth.isAuthenticated,
-    async (ok) => {
+    async (ok, wasOk) => {
       if (ok) {
         await workspace.loadCurrent()
         await openPendingInvite()
-      } else {
-        workspace.clear()
+        return
+      }
+
+      workspace.clear()
+
+      // Сессия пропала в TMA (refresh fail / storage) — тихо восстановить до /login
+      if (wasOk && telegram.isTelegramEnvironment.value && !recovering) {
+        recovering = true
+        try {
+          const restored = await tryTelegramSignIn()
+          if (restored) {
+            await workspace.loadCurrent()
+            await openPendingInvite()
+            return
+          }
+        } finally {
+          recovering = false
+        }
       }
     },
   )

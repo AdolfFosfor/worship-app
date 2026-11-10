@@ -6,6 +6,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   const auth = useAuthStore()
   const workspace = useWorkspaceStore()
+  const telegram = useTelegramApp()
 
   if (!auth.ready) {
     await auth.init()
@@ -15,6 +16,18 @@ export default defineNuxtRouteMiddleware(async (to) => {
   const isPublic =
     publicPaths.some((p) => to.path === p || to.path.startsWith(`${p}/`)) ||
     to.meta.public === true
+
+  // Сессия пропала в TMA — восстановить до редиректа на /login
+  if (!auth.isAuthenticated && !isPublic && telegram.isTelegramEnvironment.value) {
+    const raw = telegram.getInitDataRaw()
+    if (raw) {
+      try {
+        await auth.signInWithTelegram(raw)
+      } catch {
+        // login page / Telegram retry hint
+      }
+    }
+  }
 
   if (!auth.isAuthenticated && !isPublic) {
     return navigateTo({
