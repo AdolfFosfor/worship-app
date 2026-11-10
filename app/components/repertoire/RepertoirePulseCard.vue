@@ -1,16 +1,20 @@
 <script setup lang="ts">
-import { REPERTOIRE_THRESHOLDS } from '~~/shared/repertoire/thresholds'
+import {
+  REPERTOIRE_THRESHOLDS,
+  type RepertoirePeriodKey,
+} from '~~/shared/repertoire/thresholds'
 import type { RepertoirePulseSummary } from '~~/shared/types'
 import { pluralForm } from '~/utils/i18n/plural'
 import { icons } from '~/utils/icons'
-import { periodLabelKey } from '~/utils/repertoire/period'
+import { REPERTOIRE_PERIODS, periodLabelKey } from '~/utils/repertoire/period'
 
 const props = defineProps<{
   summary: RepertoirePulseSummary
 }>()
 
 const { t, locale } = useAppLocale()
-const { period } = useRepertoirePulse()
+const haptics = useHaptics()
+const { period, setPeriod, loadingSummary } = useRepertoirePulse()
 
 function playsLabel(count: number) {
   return t(`repertoire.playsCount_${pluralForm(count, locale.value)}`, { count })
@@ -30,6 +34,56 @@ const periodCaption = computed(() =>
 /** За всё время «новые» бессмысленны — не показываем. */
 const showNewMetric = computed(() => period.value !== 'all')
 
+const periodMenu = ref<{ top: number; left: number } | null>(null)
+const periodBusy = ref(false)
+
+function closePeriodMenu() {
+  periodMenu.value = null
+}
+
+function togglePeriodMenu(event: MouseEvent) {
+  event.preventDefault()
+  event.stopPropagation()
+  if (periodMenu.value) {
+    closePeriodMenu()
+    return
+  }
+  const el = event.currentTarget as HTMLElement | null
+  if (!el) return
+  const rect = el.getBoundingClientRect()
+  const menuWidth = 168
+  const left = Math.min(
+    Math.max(8, rect.left),
+    Math.max(8, window.innerWidth - menuWidth - 8),
+  )
+  haptics.tap()
+  periodMenu.value = {
+    top: rect.bottom + 6,
+    left,
+  }
+}
+
+async function pickPeriod(next: RepertoirePeriodKey) {
+  closePeriodMenu()
+  if (next === period.value) return
+  periodBusy.value = true
+  haptics.tap()
+  try {
+    await setPeriod(next)
+  } catch {
+    /* error в composable */
+  } finally {
+    periodBusy.value = false
+  }
+}
+
+function onPeriodMenuPointerDown(event: PointerEvent) {
+  const target = event.target as Element | null
+  if (!target) return
+  if (target.closest?.('.pulse-period-menu, .pulse-card__period-pill')) return
+  closePeriodMenu()
+}
+
 function barWidth(plays: number) {
   if (topPlays.value <= 0 || plays <= 0) return 0
   return Math.round((plays / topPlays.value) * 100)
@@ -38,6 +92,14 @@ function barWidth(plays: number) {
 function songLink(id: string) {
   return `/repertoire/songs/${id}`
 }
+
+onMounted(() => {
+  document.addEventListener('pointerdown', onPeriodMenuPointerDown, true)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('pointerdown', onPeriodMenuPointerDown, true)
+})
 </script>
 
 <template>
@@ -45,13 +107,48 @@ function songLink(id: string) {
     <div class="pulse-card__head">
       <div class="pulse-card__titles">
         <h3 class="pulse-card__title">{{ t('repertoire.pulseTitle') }}</h3>
-        <p class="pulse-card__period">{{ periodCaption }}</p>
+        <button
+          type="button"
+          class="pulse-card__period-pill"
+          :class="{ 'is-open': Boolean(periodMenu), 'is-busy': periodBusy || loadingSummary }"
+          :aria-label="t('repertoire.periodAria')"
+          :aria-expanded="Boolean(periodMenu)"
+          aria-haspopup="menu"
+          :disabled="periodBusy || loadingSummary"
+          @click="togglePeriodMenu"
+        >
+          <span>{{ periodCaption }}</span>
+          <AppIcon :name="icons.down" size="0.85rem" class="pulse-card__period-chevron" />
+        </button>
       </div>
       <NuxtLink to="/repertoire" class="pulse-card__more app-press">
         {{ t('repertoire.more') }}
         <AppIcon :name="icons.chevronRight" size="0.95rem" />
       </NuxtLink>
     </div>
+
+    <Teleport to="body">
+      <div
+        v-if="periodMenu"
+        class="pulse-period-menu"
+        role="menu"
+        :aria-label="t('repertoire.periodAria')"
+        :style="{ top: `${periodMenu.top}px`, left: `${periodMenu.left}px` }"
+      >
+        <button
+          v-for="key in REPERTOIRE_PERIODS"
+          :key="key"
+          type="button"
+          class="pulse-period-menu__item"
+          :class="{ 'pulse-period-menu__item--on': period === key }"
+          role="menuitemradio"
+          :aria-checked="period === key"
+          @click="pickPeriod(key)"
+        >
+          {{ t(periodLabelKey(key)) }}
+        </button>
+      </div>
+    </Teleport>
 
     <div
       class="pulse-card__metrics"
@@ -64,7 +161,9 @@ function songLink(id: string) {
         class="pulse-card__metric pulse-card__metric--all app-press"
         :aria-label="`${summary.uniqueSongs} ${t('repertoire.metricUnique')}`"
       >
-        <span class="pulse-card__value">{{ summary.uniqueSongs }}</span>
+        <span class="pulse-card__value">
+          <AppAnimatedNumber cache-key="pulse:unique" :value="summary.uniqueSongs" />
+        </span>
         <span class="pulse-card__label">{{ t('repertoire.metricUnique') }}</span>
       </NuxtLink>
 
@@ -74,7 +173,9 @@ function songLink(id: string) {
         class="pulse-card__metric pulse-card__metric--new app-press"
         :aria-label="`${summary.newSongs} ${t('repertoire.metricNew')}`"
       >
-        <span class="pulse-card__value">{{ summary.newSongs }}</span>
+        <span class="pulse-card__value">
+          <AppAnimatedNumber cache-key="pulse:new" :value="summary.newSongs" />
+        </span>
         <span class="pulse-card__label">{{ t('repertoire.metricNew') }}</span>
       </NuxtLink>
 
@@ -83,14 +184,16 @@ function songLink(id: string) {
         class="pulse-card__metric pulse-card__metric--stale app-press"
         :aria-label="`${summary.staleCount} ${t('repertoire.metricStale')}`"
       >
-        <span class="pulse-card__value">{{ summary.staleCount }}</span>
+        <span class="pulse-card__value">
+          <AppAnimatedNumber cache-key="pulse:stale" :value="summary.staleCount" />
+        </span>
         <span class="pulse-card__label">{{ t('repertoire.metricStale') }}</span>
       </NuxtLink>
     </div>
 
     <div v-if="frequent.length" class="pulse-card__favorites">
       <span class="pulse-card__block-title">{{ t('repertoire.sectionFavorites') }}</span>
-      <ul class="pulse-card__list">
+      <TransitionGroup name="pulse-fav" tag="ul" class="pulse-card__list">
         <li
           v-for="(item, index) in frequent"
           :key="item.id"
@@ -103,7 +206,7 @@ function songLink(id: string) {
               <div class="pulse-card__fav-row">
                 <span class="pulse-card__fav-title">{{ item.title }}</span>
                 <span class="pulse-card__fav-plays">
-                  {{ playsLabel(item.total) }}
+                  <RepertoireAnimatedPlays :song-id="item.id" :count="item.total" />
                 </span>
               </div>
               <div
@@ -114,15 +217,16 @@ function songLink(id: string) {
                 aria-valuemax="100"
                 :aria-label="playsLabel(item.total)"
               >
-                <span
-                  class="pulse-card__bar-fill"
-                  :style="{ width: `${barWidth(item.total)}%` }"
+                <RepertoireAnimatedBar
+                  :song-id="item.id"
+                  :percent="barWidth(item.total)"
+                  :lead="index === 0"
                 />
               </div>
             </div>
           </NuxtLink>
         </li>
-      </ul>
+      </TransitionGroup>
     </div>
 
     <p v-else-if="summary.executionCount === 0" class="pulse-card__hint">
@@ -152,7 +256,7 @@ function songLink(id: string) {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: 0.4rem;
 }
 
 .pulse-card__title {
@@ -164,11 +268,48 @@ function songLink(id: string) {
   color: var(--app-ink);
 }
 
-.pulse-card__period {
+.pulse-card__period-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 1.55rem;
   margin: 0;
-  font-size: var(--app-text-xs);
-  font-weight: 550;
+  padding: 0.15rem 0.45rem 0.15rem 0.55rem;
+  border: 0;
+  border-radius: var(--app-radius-pill);
+  background: var(--app-hover);
   color: var(--app-muted);
+  font: inherit;
+  font-size: var(--app-text-xs);
+  font-weight: 650;
+  line-height: 1.2;
+  cursor: pointer;
+  transition:
+    background-color var(--app-duration) var(--app-ease),
+    color var(--app-duration) var(--app-ease);
+}
+
+.pulse-card__period-pill:hover,
+.pulse-card__period-pill.is-open {
+  background: var(--app-accent-muted);
+  color: var(--app-accent-text);
+}
+
+.pulse-card__period-pill:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.pulse-card__period-chevron {
+  flex-shrink: 0;
+  opacity: 0.75;
+  transition: transform var(--app-duration) var(--app-ease);
+}
+
+.pulse-card__period-pill.is-open .pulse-card__period-chevron {
+  transform: rotate(180deg);
 }
 
 .pulse-card__more {
@@ -283,6 +424,38 @@ function songLink(id: string) {
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
+  position: relative;
+}
+
+.pulse-fav-move {
+  transition: transform 0.85s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.pulse-fav-enter-active,
+.pulse-fav-leave-active {
+  transition:
+    opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.pulse-fav-enter-from,
+.pulse-fav-leave-to {
+  opacity: 0;
+  transform: translateY(0.35rem);
+}
+
+.pulse-fav-leave-active {
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse-fav-move,
+  .pulse-fav-enter-active,
+  .pulse-fav-leave-active {
+    transition: none;
+  }
 }
 
 .pulse-card__fav-link {
@@ -364,17 +537,6 @@ function songLink(id: string) {
   overflow: hidden;
 }
 
-.pulse-card__bar-fill {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: color-mix(in srgb, var(--app-accent) 55%, var(--app-muted));
-}
-
-.pulse-card__fav--lead .pulse-card__bar-fill {
-  background: var(--app-accent);
-}
-
 .pulse-card__hint {
   margin: 0;
   font-size: var(--app-text-sm);
@@ -400,5 +562,50 @@ function songLink(id: string) {
   .pulse-card__label {
     font-size: 0.62rem;
   }
+}
+</style>
+
+<style>
+/* Teleport to body — как chart-type-menu */
+.pulse-period-menu {
+  position: fixed;
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  width: min(10.5rem, calc(100vw - 1rem));
+  padding: 0.3rem;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-lg);
+  background: var(--app-surface);
+  color: var(--app-ink);
+  box-shadow: var(--app-shadow-soft);
+}
+
+.pulse-period-menu__item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 2.1rem;
+  padding: 0.35rem 0.55rem;
+  border: 0;
+  border-radius: var(--app-radius-sm);
+  background: transparent;
+  color: var(--app-ink);
+  font: inherit;
+  font-size: var(--app-text-sm);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pulse-period-menu__item:hover,
+.pulse-period-menu__item:active {
+  background: var(--app-hover);
+}
+
+.pulse-period-menu__item--on {
+  background: var(--app-accent-muted);
+  color: var(--app-accent-text);
 }
 </style>

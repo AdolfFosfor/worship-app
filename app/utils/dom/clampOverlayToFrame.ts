@@ -5,10 +5,14 @@
 
 const PAD = 8
 
+type PopoverLike = {
+  $el?: unknown
+  container?: unknown
+  target?: unknown
+} | null | undefined
+
 /** Корень видимого Popover после appendTo / teleport. */
-export function resolvePopoverEl(
-  instance: { $el?: unknown; container?: unknown } | null | undefined,
-): HTMLElement | null {
+export function resolvePopoverEl(instance: PopoverLike): HTMLElement | null {
   if (!import.meta.client || !instance) return null
 
   const fromContainer = instance.container
@@ -65,7 +69,6 @@ export function clampOverlayToFrame(el: HTMLElement | null | undefined, pad = PA
   const style = el.style
 
   if (dx) {
-    // PrimeVue absolutePosition → insetInlineStart (не left)
     const insetRaw = style.insetInlineStart
     const leftRaw = style.left
     if (insetRaw && insetRaw !== 'auto') {
@@ -89,18 +92,8 @@ export function clampOverlayToFrame(el: HTMLElement | null | undefined, pad = PA
   }
 }
 
-/** После show PrimeVue — догоняем ResizeObserver realign. */
+/** Один кламп на show — без повторных сдвигов во время enter-анимации. */
 export function clampOverlayToFrameAfterShow(el: HTMLElement | null | undefined) {
   if (!import.meta.client || !el) return
-
-  const run = () => clampOverlayToFrame(el)
-  run()
-  requestAnimationFrame(() => {
-    run()
-    requestAnimationFrame(() => {
-      run()
-      window.setTimeout(run, 32)
-      window.setTimeout(run, 120)
-    })
-  })
+  clampOverlayToFrame(el)
 }
