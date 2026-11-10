@@ -158,13 +158,20 @@ function formatDatePill(iso: string) {
               class="home-hero__songs app-chip-row"
               :aria-label="t('home.ariaSetlistSongs')"
             >
-              <AppPill
+              <NuxtLink
                 v-for="item in upcoming.items"
                 :key="item.id"
-                tone="soft"
+                :to="{
+                  path: `/songs/${item.songId}`,
+                  query: {
+                    key: item.key ?? item.song.key,
+                    from: `/setlists/${upcoming.id}`,
+                  },
+                }"
+                class="home-hero__song-link"
               >
-                {{ item.song.title }}
-              </AppPill>
+                <AppPill tone="soft">{{ item.song.title }}</AppPill>
+              </NuxtLink>
             </div>
           </template>
           <div v-else class="home-hero__empty">
@@ -229,6 +236,26 @@ function formatDatePill(iso: string) {
 
 .home-hero__songs {
   padding: 0 var(--app-space-5) var(--app-space-5);
+}
+
+.home-hero__song-link {
+  display: inline-flex;
+  max-width: 100%;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  border-radius: var(--app-radius-pill);
+  transition: opacity 200ms var(--app-ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .home-hero__song-link:hover {
+    opacity: 0.78;
+  }
+}
+
+.home-hero__song-link:active {
+  opacity: 0.65;
 }
 
 .home-hero__empty {

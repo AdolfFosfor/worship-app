@@ -22,8 +22,9 @@ const { requireDanger } = useAppConfirm()
 const haptics = useHaptics()
 
 const id = computed(() => String(route.params.id))
-const setlist = ref<SetlistWithItems | null>(null)
-const loading = ref(true)
+const { peekSetlist } = useSetlistCache()
+const setlist = ref<SetlistWithItems | null>(peekSetlist(id.value))
+const loading = ref(!setlist.value)
 const error = ref<string | null>(null)
 const pickerVisible = ref(false)
 const pickerQuery = ref('')
@@ -141,13 +142,21 @@ function unbindArmListeners(el: HTMLElement | null) {
 }
 
 async function load(opts?: { quiet?: boolean }) {
-  if (!opts?.quiet) loading.value = true
+  const cached = peekSetlist(id.value)
+  if (cached) {
+    setlist.value = cached
+    loading.value = false
+  } else if (!opts?.quiet) {
+    loading.value = true
+  }
   error.value = null
   try {
-    setlist.value = await getSetlist(id.value)
+    setlist.value = await getSetlist(id.value, {
+      force: Boolean(opts?.quiet) || !cached,
+    })
     markSetlistsSynced()
   } catch (e) {
-    error.value = e instanceof Error ? e.message : t('common.notFound')
+    if (!setlist.value) error.value = e instanceof Error ? e.message : t('common.notFound')
   } finally {
     loading.value = false
   }

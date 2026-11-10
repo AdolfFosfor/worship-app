@@ -16,13 +16,16 @@ const { t, sessionTitle, locale } = useAppLocale()
 const dateLocaleTag = computed(
   () => ({ ru: 'ru-RU', ro: 'ro-RO', en: 'en-GB' })[locale.value] ?? 'en-GB',
 )
-const { getSong } = useSongs()
+const { getSong, peekSong, updateSong } = useSongs()
 const { syncSongsOnActivate } = useSongsRevision()
 const { fetchSetlists, songInSetlist, addSongToSetlist, getSetlist } = useSetlists()
+const { rememberSetlist, peekSetlist } = useSetlistCache()
 const toast = useToast()
+const haptics = useHaptics()
 
-const song = ref<Song | null>(null)
-const loading = ref(true)
+const id = computed(() => String(route.params.id))
+const song = ref<Song | null>(peekSong(id.value))
+const loading = ref(!song.value)
 const error = ref<string | null>(null)
 const pickerVisible = ref(false)
 const pickerLoading = ref(false)
@@ -46,7 +49,6 @@ const capoOpen = ref(false)
 /** Держим FS между песнями сет-листа (навигация remount'ит страницу). */
 const stageFullscreen = useState('chord-stage-fullscreen', () => false)
 
-const id = computed(() => String(route.params.id))
 const showAddToSetlist = computed(() => workspace.canEditSetlists)
 const showSongManage = computed(() => workspace.canEditSongs)
 
@@ -201,6 +203,174 @@ function syncViewFromSong(next: Song) {
   }
 }
 
+if (song.value) syncViewFromSong(song.value)
+
+const TITLE_MAX_LEN = 48
+const titleFocused = ref(false)
+const titleEl = ref<HTMLElement | null>(null)
+const titleBusy = ref(false)
+const canEditTitle = computed(() => workspace.canEditSongs)
+
+async function syncTitleEl(raw?: string | null) {
+  await nextTick()
+  if (!titleEl.value || titleFocused.value) return
+  const value = raw ?? song.value?.title
+  if (value == null) return
+  if (titleEl.value.textContent !== value) {
+    titleEl.value.textContent = value
+  }
+}
+
+watch(
+  () => song.value?.title,
+  (next) => {
+    void syncTitleEl(next)
+  },
+)
+
+watch(titleEl, () => {
+  void syncTitleEl()
+})
+
+function readTitleText() {
+  return (titleEl.value?.innerText ?? '').replace(/\s+/g, ' ').trim()
+}
+
+function placeTitleCaretAtEnd() {
+  const el = titleEl.value
+  if (!el) return
+  const range = document.createRange()
+  range.selectNodeContents(el)
+  range.collapse(false)
+  const sel = window.getSelection()
+  sel?.removeAllRanges()
+  sel?.addRange(range)
+}
+
+function onTitlePointerDown(event: PointerEvent) {
+  event.preventDefault()
+  const el = titleEl.value
+  if (!el || !song.value) return
+  if (!titleFocused.value) {
+    titleFocused.value = true
+    haptics.tap()
+  }
+  el.focus({ preventScroll: true })
+  placeTitleCaretAtEnd()
+}
+
+function onTitleFocus() {
+  if (!song.value) return
+  titleFocused.value = true
+  placeTitleCaretAtEnd()
+}
+
+function onTitleKeydown(event: KeyboardEvent) {
+  if (event.key === 'Enter') {
+    event.preventDefault()
+    titleEl.value?.blur()
+    return
+  }
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    if (song.value && titleEl.value) {
+      titleEl.value.textContent = song.value.title
+    }
+    titleEl.value?.blur()
+  }
+}
+
+function onTitleBeforeInput(event: Event) {
+  const e = event as InputEvent
+  if (!e.inputType.startsWith('insert')) return
+  const el = titleEl.value
+  if (!el) return
+  const sel = window.getSelection()
+  const selected = sel?.toString().length ?? 0
+  const len = (el.innerText || '').length - selected
+  const incoming = e.data?.length ?? 1
+  if (len + incoming > TITLE_MAX_LEN) {
+    e.preventDefault()
+  }
+}
+
+function onTitlePaste(event: ClipboardEvent) {
+  event.preventDefault()
+  const el = titleEl.value
+  if (!el) return
+  const paste = event.clipboardData?.getData('text/plain') ?? ''
+  const sel = window.getSelection()
+  const selected = sel?.toString().length ?? 0
+  const current = el.innerText || ''
+  const room = TITLE_MAX_LEN - (current.length - selected)
+  if (room <= 0) return
+  document.execCommand('insertText', false, paste.slice(0, room))
+}
+
+function patchCachedSongTitle(songId: string, title: string) {
+  const stage = setlistContext.value
+  if (stage) {
+    const next = {
+      ...stage,
+      items: stage.items.map((item) =>
+        item.songId === songId ? { ...item, song: { ...item.song, title } } : item,
+      ),
+    }
+    setlistContext.value = next
+    rememberSetlist(next)
+  }
+  const cachedSl = peekSetlist(setlistContextId.value ?? '')
+  if (cachedSl && cachedSl.id !== stage?.id) {
+    rememberSetlist({
+      ...cachedSl,
+      items: cachedSl.items.map((item) =>
+        item.songId === songId ? { ...item, song: { ...item.song, title } } : item,
+      ),
+    })
+  }
+}
+
+async function commitTitle() {
+  titleFocused.value = false
+  if (!song.value || titleBusy.value) return
+  const next = readTitleText().slice(0, TITLE_MAX_LEN)
+  if (!next) {
+    if (titleEl.value) titleEl.value.textContent = song.value.title
+    return
+  }
+  if (titleEl.value) titleEl.value.textContent = next
+  if (next === song.value.title) return
+
+  titleBusy.value = true
+  const prev = song.value.title
+  song.value = { ...song.value, title: next }
+  patchCachedSongTitle(song.value.id, next)
+  try {
+    await updateSong(song.value.id, {
+      title: next,
+      key: song.value.key,
+      capo: song.value.capo,
+      bpm: song.value.bpm,
+      chords: song.value.chords,
+      chordChart: song.value.chordChart,
+      lyrics: song.value.lyrics,
+      youtubeUrl: song.value.youtubeUrl,
+    })
+  } catch (e) {
+    song.value = { ...song.value, title: prev }
+    patchCachedSongTitle(song.value.id, prev)
+    if (titleEl.value) titleEl.value.textContent = prev
+    toast.add({
+      severity: 'error',
+      summary: t('common.error'),
+      detail: e instanceof Error ? e.message : t('common.saveFailed'),
+      life: 4000,
+    })
+  } finally {
+    titleBusy.value = false
+  }
+}
+
 function toggleCapoPanel() {
   capoOpen.value = !capoOpen.value
 }
@@ -218,14 +388,24 @@ function formatSetlistDate(iso: string) {
 }
 
 async function load(opts?: { quiet?: boolean }) {
-  if (!opts?.quiet) loading.value = true
+  const cached = peekSong(id.value)
+  if (cached) {
+    song.value = cached
+    syncViewFromSong(cached)
+    loading.value = false
+  } else if (!opts?.quiet) {
+    loading.value = true
+  }
   error.value = null
   try {
-    song.value = await getSong(id.value)
+    // С кэша — сразу; force при quiet/ревизии или если кэша не было
+    song.value = await getSong(id.value, {
+      force: Boolean(opts?.quiet) || !cached,
+    })
     syncViewFromSong(song.value)
     markSongsSynced()
   } catch (e) {
-    error.value = e instanceof Error ? e.message : t('songs.notFound')
+    if (!song.value) error.value = e instanceof Error ? e.message : t('songs.notFound')
   } finally {
     loading.value = false
   }
@@ -237,7 +417,7 @@ onMounted(() => {
 })
 
 onActivated(() => {
-  // KeepAlive: при возврате на закэшированную песню подтягиваем актуальные данные
+  // KeepAlive: другая песня в этом инстансе или устаревший кэш
   if (song.value?.id !== id.value) void load({ quiet: true })
 })
 
@@ -308,7 +488,25 @@ async function addToSetlist(setlist: Setlist) {
     <AppLoading v-if="loading" />
     <AppError v-else-if="error" :message="error" @retry="load" />
     <template v-else-if="song">
-      <AppHeader :title="song.title">
+      <AppHeader>
+        <template #title>
+          <h1
+            v-if="canEditTitle"
+            ref="titleEl"
+            class="song-view__title song-view__title--editable"
+            :class="{ 'is-editing': titleFocused }"
+            contenteditable="true"
+            spellcheck="false"
+            :aria-label="t('song.editTitleAria')"
+            @pointerdown="onTitlePointerDown"
+            @focus="onTitleFocus"
+            @blur="commitTitle"
+            @keydown="onTitleKeydown"
+            @beforeinput="onTitleBeforeInput"
+            @paste="onTitlePaste"
+          />
+          <h1 v-else class="song-view__title">{{ song.title }}</h1>
+        </template>
         <template v-if="showAddToSetlist" #trailing>
           <button
             type="button"
@@ -495,6 +693,42 @@ async function addToSetlist(setlist: Setlist) {
 </template>
 
 <style scoped>
+.song-view__title {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 2.125rem !important;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.12;
+  color: var(--app-ink);
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.song-view__title--editable {
+  cursor: pointer;
+  outline: none;
+  caret-color: var(--app-accent-text);
+  box-shadow: inset 0 -1.5px 0 transparent;
+  transition: box-shadow 160ms var(--app-ease);
+}
+
+.song-view__title--editable.is-editing {
+  text-overflow: clip;
+  box-shadow: inset 0 -1.5px 0 var(--app-accent);
+}
+
+.song-view__title--editable::selection {
+  background: color-mix(in srgb, var(--app-accent) 22%, transparent);
+}
+
 .song-view__setlist-nav {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);

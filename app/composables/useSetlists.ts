@@ -59,6 +59,7 @@ export function useSetlistsRevision() {
 
 export function useSetlists() {
   const { bumpSetlistsRevision } = useSetlistsRevision()
+  const { peekSetlist, forgetSetlist } = useSetlistCache()
   const setlists = ref<Setlist[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
@@ -125,10 +126,23 @@ export function useSetlists() {
       items: mapJoinedItems(row.setlist_items),
     }
     upcoming.value = result
+    warmSetlistSession(result)
     return result
   }
 
-  async function getSetlist(id: string): Promise<SetlistWithItems> {
+  async function getSetlist(
+    id: string,
+    opts?: { force?: boolean },
+  ): Promise<SetlistWithItems> {
+    if (!opts?.force) {
+      if (upcoming.value?.id === id) {
+        warmSetlistSession(upcoming.value)
+        return upcoming.value
+      }
+      const cached = peekSetlist(id)
+      if (cached) return cached
+    }
+
     const supabase = getSupabaseBrowserClient()
     const { data, error: setlistError } = await supabase
       .from('setlists')
@@ -145,6 +159,7 @@ export function useSetlists() {
     if (upcoming.value?.id === result.id) {
       upcoming.value = result
     }
+    warmSetlistSession(result)
     return result
   }
 
@@ -194,6 +209,10 @@ export function useSetlists() {
     const { error: qError } = await supabase.from('setlists').delete().eq('id', id)
     if (qError) throw qError
     setlists.value = setlists.value.filter((s) => s.id !== id)
+    forgetSetlist(id)
+    if (upcoming.value?.id === id) upcoming.value = null
+    const stageSetlist = useState<SetlistWithItems | null>('chord-stage-setlist', () => null)
+    if (stageSetlist.value?.id === id) stageSetlist.value = null
     bumpSetlistsRevision()
   }
 
@@ -290,6 +309,7 @@ export function useSetlists() {
     loading,
     error,
     upcoming,
+    peekSetlist,
     fetchSetlists,
     getUpcoming,
     getSetlist,

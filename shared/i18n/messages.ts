@@ -191,6 +191,7 @@ const ru: MessageDict = {
   'songs.library': 'Библиотека',
 
   'song.fieldTitle': 'Название',
+  'song.editTitleAria': 'Изменить название',
   'song.titlePlaceholder': 'Название песни',
   'song.fieldKey': 'Тональность',
   'song.fieldCapo': 'Капо',
@@ -561,6 +562,7 @@ const ro: MessageDict = {
   'songs.library': 'Bibliotecă',
 
   'song.fieldTitle': 'Titlu',
+  'song.editTitleAria': 'Editează titlul',
   'song.titlePlaceholder': 'Titlul cântecului',
   'song.fieldKey': 'Tonalitate',
   'song.fieldCapo': 'Capo',
@@ -930,6 +932,7 @@ const en: MessageDict = {
   'songs.library': 'Library',
 
   'song.fieldTitle': 'Title',
+  'song.editTitleAria': 'Edit title',
   'song.titlePlaceholder': 'Song title',
   'song.fieldKey': 'Key',
   'song.fieldCapo': 'Capo',

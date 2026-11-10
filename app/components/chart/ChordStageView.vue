@@ -509,12 +509,32 @@ onBeforeUnmount(() => {
   font-size: var(--app-text-xs);
   font-weight: 750;
   cursor: pointer;
+  transition:
+    background-color 220ms var(--app-ease),
+    color 220ms var(--app-ease),
+    opacity 220ms var(--app-ease);
 }
 
 .chord-stage__size--active {
   background: var(--app-surface);
   color: var(--app-ink);
   box-shadow: var(--app-shadow-soft);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .chord-stage__size:hover:not(.chord-stage__size--active) {
+    color: color-mix(in srgb, var(--app-ink) 72%, var(--app-muted));
+    background: color-mix(in srgb, var(--app-surface) 55%, transparent);
+  }
+
+  .chord-stage__size--active:hover {
+    opacity: 0.92;
+  }
+}
+
+.chord-stage__size:active:not(.chord-stage__size--active) {
+  color: var(--app-ink);
+  background: color-mix(in srgb, var(--app-surface) 75%, transparent);
 }
 
 .chord-stage__fs {

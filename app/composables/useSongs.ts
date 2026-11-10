@@ -78,6 +78,7 @@ async function requireAuthSession() {
 export function useSongs() {
   const { bumpSongsRevision } = useSongsRevision()
   const { bumpSetlistsRevision } = useSetlistsRevision()
+  const { peekSong, rememberSong, rememberSongs, forgetSong } = useSongCache()
   const songs = ref<Song[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
@@ -113,6 +114,7 @@ export function useSongs() {
       const { data, error: qError } = await q
       if (qError) throw qError
       songs.value = ((data ?? []) as DbSong[]).map(mapSong)
+      rememberSongs(songs.value)
       return songs.value
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Не удалось загрузить песни'
@@ -122,11 +124,17 @@ export function useSongs() {
     }
   }
 
-  async function getSong(id: string) {
+  async function getSong(id: string, opts?: { force?: boolean }) {
+    if (!opts?.force) {
+      const cached = peekSong(id)
+      if (cached) return cached
+    }
     const supabase = getSupabaseBrowserClient()
     const { data, error: qError } = await supabase.from('songs').select('*').eq('id', id).single()
     if (qError) throw qError
-    return mapSong(data as DbSong)
+    const song = mapSong(data as DbSong)
+    rememberSong(song)
+    return song
   }
 
   async function createSong(input: SongInput) {
@@ -148,6 +156,7 @@ export function useSongs() {
     if (qError) throw new Error(queryErrorMessage(qError))
     const song = mapSong(data as DbSong)
     songs.value = [...songs.value, song].sort((a, b) => a.title.localeCompare(b.title, 'ru'))
+    rememberSong(song)
     bumpSongDependents()
     return song
   }
@@ -164,6 +173,7 @@ export function useSongs() {
     if (qError) throw new Error(queryErrorMessage(qError))
     const song = mapSong(data as DbSong)
     songs.value = songs.value.map((s) => (s.id === id ? song : s))
+    rememberSong(song)
     bumpSongDependents()
     return song
   }
@@ -173,6 +183,7 @@ export function useSongs() {
     const { error: qError } = await supabase.from('songs').delete().eq('id', id)
     if (qError) throw qError
     songs.value = songs.value.filter((s) => s.id !== id)
+    forgetSong(id)
     bumpSongDependents()
   }
 
@@ -180,6 +191,7 @@ export function useSongs() {
     songs,
     loading,
     error,
+    peekSong,
     fetchSongs,
     getSong,
     createSong,
