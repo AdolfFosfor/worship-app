@@ -117,6 +117,26 @@ function parseBarsLine(line: string): ChartBar[] {
   return nonEmpty.length ? nonEmpty : [createBar()]
 }
 
+/** Strip markdown/bold stars and normalize section separators for legacy text. */
+export function normalizeLegacyChordsText(text: string | null | undefined): string {
+  return (text ?? '')
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .map((original) => {
+      let line = original.trim()
+      if (!line) return ''
+      // *Verse: ...* / **chords** / stray emphasis
+      line = line.replace(/^\*+\s*/, '').replace(/\s*\*+$/, '').replace(/\*+/g, '')
+      line = line.replace(/\s{2,}/g, ' ').trim()
+      // x2/x3/x4 → ×2/×3/×4
+      line = line.replace(/\b[xх](\d+)\b/gi, '×$1')
+      return line
+    })
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
 /**
  * Best-effort conversion of free-form chord text into a structured chart.
  */
@@ -124,7 +144,7 @@ export function parseLegacyChords(text: string | null | undefined): ChordChart {
   const chart = createEmptyChart('4/4')
   chart.sections = []
 
-  const raw = (text ?? '').replace(/\r\n/g, '\n').trim()
+  const raw = normalizeLegacyChordsText(text)
   if (!raw) {
     chart.sections = [createSection('verse')]
     return chart

@@ -3,7 +3,7 @@ import type { Setlist, SetlistWithItems, Song } from '~~/shared/types'
 import type { StagePlaylistInfo } from '~/components/chart/ChordStageView.vue'
 import { icons } from '~/utils/icons'
 import { clampCapo, soundingKey } from '~/utils/music/capo'
-import { transposeChart } from '~/utils/music/chart'
+import { normalizeLegacyChordsText, transposeChart } from '~/utils/music/chart'
 import { keyDistance, transposeKeyLabel } from '~/utils/music/keys'
 import { transposeText } from '~/utils/music/transpose'
 import { localTodayKey } from '~/utils/dates'
@@ -78,7 +78,7 @@ const semitones = computed(() => {
 })
 
 const displayChords = computed(() =>
-  transposeText(song.value?.chords, semitones.value),
+  transposeText(normalizeLegacyChordsText(song.value?.chords), semitones.value),
 )
 
 const displayChart = computed(() => {
