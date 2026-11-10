@@ -8,6 +8,7 @@ const workspace = useWorkspaceStore()
 const telegram = useTelegramApp()
 const toast = useToast()
 const { locale, localeOptions, setLocale, t } = useAppLocale()
+const isDev = import.meta.dev
 
 const displayNameInput = ref(resolveAuthDisplayName(auth.user))
 const emailInput = ref('')
@@ -261,6 +262,13 @@ async function submitTelegram() {
       />
       <p class="settings-block__hint">{{ t('settings.languageHint') }}</p>
     </section>
+
+    <section v-if="isDev" class="settings-block app-panel">
+      <h2 class="settings-block__title">Debug</h2>
+      <NuxtLink to="/dev/ui" class="app-cta app-cta--ghost settings-debug-link">
+        UI Lab — тосты и оверлеи
+      </NuxtLink>
+    </section>
   </div>
 </template>
 
@@ -341,5 +349,10 @@ async function submitTelegram() {
 
 .settings-locale :deep(.p-select-dropdown) {
   width: 2.75rem;
+}
+
+.settings-debug-link {
+  width: 100%;
+  text-align: center;
 }
 </style>

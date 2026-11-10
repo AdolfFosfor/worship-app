@@ -7,6 +7,8 @@ import { normalizeLegacyChordsText, transposeChart } from '~/utils/music/chart'
 import { keyDistance, transposeKeyLabel } from '~/utils/music/keys'
 import { transposeText } from '~/utils/music/transpose'
 import { localTodayKey } from '~/utils/dates'
+import { songThemeMessageKey } from '~~/shared/songs/library'
+import { songToInput } from '~/utils/mappers'
 import { safeInternalPath } from '~/utils/safeInternalPath'
 
 const route = useRoute()
@@ -61,6 +63,16 @@ const capoToggleAria = computed(() =>
 const originalSounding = computed(() =>
   song.value ? soundingKey(song.value.key, song.value.capo) : '',
 )
+
+const libraryTags = computed(() => {
+  if (!song.value) return []
+  const types = song.value.types.map((type) => t(`songs.type.${type}`))
+  const themes = song.value.themes.map((theme) => {
+    const key = songThemeMessageKey(theme)
+    return key ? t(key) : theme
+  })
+  return [...types, ...themes]
+})
 
 const capoBadge = computed(() => {
   const fret = capoOpen.value ? clampCapo(viewCapo.value) : (song.value?.capo ?? 0)
@@ -347,14 +359,8 @@ async function commitTitle() {
   patchCachedSongTitle(song.value.id, next)
   try {
     await updateSong(song.value.id, {
+      ...songToInput(song.value),
       title: next,
-      key: song.value.key,
-      capo: song.value.capo,
-      bpm: song.value.bpm,
-      chords: song.value.chords,
-      chordChart: song.value.chordChart,
-      lyrics: song.value.lyrics,
-      youtubeUrl: song.value.youtubeUrl,
     })
   } catch (e) {
     song.value = { ...song.value, title: prev }
@@ -557,11 +563,16 @@ async function addToSetlist(setlist: Setlist) {
       <section class="song-view__panel app-panel">
         <div class="song-view__row song-view__row--head">
           <div class="song-view__copy">
+            <p v-if="song.artist" class="song-view__artist">{{ song.artist }}</p>
             <span class="song-view__label">{{ t('songs.originalKey') }}</span>
             <p class="song-view__original">{{ originalSounding }}</p>
-            <p v-if="song.bpm" class="song-view__bpm">
-              {{ song.bpm }}
-              <span>{{ t('song.bpmUnit') }}</span>
+            <p v-if="song.bpm || song.timeSignature" class="song-view__bpm">
+              <template v-if="song.bpm">
+                {{ song.bpm }}
+                <span>{{ t('song.bpmUnit') }}</span>
+              </template>
+              <template v-if="song.bpm && song.timeSignature"> · </template>
+              <template v-if="song.timeSignature">{{ song.timeSignature }}</template>
             </p>
           </div>
           <button
@@ -587,6 +598,14 @@ async function addToSetlist(setlist: Setlist) {
           </p>
         </div>
       </section>
+
+      <div v-if="libraryTags.length" class="song-view__tags">
+        <span
+          v-for="(tag, index) in libraryTags"
+          :key="`${tag}-${index}`"
+          class="app-pill app-pill--soft"
+        >{{ tag }}</span>
+      </div>
 
       <AppSection v-if="displayChart" :title="t('song.fieldChords')">
         <ChordStageView
@@ -834,6 +853,14 @@ async function addToSetlist(setlist: Setlist) {
   color: var(--app-section-header);
 }
 
+.song-view__artist {
+  margin: 0 0 0.35rem;
+  font-size: var(--app-text-sm);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--app-muted);
+}
+
 .song-view__original {
   margin: 0;
   font-size: var(--app-text-2xl);
@@ -856,6 +883,12 @@ async function addToSetlist(setlist: Setlist) {
   font-size: var(--app-text-xs);
   font-weight: 700;
   letter-spacing: 0.02em;
+}
+
+.song-view__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
 }
 
 .song-view__capo-btn {

@@ -23,8 +23,11 @@ export const icons = {
   save: 'diskette-bold',
   /** Текст песни (lyrics) */
   documentText: 'document-text-bold',
-  /** Доп. данные песни: текст, YouTube, BPM… */
-  extras: 'paperclip-rounded-2-bold',
+  /** Меню характеристик песни: текст, тип, тематика, размер, темп */
+  extras: 'widget-5-bold',
+  tag: 'tag-bold',
+  tagHorizontal: 'tag-horizontal-bold',
+  notes: 'music-notes-bold',
   copy: 'copy-linear',
   share: 'share-bold',
   link: 'link-round-linear',

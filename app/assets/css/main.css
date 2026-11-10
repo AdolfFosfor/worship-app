@@ -576,44 +576,6 @@ body {
   background: var(--app-press);
 }
 
-/* Иконки «есть текст / YouTube» рядом с кнопкой extras */
-.app-header-extras {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-.app-header-extras__marks {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  pointer-events: none;
-}
-
-.app-header-extras__mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.65rem;
-  height: 1.65rem;
-  border-radius: var(--app-radius-pill);
-}
-
-.app-header-extras__mark .app-icon {
-  width: 1rem !important;
-  height: 1rem !important;
-}
-
-.app-header-extras__mark--lyrics {
-  color: var(--app-accent-text);
-  background: var(--app-accent-muted);
-}
-
-.app-header-extras__mark--youtube {
-  color: #ff0033;
-  background: color-mix(in srgb, #ff0033 14%, transparent);
-}
-
 /* Header trailing actions — filled circular control */
 .app-header-action {
   display: inline-flex;

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { SongInput } from '~~/shared/types'
 import type { SongExtraKind } from '~/components/SongForm.vue'
+import { songToInput } from '~/utils/mappers'
 import { icons } from '~/utils/icons'
 import { safeInternalPath } from '~/utils/safeInternalPath'
 
@@ -13,9 +14,13 @@ const toast = useToast()
 const id = computed(() => String(route.params.id))
 const form = ref<SongInput>({
   title: '',
+  artist: null,
   key: 'G',
   capo: 0,
   bpm: null,
+  types: [],
+  themes: [],
+  timeSignature: null,
   chords: null,
   chordChart: null,
   lyrics: '',
@@ -48,16 +53,7 @@ onMounted(async () => {
   }
   try {
     const song = await getSong(id.value)
-    form.value = {
-      title: song.title,
-      key: song.key,
-      capo: song.capo,
-      bpm: song.bpm,
-      chords: song.chords,
-      chordChart: song.chordChart,
-      lyrics: song.lyrics,
-      youtubeUrl: song.youtubeUrl,
-    }
+    form.value = songToInput(song)
   } catch (e) {
     error.value = e instanceof Error ? e.message : t('common.notFound')
   } finally {
@@ -74,10 +70,6 @@ function pickExtra(kind: SongExtraKind) {
   songForm.value?.openExtra(kind)
   extrasMenu.value?.close()
 }
-
-const hasLyrics = computed(() => Boolean(form.value.lyrics?.trim()))
-const hasYoutube = computed(() => Boolean(form.value.youtubeUrl?.trim()))
-const hasExtras = computed(() => hasLyrics.value || hasYoutube.value)
 
 function errorDetail(e: unknown): string {
   if (e instanceof Error && e.message) return e.message
@@ -110,29 +102,15 @@ async function save() {
   <div class="app-page">
     <AppHeader :title="t('songs.editTitle')">
       <template #trailing>
-        <div class="app-header-extras">
-          <span
-            v-if="hasExtras"
-            class="app-header-extras__marks"
-            aria-hidden="true"
-          >
-            <span v-if="hasLyrics" class="app-header-extras__mark app-header-extras__mark--lyrics">
-              <AppIcon :name="icons.documentText" :size="16" />
-            </span>
-            <span v-if="hasYoutube" class="app-header-extras__mark app-header-extras__mark--youtube">
-              <AppIcon :name="icons.youtube" :size="16" />
-            </span>
-          </span>
-          <button
-            type="button"
-            class="app-header-action"
-            :aria-label="t('songs.ariaExtras')"
-            aria-haspopup="menu"
-            @click="toggleExtras"
-          >
-            <AppIcon :name="icons.extras" />
-          </button>
-        </div>
+        <button
+          type="button"
+          class="app-header-action"
+          :aria-label="t('songs.ariaExtras')"
+          aria-haspopup="menu"
+          @click="toggleExtras"
+        >
+          <AppIcon :name="icons.extras" />
+        </button>
       </template>
     </AppHeader>
 
@@ -174,6 +152,39 @@ async function save() {
             <AppIcon :name="icons.music" :size="18" />
           </span>
           <span class="app-create-menu__label">{{ t('song.fieldBpm') }}</span>
+        </button>
+        <button
+          type="button"
+          class="app-create-menu__item app-create-menu__item--song"
+          role="menuitem"
+          @click="pickExtra('types')"
+        >
+          <span class="app-create-menu__icon">
+            <AppIcon :name="icons.tag" :size="18" />
+          </span>
+          <span class="app-create-menu__label">{{ t('song.fieldTypes') }}</span>
+        </button>
+        <button
+          type="button"
+          class="app-create-menu__item app-create-menu__item--song"
+          role="menuitem"
+          @click="pickExtra('themes')"
+        >
+          <span class="app-create-menu__icon">
+            <AppIcon :name="icons.tagHorizontal" :size="18" />
+          </span>
+          <span class="app-create-menu__label">{{ t('song.fieldThemes') }}</span>
+        </button>
+        <button
+          type="button"
+          class="app-create-menu__item app-create-menu__item--song"
+          role="menuitem"
+          @click="pickExtra('meter')"
+        >
+          <span class="app-create-menu__icon">
+            <AppIcon :name="icons.notes" :size="18" />
+          </span>
+          <span class="app-create-menu__label">{{ t('song.fieldMeter') }}</span>
         </button>
       </div>
     </AppAnchoredMenu>

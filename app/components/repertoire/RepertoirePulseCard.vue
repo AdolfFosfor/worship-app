@@ -52,14 +52,22 @@ function togglePeriodMenu(event: MouseEvent) {
   if (!el) return
   const rect = el.getBoundingClientRect()
   const menuWidth = 168
-  const left = Math.min(
-    Math.max(8, rect.left),
-    Math.max(8, window.innerWidth - menuWidth - 8),
-  )
+  const shell = document.querySelector<HTMLElement>('.app-shell')
+  const frame = (shell ?? document.documentElement).getBoundingClientRect()
+  const pad = 8
+  const minL = frame.left + pad
+  const maxL = frame.right - pad - menuWidth
+  // Центр меню под кнопкой, с клампом в колонку приложения
+  let left = rect.left + rect.width / 2 - menuWidth / 2
+  if (maxL >= minL) {
+    left = Math.min(Math.max(left, minL), maxL)
+  } else {
+    left = minL
+  }
   haptics.tap()
   periodMenu.value = {
-    top: rect.bottom + 6,
-    left,
+    top: rect.bottom + 8,
+    left: Math.round(left),
   }
 }
 
@@ -104,23 +112,22 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="pulse-card app-panel">
+    <button
+      type="button"
+      class="pulse-card__period-pill app-ring-hover"
+      :class="{ 'is-open': Boolean(periodMenu), 'is-busy': periodBusy || loadingSummary }"
+      :aria-label="t('repertoire.periodAria')"
+      :aria-expanded="Boolean(periodMenu)"
+      aria-haspopup="menu"
+      :disabled="periodBusy || loadingSummary"
+      @click="togglePeriodMenu"
+    >
+      <span>{{ periodCaption }}</span>
+      <AppIcon :name="icons.down" size="1rem" class="pulse-card__period-chevron" />
+    </button>
+
     <div class="pulse-card__head">
-      <div class="pulse-card__titles">
-        <h3 class="pulse-card__title">{{ t('repertoire.pulseTitle') }}</h3>
-        <button
-          type="button"
-          class="pulse-card__period-pill app-ring-hover"
-          :class="{ 'is-open': Boolean(periodMenu), 'is-busy': periodBusy || loadingSummary }"
-          :aria-label="t('repertoire.periodAria')"
-          :aria-expanded="Boolean(periodMenu)"
-          aria-haspopup="menu"
-          :disabled="periodBusy || loadingSummary"
-          @click="togglePeriodMenu"
-        >
-          <span>{{ periodCaption }}</span>
-          <AppIcon :name="icons.down" size="0.85rem" class="pulse-card__period-chevron" />
-        </button>
-      </div>
+      <h3 class="pulse-card__title">{{ t('repertoire.pulseTitle') }}</h3>
       <NuxtLink to="/repertoire" class="pulse-card__more">
         <span class="pulse-card__more-label">{{ t('repertoire.more') }}</span>
         <AppIcon :name="icons.chevronRight" size="0.95rem" class="pulse-card__more-chevron" />
@@ -237,30 +244,29 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .pulse-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--app-space-4);
+  margin-top: 0.95rem;
   padding: var(--app-space-4);
+  padding-top: calc(var(--app-space-4) + 0.55rem);
   min-width: 0;
+  overflow: visible;
   color: inherit;
 }
 
 .pulse-card__head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: var(--app-space-3);
-}
-
-.pulse-card__titles {
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
 }
 
 .pulse-card__title {
   margin: 0;
+  min-width: 0;
   font-size: var(--app-text-lg);
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -269,33 +275,42 @@ onBeforeUnmount(() => {
 }
 
 .pulse-card__period-pill {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  z-index: 2;
   display: inline-flex;
   align-items: center;
-  gap: 0.2rem;
+  justify-content: center;
+  gap: 0.3rem;
   width: fit-content;
-  max-width: 100%;
-  min-height: 1.55rem;
+  max-width: calc(100% - 2rem);
+  min-height: 2rem;
   margin: 0;
-  padding: 0.15rem 0.45rem 0.15rem 0.55rem;
-  border: 0;
+  padding: 0.35rem 0.75rem 0.35rem 0.9rem;
+  border: 1px solid var(--app-border);
   border-radius: var(--app-radius-pill);
-  background: var(--app-hover);
+  background: var(--app-surface);
   color: var(--app-muted);
   font: inherit;
-  font-size: var(--app-text-xs);
+  font-size: var(--app-text-sm);
   font-weight: 650;
   line-height: 1.2;
   cursor: pointer;
+  box-shadow: var(--app-shadow-soft);
+  transform: translate(-50%, -50%);
   transition:
     background-color var(--app-duration) var(--app-ease),
     color var(--app-duration) var(--app-ease),
+    border-color var(--app-duration) var(--app-ease),
     outline-color var(--app-duration) var(--app-ease);
 }
 
 .pulse-card__period-pill:hover,
 .pulse-card__period-pill.is-open {
-  background: var(--app-accent-muted);
+  background: var(--app-surface);
   color: var(--app-accent-text);
+  border-color: color-mix(in srgb, var(--app-accent) 40%, var(--app-border));
 }
 
 .pulse-card__period-pill:disabled {
@@ -305,6 +320,8 @@ onBeforeUnmount(() => {
 
 .pulse-card__period-chevron {
   flex-shrink: 0;
+  width: 1rem !important;
+  height: 1rem !important;
   opacity: 0.75;
   transition: transform var(--app-duration) var(--app-ease);
 }
@@ -318,7 +335,6 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 0.05rem;
   flex-shrink: 0;
-  margin-top: 0.1rem;
   margin-right: -0.35rem;
   padding: 0.15rem 0.15rem;
   font-size: var(--app-text-sm);

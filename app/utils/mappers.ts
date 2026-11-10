@@ -7,9 +7,16 @@ import type {
   Setlist,
   SetlistItem,
   Song,
+  SongInput,
   Workspace,
   WorkspaceMember,
 } from '~~/shared/types'
+import {
+  normalizeArtist,
+  normalizeThemes,
+  normalizeTimeSignature,
+  normalizeTypes,
+} from '~~/shared/songs/library'
 import { normalizeChordChart } from '~/utils/music/chart'
 
 export function mapWorkspace(row: DbWorkspace): Workspace {
@@ -48,9 +55,13 @@ export function mapSong(row: DbSong): Song {
     id: row.id,
     workspaceId: row.workspace_id,
     title: row.title,
+    artist: normalizeArtist(row.artist),
     key: row.key,
     capo: Number.isFinite(row.capo) ? Math.max(0, Math.min(11, row.capo)) : 0,
     bpm: normalizeBpm(row.bpm),
+    types: normalizeTypes(row.types),
+    themes: normalizeThemes(row.themes),
+    timeSignature: normalizeTimeSignature(row.time_signature),
     chords: row.chords,
     chordChart: normalizeChordChart(row.chord_chart),
     lyrics: row.lyrics,
@@ -58,6 +69,23 @@ export function mapSong(row: DbSong): Song {
     createdBy: row.created_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  }
+}
+
+export function songToInput(song: Song): SongInput {
+  return {
+    title: song.title,
+    artist: song.artist,
+    key: song.key,
+    capo: song.capo,
+    bpm: song.bpm,
+    types: song.types,
+    themes: song.themes,
+    timeSignature: song.timeSignature,
+    chords: song.chords,
+    chordChart: song.chordChart,
+    lyrics: song.lyrics,
+    youtubeUrl: song.youtubeUrl,
   }
 }
 

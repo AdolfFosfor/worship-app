@@ -1,5 +1,16 @@
 <script setup lang="ts">
-import type { ChordChart, SongInput } from '~~/shared/types'
+import type { ChordChart, SongInput, SongType } from '~~/shared/types'
+import {
+  SONG_ARTIST_MAX,
+  SONG_METERS,
+  SONG_THEME_MAX,
+  SONG_THEMES,
+  SONG_TYPES,
+  isSongThemeId,
+  normalizeThemes,
+  normalizeTimeSignature,
+  songThemeMessageKey,
+} from '~~/shared/songs/library'
 import { KEY_OPTIONS } from '~/utils/music/keys'
 import { icons } from '~/utils/icons'
 
@@ -33,28 +44,110 @@ const canSubmit = computed(
   () => props.modelValue.title.trim().length > 0 && Boolean(props.modelValue.key),
 )
 
-export type SongExtraKind = 'lyrics' | 'youtube' | 'bpm'
+const themeDraft = ref('')
+const meterDraft = ref('')
+
+const themeOptions = computed(() => {
+  const extras = (props.modelValue.themes ?? []).filter((theme) => !isSongThemeId(theme))
+  return [...SONG_THEMES, ...extras]
+})
+
+const meterOptions = computed(() => {
+  const current = normalizeTimeSignature(props.modelValue.timeSignature)
+  if (current && !(SONG_METERS as readonly string[]).includes(current)) {
+    return [...SONG_METERS, current]
+  }
+  return [...SONG_METERS]
+})
+
+function themeLabel(theme: string) {
+  const key = songThemeMessageKey(theme)
+  return key ? t(key) : theme
+}
+
+function toggleType(type: SongType) {
+  const current = props.modelValue.types ?? []
+  const next = current.includes(type)
+    ? current.filter((item) => item !== type)
+    : [...current, type]
+  patch('types', next)
+}
+
+function toggleTheme(theme: string) {
+  const current = props.modelValue.themes ?? []
+  const next = current.includes(theme)
+    ? current.filter((item) => item !== theme)
+    : [...current, theme]
+  patch('themes', normalizeThemes(next))
+}
+
+function resolveThemeDraft(raw: string): string {
+  const value = raw.trim()
+  if (!value) return ''
+  for (const id of SONG_THEMES) {
+    if (value.toLowerCase() === id) return id
+    if (value.localeCompare(t(`songs.theme.${id}`), undefined, { sensitivity: 'accent' }) === 0) {
+      return id
+    }
+  }
+  return value
+}
+
+function addCustomTheme() {
+  const theme = resolveThemeDraft(themeDraft.value)
+  themeDraft.value = ''
+  if (!theme || theme.length > SONG_THEME_MAX) return
+  const current = props.modelValue.themes ?? []
+  if (current.includes(theme)) return
+  patch('themes', normalizeThemes([...current, theme]))
+}
+
+function selectMeter(signature: string) {
+  const current = props.modelValue.timeSignature ?? null
+  patch('timeSignature', current === signature ? null : signature)
+}
+
+function addCustomMeter() {
+  const signature = normalizeTimeSignature(meterDraft.value)
+  meterDraft.value = ''
+  if (!signature) return
+  patch('timeSignature', signature)
+}
+
+export type SongExtraKind = 'lyrics' | 'youtube' | 'bpm' | 'types' | 'themes' | 'meter'
 
 const sheetKind = ref<SongExtraKind | null>(null)
 const sheetDraft = ref('')
 const lyricsInput = ref<HTMLTextAreaElement | null>(null)
 const youtubeInput = ref<HTMLInputElement | null>(null)
 const bpmInput = ref<HTMLInputElement | null>(null)
+const themeInput = ref<HTMLInputElement | null>(null)
+const meterInput = ref<HTMLInputElement | null>(null)
 /** Держит soft KB в цепочке user-gesture до after-enter реального поля. */
 const focusProxy = ref<HTMLInputElement | null>(null)
 const pendingSheetFocus = ref(false)
 
 const sheetOpen = computed(() => sheetKind.value != null)
 
+const sheetChoices = computed(
+  () => sheetKind.value === 'types' || sheetKind.value === 'themes' || sheetKind.value === 'meter',
+)
+
 const sheetTitle = computed(() => {
   if (sheetKind.value === 'youtube') return t('song.sheetYoutube')
   if (sheetKind.value === 'bpm') return t('song.sheetBpm')
+  if (sheetKind.value === 'types') return t('song.fieldTypes')
+  if (sheetKind.value === 'themes') return t('song.fieldThemes')
+  if (sheetKind.value === 'meter') return t('song.fieldMeter')
   return t('song.sheetLyrics')
 })
 
 function sheetField(): HTMLInputElement | HTMLTextAreaElement | null {
   if (sheetKind.value === 'youtube') return youtubeInput.value
   if (sheetKind.value === 'bpm') return bpmInput.value
+  if (sheetKind.value === 'themes') return themeInput.value
+  if (sheetKind.value === 'meter') return meterInput.value
+  if (sheetKind.value === 'types') return null
   return lyricsInput.value
 }
 
@@ -64,16 +157,19 @@ function focusSheetField() {
 
 function openExtra(kind: SongExtraKind) {
   // Сразу в жесте клика (до hide popover / Transition) — иначе iOS глотает autofocus.
-  focusProxy.value?.focus({ preventScroll: true })
-  pendingSheetFocus.value = true
+  const focusField = kind !== 'types'
+  if (focusField) focusProxy.value?.focus({ preventScroll: true })
+  pendingSheetFocus.value = focusField
   sheetKind.value = kind
   if (kind === 'lyrics') {
     sheetDraft.value = props.modelValue.lyrics ?? ''
   } else if (kind === 'youtube') {
     sheetDraft.value = props.modelValue.youtubeUrl ?? ''
-  } else {
+  } else if (kind === 'bpm') {
     sheetDraft.value =
       props.modelValue.bpm != null ? String(props.modelValue.bpm) : ''
+  } else {
+    sheetDraft.value = ''
   }
 }
 
@@ -94,6 +190,8 @@ function closeSheet() {
   lyricsInput.value?.blur()
   youtubeInput.value?.blur()
   bpmInput.value?.blur()
+  themeInput.value?.blur()
+  meterInput.value?.blur()
   focusProxy.value?.blur()
 }
 
@@ -113,6 +211,10 @@ function confirmSheet() {
     patch('youtubeUrl', value || null)
   } else if (sheetKind.value === 'bpm') {
     patch('bpm', parseBpmDraft(value))
+  } else if (sheetKind.value === 'themes' && themeDraft.value.trim()) {
+    addCustomTheme()
+  } else if (sheetKind.value === 'meter' && normalizeTimeSignature(meterDraft.value)) {
+    addCustomMeter()
   }
   closeSheet()
 }
@@ -151,6 +253,17 @@ defineExpose({
       />
     </label>
 
+    <label class="song-form__field">
+      <span>{{ t('song.fieldArtist') }}</span>
+      <InputText
+        :model-value="form.artist ?? ''"
+        class="w-full"
+        :maxlength="SONG_ARTIST_MAX"
+        :placeholder="t('song.artistPlaceholder')"
+        @update:model-value="patch('artist', String($event ?? '') || null)"
+      />
+    </label>
+
     <div class="song-form__meta">
       <label class="song-form__field song-form__field--key">
         <span>{{ t('song.fieldKey') }}</span>
@@ -179,6 +292,7 @@ defineExpose({
         :model-value="form.chordChart ?? null"
         :legacy-chords="form.chords"
         :bpm="form.bpm ?? null"
+        :time-signature="form.timeSignature ?? null"
         @update:model-value="onChartUpdate"
         @update:bpm="patch('bpm', $event)"
       />
@@ -224,7 +338,10 @@ defineExpose({
             :aria-label="t('common.close')"
             @click="closeSheet"
           />
-          <div class="song-top-sheet__panel">
+          <div
+            class="song-top-sheet__panel"
+            :class="{ 'song-top-sheet__panel--choices': sheetChoices }"
+          >
             <header class="song-top-sheet__head">
               <button
                 type="button"
@@ -240,7 +357,10 @@ defineExpose({
               </button>
             </header>
 
-            <div class="song-top-sheet__body">
+            <div
+              class="song-top-sheet__body"
+              :class="{ 'song-top-sheet__body--choices': sheetChoices }"
+            >
               <!-- v-show: оба смонтированы — handoff фокуса после after-enter надёжнее -->
               <textarea
                 v-show="sheetKind === 'lyrics'"
@@ -276,6 +396,90 @@ defineExpose({
                 autocomplete="off"
                 @keydown.enter.prevent="confirmSheet"
               >
+              <div v-show="sheetKind === 'types'" class="song-form__chips">
+                <button
+                  v-for="type in SONG_TYPES"
+                  :key="type"
+                  type="button"
+                  class="song-form__chip"
+                  :class="{ 'song-form__chip--on': form.types?.includes(type) }"
+                  :aria-pressed="form.types?.includes(type) ?? false"
+                  @click="toggleType(type)"
+                >
+                  {{ t(`songs.type.${type}`) }}
+                </button>
+              </div>
+              <div v-show="sheetKind === 'themes'" class="song-top-sheet__choices">
+                <div class="song-form__chips">
+                  <button
+                    v-for="theme in themeOptions"
+                    :key="theme"
+                    type="button"
+                    class="song-form__chip"
+                    :class="{ 'song-form__chip--on': form.themes?.includes(theme) }"
+                    :aria-pressed="form.themes?.includes(theme) ?? false"
+                    @click="toggleTheme(theme)"
+                  >
+                    {{ themeLabel(theme) }}
+                  </button>
+                </div>
+                <div class="song-form__add">
+                  <input
+                    ref="themeInput"
+                    v-model="themeDraft"
+                    class="song-form__add-input"
+                    type="text"
+                    :maxlength="SONG_THEME_MAX"
+                    :placeholder="t('song.themePlaceholder')"
+                    enterkeyhint="done"
+                    @keydown.enter.prevent="addCustomTheme"
+                  >
+                  <button
+                    type="button"
+                    class="song-form__add-btn"
+                    :disabled="!themeDraft.trim()"
+                    @click="addCustomTheme"
+                  >
+                    {{ t('common.add') }}
+                  </button>
+                </div>
+              </div>
+              <div v-show="sheetKind === 'meter'" class="song-top-sheet__choices">
+                <div class="song-form__chips">
+                  <button
+                    v-for="meter in meterOptions"
+                    :key="meter"
+                    type="button"
+                    class="song-form__chip"
+                    :class="{ 'song-form__chip--on': form.timeSignature === meter }"
+                    :aria-pressed="form.timeSignature === meter"
+                    @click="selectMeter(meter)"
+                  >
+                    {{ meter }}
+                  </button>
+                </div>
+                <div class="song-form__add">
+                  <input
+                    ref="meterInput"
+                    v-model="meterDraft"
+                    class="song-form__add-input"
+                    type="text"
+                    inputmode="text"
+                    maxlength="5"
+                    :placeholder="t('song.meterPlaceholder')"
+                    enterkeyhint="done"
+                    @keydown.enter.prevent="addCustomMeter"
+                  >
+                  <button
+                    type="button"
+                    class="song-form__add-btn"
+                    :disabled="!normalizeTimeSignature(meterDraft)"
+                    @click="addCustomMeter"
+                  >
+                    {{ t('common.add') }}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -331,6 +535,68 @@ defineExpose({
   font-size: var(--app-text-2xs);
   font-weight: 500;
   color: var(--app-muted);
+}
+
+.song-form__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.song-form__chip {
+  min-height: 2rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-pill);
+  background: var(--app-surface);
+  color: var(--app-ink);
+  font: inherit;
+  font-size: var(--app-text-xs);
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.song-form__chip--on {
+  border-color: transparent;
+  background: var(--app-accent);
+  color: var(--app-accent-contrast);
+}
+
+.song-form__add {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.song-form__add-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 2.5rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-lg);
+  background: var(--app-bg);
+  color: var(--app-ink);
+  font: inherit;
+  font-size: 16px;
+}
+
+.song-form__add-btn {
+  flex-shrink: 0;
+  min-height: 2.5rem;
+  padding: 0 0.85rem;
+  border: 0;
+  border-radius: var(--app-radius-pill);
+  background: var(--app-hover);
+  color: var(--app-ink);
+  font: inherit;
+  font-size: var(--app-text-xs);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.song-form__add-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 /* Всегда над таббаром */
@@ -460,11 +726,37 @@ defineExpose({
   cursor: pointer;
 }
 
+.song-top-sheet__panel--choices {
+  max-height: min(32rem, calc(var(--app-frame-height, 100lvh) * 0.72));
+}
+
 .song-top-sheet__body {
   flex: 1;
   min-height: 0;
   display: flex;
-  padding: 0 var(--app-space-3);
+  padding: 0 var(--app-space-3) var(--app-space-2);
+}
+
+.song-top-sheet__body--choices {
+  flex-direction: column;
+  gap: var(--app-space-3);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.song-top-sheet__choices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+  width: 100%;
+}
+
+.song-top-sheet__body .song-form__chip {
+  background: var(--app-bg);
+}
+
+.song-top-sheet__body .song-form__chip--on {
+  background: var(--app-accent);
 }
 
 .song-top-sheet__field {

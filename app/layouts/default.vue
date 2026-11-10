@@ -48,7 +48,7 @@ const confirmPt = {
       <div class="app-shell__swipe-shade" aria-hidden="true" />
 
       <div class="app-shell__swipe-layer flex min-h-0 flex-1 flex-col">
-        <Toast position="top-center" append-to=".app-shell" />
+        <Toast position="top-center" />
         <ConfirmDialog
           :draggable="false"
           :breakpoints="{ '960px': '100vw' }"
@@ -258,17 +258,30 @@ const confirmPt = {
 
 <style>
 /*
-  Toast/Dialog часто teleport в body (appendTo к .app-shell не всегда срабатывает),
-  поэтому контраст — без предка .app-shell.
+  Toast всегда Portal → body (у PrimeVue 4 нет appendTo).
+  Ширину клампим к колонке .app-shell (28/30rem) и вычитаем safe + ритм страницы.
 */
 .p-toast {
   top: var(--app-toast-offset-top) !important;
   left: 50% !important;
   right: auto !important;
   transform: translateX(-50%);
-  width: min(22rem, calc(100% - 1.5rem));
-  padding-left: var(--app-safe-left);
-  padding-right: var(--app-safe-right);
+  width: min(
+    calc(28rem - 2 * var(--app-space-4)),
+    calc(100% - var(--app-safe-left) - var(--app-safe-right) - 2 * var(--app-space-4))
+  );
+  max-width: none;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+@media (min-width: 1100px) {
+  .p-toast {
+    width: min(
+      calc(30rem - 2 * var(--app-space-4)),
+      calc(100% - var(--app-safe-left) - var(--app-safe-right) - 2 * var(--app-space-4))
+    );
+  }
 }
 
 /* Aura detailColor = surface-0 (#17212b) — нечитаемо на тёмной теме */

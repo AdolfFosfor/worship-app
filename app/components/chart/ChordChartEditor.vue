@@ -5,7 +5,7 @@ import type {
   SectionType,
   TimeSignature,
 } from '~~/shared/types'
-import { SECTION_TYPES, TIME_SIGNATURES } from '~~/shared/types'
+import { SECTION_TYPES } from '~~/shared/types'
 import {
   ChartHistory,
   SECTION_ACCENT_VAR,
@@ -14,6 +14,7 @@ import {
   createChord,
   createEmptyChart,
   getMeter,
+  isValidTimeSignature,
   parseLegacyChords,
   sectionAutoTitle,
 } from '~/utils/music/chart'
@@ -53,12 +54,15 @@ const props = withDefaults(
   defineProps<{
     modelValue: ChordChart | null
     legacyChords?: string | null
-    /** Optional song tempo; edited next to time signature. */
+    /** Optional song tempo, shown when set. */
     bpm?: number | null
+    /** Song meter. Known values update the chart; the editor has no own picker. */
+    timeSignature?: string | null
   }>(),
   {
     legacyChords: null,
     bpm: null,
+    timeSignature: null,
   },
 )
 
@@ -85,7 +89,6 @@ const canRedo = ref(false)
 const keyboardOpen = ref(false)
 const typeMenu = ref<{ sectionId: string; top: number; left: number } | null>(null)
 
-const timeSignatureOptions = TIME_SIGNATURES.map((value) => ({ label: value, value }))
 /** UI-facing section types — no freeform «Секция». */
 const pickableSectionTypes = SECTION_TYPES.filter((type) => type !== 'custom') as SectionType[]
 const sectionTypeOptions = computed(() =>
@@ -105,8 +108,13 @@ type Selection = {
 
 const selected = ref<Selection | null>(null)
 
+function initialChartMeter(): TimeSignature {
+  const value = props.timeSignature
+  return value && isValidTimeSignature(value) ? value : '4/4'
+}
+
 /** Stable draft while parent has not yet committed chordChart (avoids new IDs every render). */
-const draftChart = ref<ChordChart>(props.modelValue ?? createEmptyChart())
+const draftChart = ref<ChordChart>(props.modelValue ?? createEmptyChart(initialChartMeter()))
 
 const chart = computed(() => props.modelValue ?? draftChart.value)
 const hasLegacy = computed(() => Boolean(props.legacyChords?.trim()))
@@ -281,6 +289,8 @@ function convertLegacy() {
 }
 
 function setTimeSignature(ts: TimeSignature) {
+  const live = currentChart()
+  if (live.timeSignature === ts) return
   const { barPulses } = getMeter(ts)
   commit(
     withChart(currentChart(), (d) => {
@@ -298,6 +308,14 @@ function setTimeSignature(ts: TimeSignature) {
     }),
   )
 }
+
+watch(
+  () => props.timeSignature,
+  (value) => {
+    if (!value || !isValidTimeSignature(value)) return
+    setTimeSignature(value)
+  },
+)
 
 function sectionIsEmpty(sectionId: string) {
   const section = chart.value.sections.find((s) => s.id === sectionId)
@@ -1327,15 +1345,6 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="chart-editor__chrome">
-      <Select
-        :model-value="chart.timeSignature"
-        :options="timeSignatureOptions"
-        option-label="label"
-        option-value="value"
-        class="chart-editor__ts"
-        @update:model-value="setTimeSignature($event as TimeSignature)"
-      />
-
       <div v-if="bpm != null" class="chart-editor__bpm">
         <InputNumber
           :model-value="bpm"
@@ -1352,6 +1361,18 @@ onBeforeUnmount(() => {
         <span class="chart-editor__bpm-suffix" aria-hidden="true">{{ t('song.bpmUnit') }}</span>
       </div>
 
+      <div class="chart-editor__add-sections">
+        <button
+          v-for="type in pickableSectionTypes"
+          :key="type"
+          type="button"
+          class="chart-editor__add-pill"
+          @click="onAddSection(type)"
+        >
+          + {{ t(`chart.section.${type}`) }}
+        </button>
+      </div>
+
       <div class="chart-editor__history">
         <button type="button" :disabled="!canUndo" :aria-label="t('chart.undo')" @click="undo">
           <AppIcon :name="icons.undo" size="1rem" />
@@ -1360,18 +1381,6 @@ onBeforeUnmount(() => {
           <AppIcon :name="icons.redo" size="1rem" />
         </button>
       </div>
-    </div>
-
-    <div class="chart-editor__add-sections">
-      <button
-        v-for="type in pickableSectionTypes"
-        :key="type"
-        type="button"
-        class="chart-editor__add-pill"
-        @click="onAddSection(type)"
-      >
-        + {{ t(`chart.section.${type}`) }}
-      </button>
     </div>
 
     <div class="chart-editor__score">
@@ -1701,18 +1710,15 @@ onBeforeUnmount(() => {
 
 .chart-editor__chrome {
   display: flex;
-  align-items: center;
-  gap: var(--app-space-2);
-}
-
-.chart-editor__ts {
-  width: 5.25rem;
-  min-width: 5.25rem;
+  align-items: flex-start;
+  gap: 0.4rem;
+  min-width: 0;
 }
 
 .chart-editor__bpm {
   position: relative;
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
   min-width: 0;
   height: 2.875rem;
@@ -1760,7 +1766,7 @@ onBeforeUnmount(() => {
 }
 
 .chart-editor__history {
-  margin-left: auto;
+  flex-shrink: 0;
   display: inline-flex;
   gap: 0.2rem;
 }
@@ -2273,17 +2279,10 @@ onBeforeUnmount(() => {
 
 .chart-editor__add-sections {
   display: flex;
-  flex-wrap: nowrap;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
   gap: 0.4rem;
-  overflow-x: auto;
-  padding-bottom: 0.1rem;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-  overscroll-behavior-x: contain;
-}
-
-.chart-editor__add-sections::-webkit-scrollbar {
-  display: none;
 }
 
 .chart-editor__add-pill {

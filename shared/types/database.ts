@@ -35,11 +35,17 @@ export interface DbSong {
   id: string
   workspace_id: string
   title: string
+  artist?: string | null
   key: string
   /** Capo fret; chords are shapes played with this capo. */
   capo: number
   /** Optional tempo in BPM (null/absent when unset). */
   bpm?: number | null
+  types?: string[] | null
+  themes?: string[] | null
+  time_signature?: string | null
+  /** Generated concert key. Present after migration 014. */
+  sounding_key?: string | null
   chords: string | null
   chord_chart?: Json | null
   lyrics: string | null
@@ -120,9 +126,13 @@ export interface Database {
           id?: string
           workspace_id: string
           title: string
+          artist?: string | null
           key?: string
           capo?: number
           bpm?: number | null
+          types?: string[]
+          themes?: string[]
+          time_signature?: string | null
           chords?: string | null
           chord_chart?: Json | null
           lyrics?: string | null
@@ -135,9 +145,13 @@ export interface Database {
           id?: string
           workspace_id?: string
           title?: string
+          artist?: string | null
           key?: string
           capo?: number
           bpm?: number | null
+          types?: string[]
+          themes?: string[]
+          time_signature?: string | null
           chords?: string | null
           chord_chart?: Json | null
           lyrics?: string | null
@@ -252,6 +266,23 @@ export interface Database {
           p_today: string
         }
         Returns: import('./repertoire').DbRepertoireSongDetail | null
+      }
+      song_activity_ids: {
+        Args: {
+          p_workspace_id: string
+          p_kinds: string[]
+          p_today: string
+        }
+        Returns: string[]
+      }
+      song_library_facets: {
+        Args: {
+          p_workspace_id: string
+        }
+        Returns: {
+          themes: string[]
+          timeSignatures: string[]
+        }
       }
     }
     Enums: {

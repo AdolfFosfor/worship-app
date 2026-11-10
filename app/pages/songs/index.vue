@@ -1,12 +1,23 @@
 <script setup lang="ts">
 import type { Setlist, Song } from '~~/shared/types'
+import {
+  SONG_TYPES,
+  emptySongLibraryFilters,
+  libraryFiltersActive,
+  songThemeMessageKey,
+  type SongActivity,
+  type SongLibraryFilters,
+  type SongTempo,
+  type SongType,
+} from '~~/shared/songs/library'
 import { icons } from '~/utils/icons'
 import { soundingKey } from '~/utils/music/capo'
 import { localTodayKey } from '~/utils/dates'
+import { pluralForm } from '~/utils/i18n/plural'
 
 const workspace = useWorkspaceStore()
 const { t, sessionTitle, locale } = useAppLocale()
-const { songs, loading, error, fetchSongs, deleteSong } = useSongs()
+const { songs, facets, loading, error, fetchSongs, fetchLibraryFacets, deleteSong } = useSongs()
 const { syncSongsOnActivate } = useSongsRevision()
 const { fetchSetlists, songInSetlist, addSongToSetlist } = useSetlists()
 const toast = useToast()
@@ -16,27 +27,152 @@ const dateLocaleTag = computed(
   () => ({ ru: 'ru-RU', ro: 'ro-RO', en: 'en-GB' })[locale.value] ?? 'en-GB',
 )
 
-function songMeta(song: { key: string; capo: number }) {
-  return soundingKey(song.key, song.capo)
+function songMeta(song: { key: string; capo: number; bpm: number | null; timeSignature: string | null }) {
+  const parts = [soundingKey(song.key, song.capo)]
+  if (song.bpm) parts.push(String(song.bpm))
+  if (song.timeSignature) parts.push(song.timeSignature)
+  return parts.join(' · ')
 }
 
 const query = ref('')
+const filters = ref<SongLibraryFilters>(emptySongLibraryFilters())
+const filtersOpen = ref(false)
+
+const filtersActive = computed(() => libraryFiltersActive(filters.value))
+const searchActive = computed(() => query.value.trim().length > 0)
+const showResultMeta = computed(
+  () => songs.value.length > 0 || filtersActive.value || searchActive.value,
+)
+
+const foundLabel = computed(() =>
+  t(`songs.found_${pluralForm(songs.value.length, locale.value)}`, { count: songs.value.length }),
+)
+
+const filterCount = computed(() => {
+  const current = filters.value
+  return (
+    current.types.length +
+    current.themes.length +
+    current.tempos.length +
+    current.keys.length +
+    current.timeSignatures.length +
+    current.activity.length
+  )
+})
+
+type ActiveFilter =
+  | { id: string; label: string; kind: 'type'; value: SongType }
+  | { id: string; label: string; kind: 'theme'; value: string }
+  | { id: string; label: string; kind: 'tempo'; value: SongTempo }
+  | { id: string; label: string; kind: 'key'; value: string }
+  | { id: string; label: string; kind: 'meter'; value: string }
+  | { id: string; label: string; kind: 'activity'; value: SongActivity }
+
+const activeFilters = computed<ActiveFilter[]>(() => {
+  const current = filters.value
+  return [
+    ...current.types.map((value) => ({
+      id: `type:${value}`,
+      label: t(`songs.type.${value}`),
+      kind: 'type' as const,
+      value,
+    })),
+    ...current.themes.map((value) => {
+      const key = songThemeMessageKey(value)
+      return {
+        id: `theme:${value}`,
+        label: key ? t(key) : value,
+        kind: 'theme' as const,
+        value,
+      }
+    }),
+    ...current.tempos.map((value) => ({
+      id: `tempo:${value}`,
+      label: t(`songs.tempo.${value}`),
+      kind: 'tempo' as const,
+      value,
+    })),
+    ...current.keys.map((value) => ({
+      id: `key:${value}`,
+      label: value,
+      kind: 'key' as const,
+      value,
+    })),
+    ...current.timeSignatures.map((value) => ({
+      id: `meter:${value}`,
+      label: value,
+      kind: 'meter' as const,
+      value,
+    })),
+    ...current.activity.map((value) => ({
+      id: `activity:${value}`,
+      label: t(`songs.activity.${value}`),
+      kind: 'activity' as const,
+      value,
+    })),
+  ]
+})
+
+function without<T>(list: T[], value: T): T[] {
+  return list.filter((item) => item !== value)
+}
+
+function removeFilter(chip: ActiveFilter) {
+  const current = filters.value
+  if (chip.kind === 'type') filters.value = { ...current, types: without(current.types, chip.value) }
+  else if (chip.kind === 'theme') {
+    filters.value = { ...current, themes: without(current.themes, chip.value) }
+  } else if (chip.kind === 'tempo') {
+    filters.value = { ...current, tempos: without(current.tempos, chip.value) }
+  } else if (chip.kind === 'key') {
+    filters.value = { ...current, keys: without(current.keys, chip.value) }
+  } else if (chip.kind === 'meter') {
+    filters.value = { ...current, timeSignatures: without(current.timeSignatures, chip.value) }
+  } else {
+    filters.value = { ...current, activity: without(current.activity, chip.value) }
+  }
+}
+
+function toggleType(type: SongType) {
+  const current = filters.value
+  filters.value = {
+    ...current,
+    types: current.types.includes(type) ? without(current.types, type) : [...current.types, type],
+  }
+}
+
+function selectAllTypes() {
+  if (!filters.value.types.length) return
+  filters.value = { ...filters.value, types: [] }
+}
+
+function resetFilters() {
+  filters.value = emptySongLibraryFilters()
+}
+
+async function load() {
+  try {
+    await Promise.all([
+      fetchSongs({ search: query.value, filters: filters.value }),
+      fetchLibraryFacets(),
+    ])
+    markSongsSynced()
+  } catch {
+    /* ошибка уже в composable */
+  }
+}
+
 const debouncedSearch = useDebounceFn(() => {
-  void fetchSongs(query.value)
+  void load()
 }, 250)
 
 watch(query, () => {
   void debouncedSearch()
 })
 
-async function load() {
-  try {
-    await fetchSongs(query.value)
-    markSongsSynced()
-  } catch {
-    /* ошибка уже в composable */
-  }
-}
+watch(filters, () => {
+  void load()
+})
 
 const { markSongsSynced } = syncSongsOnActivate(load)
 
@@ -169,24 +305,99 @@ const canSwipeAdd = computed(() => workspace.canEditSetlists)
       </template>
     </AppHeader>
 
-    <div class="songs-search">
-      <AppIcon :name="icons.search" class="songs-search__icon" />
-      <InputText
-        v-model="query"
-        class="w-full songs-search__input"
-        :placeholder="t('songs.searchPlaceholder')"
-      />
+    <div class="songs-toolbar">
+      <div class="songs-search">
+        <AppIcon :name="icons.search" class="songs-search__icon" />
+        <InputText
+          v-model="query"
+          class="w-full songs-search__input"
+          :placeholder="t('songs.searchPlaceholder')"
+        />
+      </div>
+
+      <div class="songs-types">
+        <div class="app-chip-row">
+          <button
+            type="button"
+            class="songs-chip"
+            :class="{ 'songs-chip--on': !filters.types.length }"
+            :aria-pressed="!filters.types.length"
+            @click="selectAllTypes"
+          >
+            {{ t('songs.type.all') }}
+          </button>
+          <button
+            v-for="type in SONG_TYPES"
+            :key="type"
+            type="button"
+            class="songs-chip"
+            :class="{ 'songs-chip--on': filters.types.includes(type) }"
+            :aria-pressed="filters.types.includes(type)"
+            @click="toggleType(type)"
+          >
+            {{ t(`songs.type.${type}`) }}
+          </button>
+        </div>
+        <button
+          type="button"
+          class="songs-filter-btn"
+          :class="{ 'songs-filter-btn--on': filtersActive }"
+          :aria-expanded="filtersOpen"
+          aria-controls="song-filters-sheet"
+          @click="filtersOpen = true"
+        >
+          {{ t('songs.filters') }}
+          <span v-if="filterCount" class="songs-filter-btn__count">{{ filterCount }}</span>
+        </button>
+      </div>
+
+      <div v-if="showResultMeta" class="songs-meta">
+        <span>{{ foundLabel }}</span>
+        <button
+          v-if="filtersActive"
+          type="button"
+          class="songs-reset"
+          @click="resetFilters"
+        >
+          {{ t('songs.reset') }}
+        </button>
+      </div>
+
+      <div v-if="activeFilters.length" class="songs-active">
+        <button
+          v-for="chip in activeFilters"
+          :key="chip.id"
+          type="button"
+          class="songs-active__chip"
+          :aria-label="t('songs.removeFilter', { label: chip.label })"
+          @click="removeFilter(chip)"
+        >
+          <span>{{ chip.label }}</span>
+          <AppIcon :name="icons.close" size="0.85rem" />
+        </button>
+      </div>
     </div>
 
     <AppLoading v-if="loading && !songs.length" />
-    <AppError v-else-if="error" :message="error" @retry="fetchSongs(query)" />
+    <AppError v-else-if="error" :message="error" @retry="load" />
     <AppEmptyState
-      v-else-if="!songs.length"
+      v-else-if="!songs.length && !filtersActive && !searchActive"
       :title="t('songs.emptyTitle')"
       :description="t('songs.emptyDesc')"
     >
       <template v-if="workspace.canEditSongs" #action>
         <NuxtLink to="/songs/new" class="app-cta">{{ t('common.add') }}</NuxtLink>
+      </template>
+    </AppEmptyState>
+    <AppEmptyState
+      v-else-if="!songs.length"
+      :title="t('songs.emptyFilteredTitle')"
+      :description="t('songs.emptyFilteredDesc')"
+    >
+      <template v-if="filtersActive" #action>
+        <button type="button" class="app-cta" @click="resetFilters">
+          {{ t('songs.reset') }}
+        </button>
       </template>
     </AppEmptyState>
     <AppSurfaceList v-else>
@@ -203,6 +414,7 @@ const canSwipeAdd = computed(() => workspace.canEditSetlists)
         <AppListRow
           :to="`/songs/${song.id}`"
           :title="song.title"
+          :subtitle="song.artist || undefined"
           :meta="songMeta(song)"
           chevron
         />
@@ -253,6 +465,12 @@ const canSwipeAdd = computed(() => workspace.canEditSetlists)
     </Dialog>
 
     <CreateSetlistSheet ref="createSetlistSheet" v-model:open="createSetlistOpen" />
+    <SongFiltersSheet
+      v-model:open="filtersOpen"
+      v-model:filters="filters"
+      :extra-themes="facets.themes"
+      :extra-meters="facets.timeSignatures"
+    />
   </div>
 </template>
 
@@ -260,6 +478,101 @@ const canSwipeAdd = computed(() => workspace.canEditSetlists)
 .songs-search {
   position: relative;
   width: 100%;
+}
+
+.songs-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+}
+
+.songs-types {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-2);
+  min-width: 0;
+}
+
+.songs-types .app-chip-row {
+  flex: 1;
+  min-width: 0;
+}
+
+.songs-chip,
+.songs-filter-btn,
+.songs-active__chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  min-height: 2rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-pill);
+  background: var(--app-surface);
+  color: var(--app-ink);
+  font: inherit;
+  font-size: var(--app-text-xs);
+  font-weight: 650;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.songs-chip--on,
+.songs-filter-btn--on {
+  border-color: transparent;
+  background: var(--app-accent);
+  color: var(--app-accent-contrast);
+}
+
+.songs-filter-btn {
+  gap: 0.35rem;
+}
+
+.songs-filter-btn__count {
+  min-width: 1.15rem;
+  padding: 0 0.3rem;
+  border-radius: var(--app-radius-pill);
+  background: color-mix(in srgb, var(--app-accent-contrast) 18%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+
+.songs-filter-btn:not(.songs-filter-btn--on) .songs-filter-btn__count {
+  background: var(--app-accent-muted);
+  color: var(--app-accent-text);
+}
+
+.songs-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--app-space-3);
+  font-size: var(--app-text-xs);
+  font-weight: 650;
+  color: var(--app-muted);
+}
+
+.songs-reset {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--app-accent-text);
+  font: inherit;
+  font-size: var(--app-text-xs);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.songs-active {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.songs-active__chip {
+  background: var(--app-accent-muted);
+  border-color: transparent;
+  color: var(--app-accent-text);
 }
 
 .songs-search__icon {
