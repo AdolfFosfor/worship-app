@@ -50,3 +50,43 @@ export function formatServiceDatePill(
     return iso
   }
 }
+
+function localeTag(locale?: string): string {
+  return LOCALE_TAG[locale ?? 'en'] ?? locale ?? 'en-GB'
+}
+
+/** Заголовок месяца для группировки списков: «Ноябрь 2026». */
+export function formatMonthYearHeading(iso: string, locale?: string): string {
+  try {
+    const date = new Date(`${iso.slice(0, 7)}-01T12:00:00`)
+    const raw = new Intl.DateTimeFormat(localeTag(locale), {
+      month: 'long',
+      year: 'numeric',
+    }).format(date)
+    return raw.charAt(0).toUpperCase() + raw.slice(1)
+  } catch {
+    return iso.slice(0, 7)
+  }
+}
+
+/** Компактная дата в списке: день недели + число. */
+export function formatListDayParts(
+  iso: string,
+  locale?: string,
+): { weekday: string; day: string } {
+  try {
+    const date = new Date(`${iso}T12:00:00`)
+    const tag = localeTag(locale)
+    const weekday = new Intl.DateTimeFormat(tag, { weekday: 'short' })
+      .format(date)
+      .replace(/\.$/, '')
+    const day = new Intl.DateTimeFormat(tag, { day: 'numeric' }).format(date)
+    return { weekday, day }
+  } catch {
+    return { weekday: '', day: iso.slice(8, 10) }
+  }
+}
+
+export function monthKeyFromIso(iso: string): string {
+  return iso.slice(0, 7)
+}

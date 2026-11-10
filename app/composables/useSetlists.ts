@@ -78,7 +78,7 @@ export function useSetlists() {
       const supabase = getSupabaseBrowserClient()
       const { data, error: qError } = await supabase
         .from('setlists')
-        .select('*')
+        .select('*, setlist_items(count)')
         .eq('workspace_id', workspace.workspace.id)
         .order('service_date', { ascending: false })
       if (qError) throw qError

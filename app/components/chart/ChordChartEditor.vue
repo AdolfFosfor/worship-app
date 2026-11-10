@@ -491,9 +491,34 @@ function startBarDrag(sectionId: string, barId: string, e: PointerEvent) {
   el.setPointerCapture?.(e.pointerId)
   clearLongPress()
   longPressTimer.value = setTimeout(() => {
+    barMenuId.value = null
     drag.value = { kind: 'bar', sectionId, barId }
     haptics.grab()
   }, e.pointerType === 'touch' ? 320 : 0)
+}
+
+function barDropHintFromBar(
+  bar: HTMLElement,
+  clientX: number,
+): {
+  sectionId: string
+  barId: string
+  index: number
+  edge: 'before' | 'after'
+  mode: 'insert'
+} {
+  const sectionId = bar.dataset.sectionId!
+  const barId = bar.dataset.barId!
+  const barIndex = Number(bar.dataset.barIndex ?? 0)
+  const rect = bar.getBoundingClientRect()
+  const edge: 'before' | 'after' = clientX < rect.left + rect.width / 2 ? 'before' : 'after'
+  return {
+    sectionId,
+    barId,
+    index: edge === 'before' ? barIndex : barIndex + 1,
+    edge,
+    mode: 'insert',
+  }
 }
 
 watch(
@@ -614,12 +639,10 @@ function onPointerMove(e: PointerEvent) {
     dropHint.value = itemDropHintFromBar(bar, e.clientX, drag.value.itemId)
   } else {
     const bar = target.closest('[data-drop-bar]') as HTMLElement | null
-    if (bar) {
-      dropHint.value = {
-        sectionId: bar.dataset.sectionId!,
-        index: Number(bar.dataset.barIndex ?? 0),
-      }
-    }
+    if (!bar) return
+    // Не целимся в сам перетаскиваемый такт — иначе линия «мигает» на нём
+    if (bar.dataset.barId === drag.value.barId) return
+    dropHint.value = barDropHintFromBar(bar, e.clientX)
   }
 }
 
@@ -682,12 +705,16 @@ function onPointerUp() {
         }
       }
     } else if (drag.value.kind === 'bar') {
-      const same =
-        drag.value.sectionId === dropHint.value.sectionId &&
+      const fromIdx =
         currentChart()
           .sections.find((s) => s.id === drag.value!.sectionId)
-          ?.bars.findIndex((b) => b.id === drag.value!.barId) === dropHint.value.index
-      if (!same) {
+          ?.bars.findIndex((b) => b.id === drag.value!.barId) ?? -1
+      const sameSection = drag.value.sectionId === dropHint.value.sectionId
+      const unchanged =
+        sameSection &&
+        fromIdx >= 0 &&
+        (fromIdx === dropHint.value.index || fromIdx + 1 === dropHint.value.index)
+      if (!unchanged && fromIdx >= 0) {
         commit(
           moveBar(
             currentChart(),
@@ -717,11 +744,15 @@ function onKeydown(e: KeyboardEvent) {
   } else if (meta && (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey))) {
     e.preventDefault()
     redo()
-  } else if ((e.key === 'Backspace' || e.key === 'Delete') && selected.value?.itemId) {
-    const t = e.target as HTMLElement | null
-    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
+  } else if ((e.key === 'Backspace' || e.key === 'Delete') && selected.value) {
+    const el = e.target as HTMLElement | null
+    if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return
     e.preventDefault()
-    onRemoveItem(selected.value.sectionId, selected.value.barId, selected.value.itemId)
+    if (selected.value.itemId) {
+      onRemoveItem(selected.value.sectionId, selected.value.barId, selected.value.itemId)
+    } else {
+      onRemoveBar(selected.value.sectionId, selected.value.barId)
+    }
   }
 }
 
@@ -752,6 +783,15 @@ function isDropOnItem(itemId: string, edge: 'before' | 'after') {
 
 function isDropSwap(itemId: string) {
   return dropHint.value?.mode === 'swap' && dropHint.value.overItemId === itemId
+}
+
+function isBarDropEdge(barId: string, edge: 'before' | 'after') {
+  return (
+    drag.value?.kind === 'bar' &&
+    dropHint.value?.mode === 'insert' &&
+    dropHint.value.barId === barId &&
+    dropHint.value.edge === edge
+  )
 }
 
 watch(keyboardOpen, (open) => {
@@ -792,6 +832,7 @@ onBeforeUnmount(() => {
     :class="{
       'chart-editor--kb-open': keyboardOpen,
       'chart-editor--dragging': Boolean(drag),
+      'chart-editor--dragging-bar': drag?.kind === 'bar',
     }"
     @pointermove="onPointerMove"
     @pointerup="onPointerUp"
@@ -911,8 +952,9 @@ onBeforeUnmount(() => {
             :class="{
               'chart-bar--selected': isBarSelected(section.id, bar.id),
               'chart-bar--empty': !bar.items.length,
-              'chart-bar--drop':
-                dropHint?.sectionId === section.id && dropHint?.barId === bar.id,
+              'chart-bar--dragging': drag?.kind === 'bar' && drag.barId === bar.id,
+              'chart-bar--drop-before': isBarDropEdge(bar.id, 'before'),
+              'chart-bar--drop-after': isBarDropEdge(bar.id, 'after'),
             }"
             data-drop-bar
             :data-section-id="section.id"
@@ -996,6 +1038,16 @@ onBeforeUnmount(() => {
                 </button>
               </template>
             </div>
+
+            <button
+              v-if="isBarSelected(section.id, bar.id)"
+              type="button"
+              class="chart-bar__trash"
+              :aria-label="t('chart.deleteBar')"
+              @click.stop="onRemoveBar(section.id, bar.id)"
+            >
+              <AppIcon :name="icons.trash" size="0.85rem" />
+            </button>
 
             <div
               v-if="barMenuId === bar.id"
@@ -1346,9 +1398,35 @@ onBeforeUnmount(() => {
   background: color-mix(in srgb, var(--app-accent) 10%, transparent);
 }
 
-.chart-bar--drop {
-  outline: 1.5px dashed var(--app-accent);
-  outline-offset: 1px;
+.chart-bar--dragging {
+  opacity: 0.4;
+}
+
+.chart-bar--drop-before,
+.chart-bar--drop-after {
+  position: relative;
+  z-index: 1;
+}
+
+.chart-bar--drop-before::before,
+.chart-bar--drop-after::after {
+  content: '';
+  position: absolute;
+  top: 0.1rem;
+  bottom: 0.1rem;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--app-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--app-accent) 28%, transparent);
+  pointer-events: none;
+}
+
+.chart-bar--drop-before::before {
+  left: -0.2rem;
+}
+
+.chart-bar--drop-after::after {
+  right: -0.2rem;
 }
 
 .chart-bar__grip {
@@ -1368,8 +1446,29 @@ onBeforeUnmount(() => {
 }
 
 .chart-bar--selected .chart-bar__grip,
-.chart-bar:hover .chart-bar__grip {
+.chart-bar:hover .chart-bar__grip,
+.chart-editor--dragging-bar .chart-bar__grip {
   opacity: 1;
+}
+
+.chart-bar__trash {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.45rem;
+  height: 1.45rem;
+  margin-left: 0.1rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--app-radius-sm);
+  background: transparent;
+  color: var(--app-muted);
+  cursor: pointer;
+}
+
+.chart-bar__trash:hover {
+  background: color-mix(in srgb, var(--app-danger) 14%, var(--app-surface));
+  color: var(--app-danger);
 }
 
 .chart-bar__pipe {

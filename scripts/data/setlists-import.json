@@ -1,0 +1,1846 @@
+[
+  {
+    "serviceDate": "2026-11-08",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "No one like the Lord",
+      "Who you say I am",
+      "Crushing Snakes",
+      "Precum un tata",
+      "See the light"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2026-11-01",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Let there be light",
+      "Broken vessels",
+      "Love so great",
+      "The Creed",
+      "Psalm 46"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2026-10-25",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "No longer Slaves",
+      "In Your Freedom",
+      "Unstoppable God",
+      "Glory to glory",
+      "Egypt"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2026-10-18",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Calea Adevărul și Viața",
+      "Another in the fire",
+      "Precum un tata",
+      "One way Jesus",
+      "Ever be"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2026-10-09",
+    "title": "День благодарения",
+    "type": "Ивент",
+    "songs": [
+      "God I'm Just Grateful",
+      "Graves into gardens",
+      "Lion and The Lamb",
+      "Domn al Trezirii",
+      "Look to the lamb",
+      "You're still God",
+      "Battle belongs",
+      "In Jesus name",
+      "Still believe",
+      "Strig Aleluia",
+      "Iehova Nissi",
+      "Grateful"
+    ],
+    "expected": 12
+  },
+  {
+    "serviceDate": "2026-10-04",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "God I'm Just Grateful",
+      "Lord send revival",
+      "In Jesus name",
+      "Pana la Capăt",
+      "Do it again",
+      "Grateful"
+    ],
+    "expected": 6
+  },
+  {
+    "serviceDate": "2026-09-20",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "What a beautiful name",
+      "Lion and The Lamb",
+      "Abba, Tatăl meu",
+      "See the light",
+      "Even so come"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2026-09-13",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "God I'm Just Grateful",
+      "Nu e munte prea mare",
+      "Unstable God",
+      "Here again",
+      "Grateful"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2026-09-06",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "This is amazing grace",
+      "What a friend I found",
+      "Another in the fire",
+      "Run to the father",
+      "Love so great"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2026-08-30",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "King of my heart",
+      "Mighty to save",
+      "Build my life",
+      "Set my heart",
+      "Psalm 46"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2026-08-23",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "What a beautiful name",
+      "Graves into gardens",
+      "No longer Slaves"
+    ],
+    "expected": 3
+  },
+  {
+    "serviceDate": "2026-08-16",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Look to the lamb",
+      "Who you say I am",
+      "Glory to glory",
+      "Love so great",
+      "So will I",
+      "Miracles"
+    ],
+    "expected": 6
+  },
+  {
+    "serviceDate": "2026-08-02",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "This is amazing grace",
+      "What a friend I found",
+      "Run to the father",
+      "Build my life",
+      "One way Jesus"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2026-07-26",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Let there be light",
+      "Lion and The Lamb",
+      "Domn al Trezirii",
+      "Set my heart",
+      "Ever be"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2026-07-08",
+    "title": "Лагерь",
+    "type": "Ивент",
+    "songs": [
+      "Calea Adevărul și Viața",
+      "God I'm Just Grateful",
+      "No one like the Lord",
+      "Another in the fire",
+      "Run to the father",
+      "Unstoppable God",
+      "One way Jesus",
+      "Pana la Capăt",
+      "See the light",
+      "Iehova Nissi",
+      "Set my heart",
+      "Grateful",
+      "Egypt"
+    ],
+    "expected": 13
+  },
+  {
+    "serviceDate": "2026-07-05",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Lion and The Lamb",
+      "Who you say I am",
+      "La Tine Vin",
+      "Psalm 46"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2026-06-27",
+    "title": "Крещение",
+    "type": "Ивент",
+    "songs": [
+      "God I'm Just Grateful",
+      "This is amazing grace",
+      "I will follow Jesus",
+      "King of Kings",
+      "Grateful"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2026-06-21",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "No one like the Lord",
+      "Let there be light",
+      "One way Jesus"
+    ],
+    "expected": 3
+  },
+  {
+    "serviceDate": "2026-06-07",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Another in the fire",
+      "Love so great",
+      "Iehova Nissi",
+      "Set my heart",
+      "Egypt"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2026-05-31",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "You're still God",
+      "Unstoppable God",
+      "Do it again",
+      "The Creed",
+      "Graves into gardens"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2026-05-24",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "King of my heart",
+      "Who you say I am",
+      "Broken vessels",
+      "Glory to glory"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2026-05-17",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "This is amazing grace",
+      "No longer Slaves",
+      "Build my life",
+      "Love so great"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2026-05-10",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "What a beautiful name",
+      "No one like the Lord",
+      "Another in the fire",
+      "Look to the lamb",
+      "Iehova Nissi",
+      "Stânca Mea"
+    ],
+    "expected": 6
+  },
+  {
+    "serviceDate": "2026-05-03",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "All I Need Is You",
+      "La Tine Vin",
+      "Psalm 46",
+      "Strig Aleluia"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2026-04-26",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Lion and The Lamb",
+      "Lord send revival",
+      "One way Jesus",
+      "Egypt"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2026-04-19",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "This is amazing grace",
+      "Run to the father",
+      "Look to the lamb",
+      "Precum un tata",
+      "See the light"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2026-04-12",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Look to the lamb",
+      "Cand ma incred",
+      "King of Kings",
+      "Pana la Capăt"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2026-04-05",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "King of my heart",
+      "Set my heart",
+      "One way Jesus"
+    ],
+    "expected": 3
+  },
+  {
+    "serviceDate": "2026-03-29",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "What a beautiful name",
+      "Graves into gardens",
+      "Let there be light",
+      "Crushing Snakes",
+      "In Your Freedom"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2026-03-22",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "I will follow Jesus",
+      "Pana la Capăt",
+      "Unstable God",
+      "Here again",
+      "Ever be"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2026-03-15",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Another in the fire",
+      "Lion and The Lamb",
+      "Iehova Nissi",
+      "La Tine Vin"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2026-03-08",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Build my life",
+      "Set my heart",
+      "The Creed",
+      "Miracles",
+      "Egypt"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2026-03-01",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Lord send revival",
+      "Love so great",
+      "Strig Aleluia",
+      "So will I"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2026-02-22",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "This is amazing grace",
+      "Run to the father",
+      "No longer Slaves",
+      "Who you say I am",
+      "Do it again"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2026-02-15",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "No one like the Lord",
+      "Graves into gardens",
+      "Let there be light",
+      "Broken vessels",
+      "Mighty to save"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2026-02-08",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Nu e munte prea mare",
+      "Crushing Snakes",
+      "King of Kings",
+      "Resurrecting",
+      "One way Jesus"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2026-02-01",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "You're still God",
+      "See the light",
+      "Iehova Nissi",
+      "Miracles",
+      "Psalm 46"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2026-01-25",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "King of my heart",
+      "Build my life",
+      "In Jesus name",
+      "Here again",
+      "Stânca Mea"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2026-01-18",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "No one like the Lord",
+      "Another in the fire",
+      "I will follow Jesus",
+      "Unstable God",
+      "La Tine Vin"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2026-01-11",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Lion and The Lamb",
+      "No longer Slaves",
+      "Who you say I am",
+      "Pana la Capăt",
+      "Ever be"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2026-01-04",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Run to the father",
+      "Mighty to save",
+      "Precum un tata",
+      "Strig Aleluia",
+      "Set my heart"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2025-12-28",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Another in the fire",
+      "One way Jesus",
+      "You're still God",
+      "Egypt"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2025-12-21",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Light Of The World (Sing Hallelujah)",
+      "Let there be light",
+      "Love so great",
+      "See the light"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2025-12-14",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "No one like the Lord",
+      "King of my heart",
+      "Unstable God",
+      "Here again",
+      "So will I"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2025-12-07",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Let there be light",
+      "Crushing Snakes",
+      "Iehova Nissi",
+      "Grateful",
+      "Psalm 46"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2025-11-30",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "This is amazing grace",
+      "Another in the fire",
+      "The Creed",
+      "The stand",
+      "Ever be"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2025-11-23",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "I will follow Jesus",
+      "You're still God",
+      "Love so great",
+      "Pana la Capăt"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2025-11-16",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Let there be light",
+      "Abba, Tatăl meu",
+      "Set my heart",
+      "Egypt"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2025-11-09",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "What a beautiful name",
+      "King of Kings",
+      "Strig Aleluia",
+      "So will I",
+      "One way Jesus"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2025-11-02",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "This is amazing grace",
+      "Graves into gardens",
+      "Lion and The Lamb",
+      "Run to the father",
+      "Do it again"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2025-10-26",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Precum un tata",
+      "Unstable God",
+      "Here again",
+      "Ever be"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2025-10-19",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Run to the father",
+      "King of my heart",
+      "No longer Slaves",
+      "Crushing Snakes",
+      "Set my heart"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2025-10-13",
+    "title": "Ивент",
+    "type": "Ивент",
+    "songs": [
+      "In Your Freedom",
+      "Precum un tata",
+      "Love so great",
+      "Pana la Capăt",
+      "See the light",
+      "Strig Aleluia",
+      "Grateful",
+      "Miracles"
+    ],
+    "expected": 8
+  },
+  {
+    "serviceDate": "2025-10-12",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Another in the fire",
+      "I will follow Jesus",
+      "Love so great",
+      "Resurrecting",
+      "La Tine Vin"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2025-10-05",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Graves into gardens",
+      "Run to the father",
+      "Build my life",
+      "Set my heart"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2025-09-28",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "No one like the Lord",
+      "Iehova Nissi",
+      "Here again",
+      "Ever be"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2025-09-21",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Who you say I am",
+      "Broken vessels",
+      "Egypt"
+    ],
+    "expected": 3
+  },
+  {
+    "serviceDate": "2025-09-14",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Lord send revival",
+      "Run to the father",
+      "Unstable God",
+      "Grateful",
+      "Psalm 46"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2025-08-31",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Who you say I am",
+      "Love so great",
+      "Do it again",
+      "The Creed",
+      "Miracles"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2025-08-24",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "I will follow Jesus",
+      "Mighty to save"
+    ],
+    "expected": 2
+  },
+  {
+    "serviceDate": "2025-08-10",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "What a beautiful name",
+      "You're still God",
+      "Crushing Snakes",
+      "Iehova Nissi",
+      "Stânca Mea"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2025-08-03",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "This is amazing grace",
+      "Lion and The Lamb",
+      "Lord send revival",
+      "Grateful"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2025-07-27",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Run to the father",
+      "Build my life",
+      "Ever be"
+    ],
+    "expected": 3
+  },
+  {
+    "serviceDate": "2025-07-20",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Another in the fire",
+      "One way Jesus",
+      "See the light",
+      "Do it again",
+      "Egypt"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2025-07-13",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "I will follow Jesus",
+      "King of my heart",
+      "Mighty to save",
+      "So will I"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2025-07-06",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "This is amazing grace",
+      "Let there be light",
+      "Broken vessels",
+      "King of Kings",
+      "Strig Aleluia"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2025-06-30",
+    "title": "Camp – day 5",
+    "type": "Ивент",
+    "songs": [
+      "Unstoppable God",
+      "See the light"
+    ],
+    "expected": 2
+  },
+  {
+    "serviceDate": "2025-06-29",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Another in the fire",
+      "Graves into gardens",
+      "One way Jesus",
+      "Crushing Snakes",
+      "Build my life"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2025-06-28",
+    "title": "Camp – day 3",
+    "type": "Ивент",
+    "songs": [
+      "One way Jesus",
+      "Love so great",
+      "Strig Aleluia",
+      "Unstable God"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2025-06-27",
+    "title": "Camp - day 2",
+    "type": "Ивент",
+    "songs": [
+      "One way Jesus",
+      "Build my life",
+      "In Jesus name",
+      "Unstable God"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2025-06-26",
+    "title": "Kaveri",
+    "type": "Ивент",
+    "songs": [
+      "Build my life",
+      "Iehova Nissi",
+      "Set my heart"
+    ],
+    "expected": 3
+  },
+  {
+    "serviceDate": "2025-06-22",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "What a beautiful name",
+      "Nu e munte prea mare",
+      "All I Need Is You",
+      "The Creed"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2025-06-15",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Love so great",
+      "La Tine Vin",
+      "Here again",
+      "Egypt"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2025-06-08",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Graves into gardens",
+      "I will follow Jesus",
+      "Crushing Snakes",
+      "Iehova Nissi",
+      "Miracles"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2025-06-01",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "I will follow Jesus",
+      "King of my heart",
+      "Ever be"
+    ],
+    "expected": 3
+  },
+  {
+    "serviceDate": "2025-05-25",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Run to the father",
+      "You're still God",
+      "Build my life",
+      "Strig Aleluia",
+      "Set my heart"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2025-05-18",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Lord send revival",
+      "One way Jesus",
+      "In Jesus name",
+      "Still believe",
+      "Do it again",
+      "La Tine Vin"
+    ],
+    "expected": 6
+  },
+  {
+    "serviceDate": "2025-05-11",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "No one like the Lord",
+      "Pana la Capăt",
+      "See the light",
+      "Psalm 46"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2025-05-04",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Who you say I am",
+      "Crushing Snakes",
+      "Love so great",
+      "Iehova Nissi"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2025-04-27",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Graves into gardens",
+      "Run to the father",
+      "One way Jesus",
+      "Build my life",
+      "Set my heart"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2025-04-20",
+    "title": "Пасха",
+    "type": "Ивент",
+    "songs": [
+      "Another in the fire",
+      "Lion and The Lamb",
+      "Resurrecting"
+    ],
+    "expected": 3
+  },
+  {
+    "serviceDate": "2025-03-23",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Graves into gardens",
+      "Run to the father",
+      "King of my heart",
+      "Love so great"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2025-03-16",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Another in the fire",
+      "Let there be light",
+      "Run to the father",
+      "Strig Aleluia",
+      "Pana la Capăt",
+      "Iehova Nissi"
+    ],
+    "expected": 6
+  },
+  {
+    "serviceDate": "2025-02-23",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "One way Jesus",
+      "Build my life",
+      "Iehova Nissi",
+      "Stânca Mea",
+      "Egypt"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2025-02-02",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Let there be light",
+      "No longer Slaves",
+      "Love so great",
+      "La Tine Vin"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2025-01-26",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Lion and The Lamb",
+      "Run to the father",
+      "Build my life",
+      "Love so great"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2024-12-22",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Iehova Nissi",
+      "Do it again",
+      "Egypt"
+    ],
+    "expected": 3
+  },
+  {
+    "serviceDate": "2024-12-01",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Run to the father",
+      "Who you say I am",
+      "Crushing Snakes",
+      "So will I"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2024-10-20",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Lion and The Lamb",
+      "Here again",
+      "So will I",
+      "Miracles"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2024-09-29",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "What a beautiful name",
+      "What a friend I found",
+      "No longer Slaves",
+      "King of Kings"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2024-09-22",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Graves into gardens",
+      "Egypt"
+    ],
+    "expected": 2
+  },
+  {
+    "serviceDate": "2024-09-15",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Lord send revival",
+      "Run to the father",
+      "Build my life",
+      "Love so great",
+      "Psalm 46"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2024-09-08",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Run to the father",
+      "Build my life",
+      "See the light",
+      "Here again"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2024-08-18",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Graves into gardens",
+      "Battle belongs",
+      "Broken vessels",
+      "Do it again"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2024-07-07",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Graves into gardens",
+      "Lion and The Lamb",
+      "Battle belongs",
+      "Set my heart",
+      "Psalm 46"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2024-06-30",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Let there be light",
+      "Abba, Tatăl meu",
+      "See the light",
+      "Grateful"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2024-06-16",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "King of my heart",
+      "Build my life",
+      "Love so great",
+      "Do it again"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2024-05-26",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Another in the fire",
+      "No longer Slaves",
+      "Crushing Snakes"
+    ],
+    "expected": 3
+  },
+  {
+    "serviceDate": "2024-05-12",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Strig Aleluia",
+      "Set my heart",
+      "Do it again",
+      "La Tine Vin",
+      "Here again"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2024-04-21",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "What a beautiful name",
+      "Another in the fire",
+      "Let there be light",
+      "No longer Slaves",
+      "See the light"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2024-04-14",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Abba, Tatăl meu",
+      "Love so great",
+      "Set my heart",
+      "Egypt"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2024-03-31",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Nu e munte prea mare",
+      "Lion and The Lamb",
+      "Lord send revival",
+      "Unstoppable God",
+      "Here again"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2024-03-17",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "King of my heart",
+      "Who you say I am",
+      "Love so great",
+      "Psalm 46",
+      "Ever be"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2024-03-10",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Unstoppable God",
+      "See the light",
+      "Miracles"
+    ],
+    "expected": 3
+  },
+  {
+    "serviceDate": "2024-03-03",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "What a friend I found",
+      "Another in the fire",
+      "Battle belongs",
+      "Egypt"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2024-02-18",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Nu e munte prea mare",
+      "Graves into gardens",
+      "Lion and The Lamb"
+    ],
+    "expected": 3
+  },
+  {
+    "serviceDate": "2024-02-04",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Let there be light",
+      "No longer Slaves",
+      "Love so great",
+      "La Tine Vin",
+      "So will I"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2024-01-28",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Crushing Snakes",
+      "Build my life",
+      "In Jesus name",
+      "Do it again",
+      "Psalm 46"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2024-01-07",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Another in the fire",
+      "Lion and The Lamb",
+      "Lord send revival",
+      "Love so great"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2023-12-24",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "What a beautiful name",
+      "Crushing Snakes",
+      "Glory to glory",
+      "King of Kings"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2023-11-12",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Calea Adevărul și Viața",
+      "What a beautiful name",
+      "Who you say I am",
+      "Battle belongs"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2023-10-29",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Let there be light",
+      "Lion and The Lamb",
+      "No longer Slaves",
+      "Love so great",
+      "Egypt"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2023-10-22",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "What a beautiful name",
+      "Unstoppable God",
+      "Still believe",
+      "Egypt"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2023-10-15",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "King of my heart",
+      "Broken vessels",
+      "See the light",
+      "Here again"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2023-10-01",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "What a beautiful name",
+      "What a friend I found",
+      "King of my heart",
+      "Unstoppable God",
+      "Glory to glory",
+      "Resurrecting"
+    ],
+    "expected": 6
+  },
+  {
+    "serviceDate": "2023-09-24",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Battle belongs",
+      "In Jesus name",
+      "Strig Aleluia",
+      "Do it again",
+      "Psalm 46"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2023-09-17",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Let there be light",
+      "Lord send revival",
+      "See the light"
+    ],
+    "expected": 3
+  },
+  {
+    "serviceDate": "2023-09-10",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Nu e munte prea mare",
+      "Build my life",
+      "Love so great",
+      "Still believe",
+      "Egypt"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2023-08-20",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Lord send revival",
+      "Strig Aleluia",
+      "Here again"
+    ],
+    "expected": 3
+  },
+  {
+    "serviceDate": "2023-07-30",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Nu e munte prea mare",
+      "King of Kings",
+      "Love so great",
+      "Strig Aleluia"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2023-07-23",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Graves into gardens",
+      "One way Jesus",
+      "Still believe",
+      "Stânca Mea",
+      "Grateful"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2023-07-16",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Calea Adevărul și Viața",
+      "What a beautiful name",
+      "What a friend I found",
+      "Let there be light",
+      "Glory to glory"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2023-07-09",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Lord send revival",
+      "No longer Slaves",
+      "Who you say I am",
+      "Broken vessels"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2023-07-02",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Nu e munte prea mare",
+      "Another in the fire",
+      "Grateful",
+      "Psalm 46"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2023-06-11",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Who you say I am",
+      "See the light",
+      "Here again"
+    ],
+    "expected": 3
+  },
+  {
+    "serviceDate": "2023-05-28",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Unstoppable God",
+      "Precum un tata"
+    ],
+    "expected": 2
+  },
+  {
+    "serviceDate": "2023-05-09",
+    "title": "День благодарения",
+    "type": "Ивент",
+    "songs": [
+      "Let there be light",
+      "Lord send revival",
+      "Battle belongs",
+      "Precum un tata",
+      "Build my life",
+      "King of Kings",
+      "Love so great",
+      "Still believe",
+      "Strig Aleluia",
+      "La Tine Vin",
+      "Stânca Mea"
+    ],
+    "expected": 11
+  },
+  {
+    "serviceDate": "2023-05-07",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Lord send revival",
+      "Abba, Tatăl meu"
+    ],
+    "expected": 2
+  },
+  {
+    "serviceDate": "2023-04-30",
+    "title": "Крещение",
+    "type": "Ивент",
+    "songs": [
+      "What a friend I found",
+      "Graves into gardens",
+      "See the light",
+      "Strig Aleluia"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2023-04-09",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "What a beautiful name",
+      "What a friend I found",
+      "One way Jesus",
+      "Love so great",
+      "Here again"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2023-04-02",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "All I Need Is You",
+      "Unstoppable God",
+      "The stand",
+      "Miracles"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2023-03-26",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "All I Need Is You",
+      "No longer Slaves",
+      "See the light",
+      "Psalm 46",
+      "Ever be"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2023-03-19",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Another in the fire",
+      "Lord send revival",
+      "King of my heart",
+      "Strig Aleluia",
+      "Stânca Mea"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2023-03-12",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Let there be light",
+      "Lion and The Lamb"
+    ],
+    "expected": 2
+  },
+  {
+    "serviceDate": "2023-03-05",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "This is amazing grace",
+      "Glory to glory",
+      "Build my life",
+      "Still believe",
+      "La Tine Vin"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2023-02-19",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Let there be light",
+      "Who you say I am",
+      "In Your Freedom",
+      "Precum un tata",
+      "Graves into gardens"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2023-02-12",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "King of my heart",
+      "Broken vessels",
+      "See the light"
+    ],
+    "expected": 3
+  },
+  {
+    "serviceDate": "2023-01-29",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "No longer Slaves",
+      "So will I",
+      "Grateful",
+      "Psalm 46"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2023-01-22",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "What a beautiful name",
+      "Strig Aleluia",
+      "Stânca Mea"
+    ],
+    "expected": 3
+  },
+  {
+    "serviceDate": "2023-01-15",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Let there be light",
+      "Lord send revival",
+      "No longer Slaves",
+      "In Jesus name"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2023-01-08",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Calea Adevărul și Viața",
+      "Do it again",
+      "La Tine Vin",
+      "Here again",
+      "Graves into gardens"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2022-12-25",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "This is amazing grace",
+      "Let there be light"
+    ],
+    "expected": 2
+  },
+  {
+    "serviceDate": "2022-12-11",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "What a friend I found",
+      "Build my life",
+      "Love so great",
+      "Even so come",
+      "La Tine Vin"
+    ],
+    "expected": 5
+  },
+  {
+    "serviceDate": "2022-12-04",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Lion and The Lamb",
+      "Lord send revival",
+      "Still believe",
+      "The Creed"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2022-11-27",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Calea Adevărul și Viața",
+      "Mighty to save",
+      "Stânca Mea"
+    ],
+    "expected": 3
+  },
+  {
+    "serviceDate": "2022-11-20",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "This is amazing grace",
+      "Still believe",
+      "Do it again"
+    ],
+    "expected": 3
+  },
+  {
+    "serviceDate": "2022-11-13",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Another in the fire",
+      "In Your Freedom",
+      "Psalm 46",
+      "Ever be"
+    ],
+    "expected": 4
+  },
+  {
+    "serviceDate": "2022-10-16",
+    "title": "Воскресное служение",
+    "type": "Воскресное служение",
+    "songs": [
+      "Another in the fire",
+      "Egypt",
+      "Nu e munte prea mare"
+    ],
+    "expected": 3
+  }
+]

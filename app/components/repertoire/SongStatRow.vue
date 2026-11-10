@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { RepertoireSongStat } from '~~/shared/types'
 import { formatServiceDatePill } from '~/utils/dates'
+import { pluralForm } from '~/utils/i18n/plural'
 import { icons } from '~/utils/icons'
 import { formatSinceLast } from '~/utils/repertoire/status'
 
@@ -36,6 +37,10 @@ const props = withDefaults(
 )
 
 const { t, locale } = useAppLocale()
+
+function playsLabel(count: number) {
+  return t(`repertoire.playsCount_${pluralForm(count, locale.value)}`, { count })
+}
 
 const lastLabel = computed(() =>
   formatServiceDatePill(props.song.lastDate, {
@@ -75,7 +80,7 @@ const sinceLabel = computed(() => formatSinceLast(props.song.lastDate, t))
       <template v-if="variant === 'frequent'">
         <div class="song-stat__freq">
           <span class="song-stat__plays">
-            {{ t('repertoire.playsCount', { count: playsShown }) }}
+            {{ playsLabel(playsShown) }}
           </span>
           <div
             class="song-stat__bar"
@@ -83,7 +88,7 @@ const sinceLabel = computed(() => formatSinceLast(props.song.lastDate, t))
             :aria-valuenow="barWidth"
             aria-valuemin="0"
             aria-valuemax="100"
-            :aria-label="t('repertoire.playsCount', { count: playsShown })"
+            :aria-label="playsLabel(playsShown)"
           >
             <span class="song-stat__bar-fill" :style="{ width: `${barWidth}%` }" />
           </div>
@@ -100,7 +105,7 @@ const sinceLabel = computed(() => formatSinceLast(props.song.lastDate, t))
 
       <template v-else>
         <div class="song-stat__meta">
-          <span>{{ t('repertoire.playsCount', { count: playsShown }) }}</span>
+          <span>{{ playsLabel(playsShown) }}</span>
           <span class="song-stat__dot">·</span>
           <span>
             {{

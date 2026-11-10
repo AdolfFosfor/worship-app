@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import type { Setlist } from '~~/shared/types'
-import { formatServiceDatePill, localTodayKey } from '~/utils/dates'
+import { isDefaultSessionTitle } from '~~/shared/i18n/messages'
+import {
+  formatListDayParts,
+  formatMonthYearHeading,
+  monthKeyFromIso,
+} from '~/utils/dates'
 import { icons } from '~/utils/icons'
 
 const route = useRoute()
@@ -19,7 +24,7 @@ const { syncSetlistsOnActivate } = useSetlistsRevision()
 const toast = useToast()
 const { requireDanger } = useAppConfirm()
 
-/** Пока нет кэша — не показываем hero без пиллов. */
+/** Пока нет кэша — не показываем пустой список. */
 const pageReady = ref(Boolean(setlists.value.length || upcoming.value))
 const createOpen = ref(false)
 const createSheet = ref<{ open: () => void } | null>(null)
@@ -34,34 +39,39 @@ function consumeCreateQuery() {
   void navigateTo({ path: '/setlists', query: {} }, { replace: true })
 }
 
-const today = computed(() => localTodayKey())
+interface SetlistMonthGroup {
+  key: string
+  label: string
+  items: Setlist[]
+}
 
-const upcomingList = computed(() =>
-  setlists.value
-    .filter((s) => s.serviceDate >= today.value)
+const monthGroups = computed((): SetlistMonthGroup[] => {
+  const sorted = setlists.value
     .slice()
-    .sort((a, b) => a.serviceDate.localeCompare(b.serviceDate)),
-)
+    .sort((a, b) => b.serviceDate.localeCompare(a.serviceDate))
 
-const past = computed(() =>
-  setlists.value
-    .filter((s) => s.serviceDate < today.value)
-    .slice()
-    .sort((a, b) => b.serviceDate.localeCompare(a.serviceDate)),
-)
+  const groups: SetlistMonthGroup[] = []
+  const indexByKey = new Map<string, number>()
 
-const nextUpcoming = computed(() => upcomingList.value[0] ?? null)
-const otherUpcoming = computed(() => upcomingList.value.slice(1))
+  for (const item of sorted) {
+    const key = monthKeyFromIso(item.serviceDate)
+    let idx = indexByKey.get(key)
+    if (idx == null) {
+      idx = groups.length
+      indexByKey.set(key, idx)
+      groups.push({
+        key,
+        label: formatMonthYearHeading(item.serviceDate, locale.value),
+        items: [],
+      })
+    }
+    groups[idx]!.items.push(item)
+  }
 
-const heroItems = computed(() => {
-  const next = nextUpcoming.value
-  const cached = upcoming.value
-  if (!next || !cached || cached.id !== next.id) return []
-  return cached.items
+  return groups
 })
 
 async function load(opts?: { quiet?: boolean }) {
-  // quiet: KeepAlive-возврат — без полноэкранного лоадера, пиллы не сбрасываем
   if (!opts?.quiet && !setlists.value.length) {
     pageReady.value = false
   }
@@ -87,11 +97,27 @@ watch(
   () => consumeCreateQuery(),
 )
 
-function formatDatePill(iso: string) {
-  return formatServiceDatePill(iso, {
-    locale: locale.value,
-    todayPrefix: (date) => t('dates.todayPrefix', { date }),
-  })
+function dayParts(iso: string) {
+  return formatListDayParts(iso, locale.value)
+}
+
+function isEvent(item: Setlist) {
+  return !isDefaultSessionTitle(item.title)
+}
+
+function songsCountLabel(count: number) {
+  const n = Math.max(0, count)
+  const mod10 = n % 10
+  const mod100 = n % 100
+  let form: 'one' | 'few' | 'many' = 'many'
+  if (locale.value === 'en' || locale.value === 'ro') {
+    form = n === 1 ? 'one' : 'many'
+  } else if (mod10 === 1 && mod100 !== 11) {
+    form = 'one'
+  } else if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) {
+    form = 'few'
+  }
+  return t(`setlists.songsCount_${form}`, { count: n })
 }
 
 function confirmDeleteSetlist(item: Setlist) {
@@ -152,161 +178,164 @@ function confirmDeleteSetlist(item: Setlist) {
     </AppEmptyState>
 
     <template v-else>
-      <AppSection v-if="nextUpcoming" :title="t('setlists.sectionNext')">
-        <SwipeDeleteRow
-          class="setlists-hero-swipe"
-          :disabled="!workspace.canEditSetlists"
-          @commit="confirmDeleteSetlist(nextUpcoming)"
-        >
-          <div class="setlists-hero app-panel app-panel--accent">
-            <NuxtLink :to="`/setlists/${nextUpcoming.id}`" class="setlists-hero__link app-press">
-              <AppPill>{{ formatDatePill(nextUpcoming.serviceDate) }}</AppPill>
-              <span class="setlists-hero__title">{{ sessionTitle(nextUpcoming.title) }}</span>
-              <AppIcon :name="icons.chevronRight" class="setlists-hero__chevron" size="1.05rem" />
-            </NuxtLink>
-            <div
-              v-if="heroItems.length"
-              class="setlists-hero__songs app-chip-row"
-              :aria-label="t('home.ariaSetlistSongs')"
-            >
-              <AppPill
-                v-for="item in heroItems"
-                :key="item.id"
-                tone="soft"
-              >
-                {{ item.song.title }}
-              </AppPill>
-            </div>
-          </div>
-        </SwipeDeleteRow>
-
-        <div v-if="otherUpcoming.length" class="setlists-stack">
+      <section
+        v-for="group in monthGroups"
+        :key="group.key"
+        class="app-section setlists-group"
+      >
+        <h2 class="setlists-group__title">{{ group.label }}</h2>
+        <div class="setlists-month app-panel">
           <SwipeDeleteRow
-            v-for="item in otherUpcoming"
+            v-for="item in group.items"
             :key="item.id"
-            class="setlists-card-swipe"
+            class="setlists-row-swipe"
             :disabled="!workspace.canEditSetlists"
             @commit="confirmDeleteSetlist(item)"
           >
             <NuxtLink
               :to="`/setlists/${item.id}`"
-              class="setlists-card app-press"
+              class="setlists-row app-press"
             >
-              <AppPill size="sm">{{ formatDatePill(item.serviceDate) }}</AppPill>
-              <span class="setlists-card__title">{{ sessionTitle(item.title) }}</span>
-              <AppIcon :name="icons.chevronRight" class="setlists-card__chevron" size="1rem" />
+              <div class="setlists-row__date" aria-hidden="true">
+                <span class="setlists-row__weekday">{{ dayParts(item.serviceDate).weekday }}</span>
+                <span class="setlists-row__day">{{ dayParts(item.serviceDate).day }}</span>
+              </div>
+              <div class="setlists-row__main">
+                <div class="setlists-row__title-line">
+                  <span class="setlists-row__title">{{ sessionTitle(item.title) }}</span>
+                  <span v-if="isEvent(item)" class="setlists-row__event">
+                    {{ t('setlists.eventBadge') }}
+                  </span>
+                </div>
+                <span class="setlists-row__meta">
+                  {{ songsCountLabel(item.itemCount ?? 0) }}
+                </span>
+              </div>
+              <AppIcon
+                :name="icons.chevronRight"
+                class="setlists-row__chevron"
+                size="1.05rem"
+              />
             </NuxtLink>
           </SwipeDeleteRow>
         </div>
-      </AppSection>
-
-      <AppSection v-if="past.length" :title="t('setlists.sectionHistory')">
-        <div class="setlists-stack">
-          <SwipeDeleteRow
-            v-for="item in past"
-            :key="item.id"
-            class="setlists-card-swipe"
-            :disabled="!workspace.canEditSetlists"
-            @commit="confirmDeleteSetlist(item)"
-          >
-            <NuxtLink
-              :to="`/setlists/${item.id}`"
-              class="setlists-card setlists-card--past app-press"
-            >
-              <AppPill tone="muted" size="sm">{{ formatDatePill(item.serviceDate) }}</AppPill>
-              <span class="setlists-card__title">{{ sessionTitle(item.title) }}</span>
-              <AppIcon :name="icons.chevronRight" class="setlists-card__chevron" size="1rem" />
-            </NuxtLink>
-          </SwipeDeleteRow>
-        </div>
-      </AppSection>
+      </section>
     </template>
   </div>
 </template>
 
 <style scoped>
-.setlists-hero-swipe,
-.setlists-card-swipe {
-  border-radius: var(--app-radius-lg);
-}
-
-.setlists-hero {
-  overflow: hidden;
-  background: var(--app-surface);
-}
-
-.setlists-hero__link {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--app-space-2);
-  padding: var(--app-space-5);
-  padding-bottom: var(--app-space-3);
-  padding-right: 2.5rem;
-  text-decoration: none;
-  color: inherit;
-}
-
-.setlists-hero__title {
-  font-size: var(--app-text-xl);
+.setlists-group__title {
+  margin: 0;
+  padding-inline: var(--app-space-1);
+  font-size: var(--app-text-sm);
   font-weight: 700;
-  letter-spacing: -0.025em;
-  line-height: 1.2;
-  color: var(--app-ink);
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+  color: var(--app-section-header);
 }
 
-.setlists-hero__chevron {
+.setlists-month {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.setlists-row-swipe:not(:last-child) :deep(.swipe-delete__content)::after {
+  content: '';
   position: absolute;
-  right: var(--app-space-4);
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--app-muted);
-  opacity: 0.5;
+  left: 3.05rem;
+  right: 0;
+  bottom: 0;
+  height: var(--app-hairline, 1px);
+  background: var(--app-border);
+  pointer-events: none;
 }
 
-.setlists-hero__songs {
-  padding: 0 var(--app-space-5) var(--app-space-5);
-}
-
-.setlists-stack {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-2);
-}
-
-.setlists-card {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--app-space-2);
-  min-height: 4.25rem;
-  padding: var(--app-space-4);
-  padding-right: 2.25rem;
-  border-radius: var(--app-radius-lg);
-  background: var(--app-surface);
+.setlists-row {
+  display: grid;
+  grid-template-columns: 2.15rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 3.35rem;
+  padding: 0.55rem var(--app-space-4) 0.55rem 0.55rem;
   text-decoration: none;
   color: inherit;
 }
 
-.setlists-card--past {
-  opacity: 0.82;
+.setlists-row__date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.05rem;
+  min-width: 0;
+  line-height: 1.05;
 }
 
-.setlists-card__title {
+.setlists-row__weekday {
+  font-size: var(--app-text-2xs);
   font-weight: 650;
-  font-size: var(--app-text-md);
-  letter-spacing: -0.015em;
-  color: var(--app-ink);
-  line-height: 1.25;
+  letter-spacing: -0.01em;
+  text-transform: lowercase;
+  color: var(--app-muted);
 }
 
-.setlists-card__chevron {
-  position: absolute;
-  right: var(--app-space-3);
-  top: 50%;
-  transform: translateY(-50%);
+.setlists-row__day {
+  font-size: var(--app-text-lg);
+  font-weight: 750;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--app-ink);
+}
+
+.setlists-row__main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.setlists-row__title-line {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.setlists-row__title {
+  min-width: 0;
+  font-size: var(--app-text-md);
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+  color: var(--app-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.setlists-row__event {
+  flex-shrink: 0;
+  padding: 0.12rem 0.4rem;
+  border-radius: var(--app-radius-pill);
+  background: var(--app-accent-muted);
+  color: var(--app-accent-text);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+}
+
+.setlists-row__meta {
+  font-size: var(--app-text-xs);
+  font-weight: 550;
+  color: var(--app-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.setlists-row__chevron {
+  flex-shrink: 0;
   color: var(--app-muted);
   opacity: 0.45;
 }

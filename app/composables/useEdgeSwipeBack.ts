@@ -31,6 +31,16 @@ function isEditableTarget(target: EventTarget | null): boolean {
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'
 }
 
+/** Горизонтальные скроллеры / свайп-строки — жест «назад» не перехватывает. */
+function isHorizontalGestureRegion(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false
+  return Boolean(
+    target.closest(
+      '.swipe-delete, .month-bars--scroll, .app-chip-row, [data-h-scroll]',
+    ),
+  )
+}
+
 function hasBlockingOverlay(): boolean {
   return Boolean(
     document.querySelector(
@@ -326,7 +336,11 @@ export function useEdgeSwipeBack(shellRef: Ref<HTMLElement | null>) {
       ) {
         return
       }
-      if (isEditableTarget(event.target) || wheelTracking) {
+      if (
+        isEditableTarget(event.target) ||
+        isHorizontalGestureRegion(event.target) ||
+        wheelTracking
+      ) {
         return
       }
 
@@ -429,11 +443,8 @@ export function useEdgeSwipeBack(shellRef: Ref<HTMLElement | null>) {
       if (isEditableTarget(event.target)) {
         return
       }
-      // Над карточкой со свайп-удалением — wheel забирает SwipeDeleteRow
-      if (
-        event.target instanceof Element &&
-        event.target.closest('.swipe-delete')
-      ) {
+      // Горизонтальный скролл / свайп-удаление — не уводить назад
+      if (isHorizontalGestureRegion(event.target)) {
         return
       }
 

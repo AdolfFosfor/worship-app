@@ -7,6 +7,8 @@ export interface Setlist extends Timestamps {
   title: string
   serviceDate: string
   createdBy: EntityId | null
+  /** Число песен в сете (если загружено через count). */
+  itemCount?: number
 }
 
 export interface SetlistItem {

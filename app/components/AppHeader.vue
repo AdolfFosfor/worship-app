@@ -1,15 +1,22 @@
 <script setup lang="ts">
-defineProps<{
-  title: string
-  subtitle?: string
-}>()
+withDefaults(
+  defineProps<{
+    title?: string
+    subtitle?: string
+  }>(),
+  { title: undefined, subtitle: undefined },
+)
 </script>
 
 <template>
   <header class="app-header">
     <div class="app-header__text">
-      <h1 class="app-header__title">{{ title }}</h1>
-      <p v-if="subtitle" class="app-header__subtitle">{{ subtitle }}</p>
+      <slot name="title">
+        <h1 v-if="title" class="app-header__title">{{ title }}</h1>
+      </slot>
+      <slot name="subtitle">
+        <p v-if="subtitle" class="app-header__subtitle">{{ subtitle }}</p>
+      </slot>
     </div>
     <div class="app-header__trailing">
       <slot name="trailing" />

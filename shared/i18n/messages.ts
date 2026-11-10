@@ -133,7 +133,9 @@ const ru: MessageDict = {
   'repertoire.period.6m': '6 мес.',
   'repertoire.period.12m': '12 мес.',
   'repertoire.period.all': 'Всё время',
-  'repertoire.playsCount': '{count}×',
+  'repertoire.playsCount_one': '{count} исполнение',
+  'repertoire.playsCount_few': '{count} исполнения',
+  'repertoire.playsCount_many': '{count} исполнений',
   'repertoire.lastPlayed': 'посл. {date}',
   'repertoire.lastPlayedShort': 'Последнее',
   'repertoire.firstPlayed': 'Первое',
@@ -225,6 +227,10 @@ const ru: MessageDict = {
   'setlists.fieldDate': 'Дата',
   'setlists.createFailed': 'Не удалось создать',
   'setlists.loadFailed': 'Не удалось загрузить сет-листы',
+  'setlists.eventBadge': 'Ивент',
+  'setlists.songsCount_one': '{count} песня',
+  'setlists.songsCount_few': '{count} песни',
+  'setlists.songsCount_many': '{count} песен',
 
   'setlist.emptySongsTitle': 'Песен пока нет',
   'setlist.emptySongsDesc': 'Добавьте песни из библиотеки',
@@ -240,6 +246,9 @@ const ru: MessageDict = {
   'setlist.reorderFailed': 'Не удалось изменить порядок',
   'setlist.alreadyIn': 'Уже в сет-листе',
   'setlist.added': 'Добавлено',
+  'setlist.editTitleAria': 'Изменить название',
+  'setlist.editDateAria': 'Изменить дату',
+
 
   'members.title': 'Команда',
   'members.inviteSection': 'Приглашение',
@@ -311,6 +320,7 @@ const ru: MessageDict = {
   'chart.sectionTypeAria': 'Тип секции: {title}',
   'chart.addFirstBar': 'Добавить первый такт',
   'chart.moveBar': 'Переместить такт',
+  'chart.deleteBar': 'Удалить такт',
   'chart.addChord': 'Добавить аккорд',
   'chart.insertHere': 'Вставить сюда',
   'chart.addChordShort': '+ аккорд',
@@ -487,7 +497,9 @@ const ro: MessageDict = {
   'repertoire.period.6m': '6 luni',
   'repertoire.period.12m': '12 luni',
   'repertoire.period.all': 'Tot timpul',
-  'repertoire.playsCount': '{count}×',
+  'repertoire.playsCount_one': '{count} interpretare',
+  'repertoire.playsCount_few': '{count} interpretări',
+  'repertoire.playsCount_many': '{count} interpretări',
   'repertoire.lastPlayed': 'ult. {date}',
   'repertoire.lastPlayedShort': 'Ultima',
   'repertoire.firstPlayed': 'Prima',
@@ -579,6 +591,10 @@ const ro: MessageDict = {
   'setlists.fieldDate': 'Data',
   'setlists.createFailed': 'Nu s-a putut crea',
   'setlists.loadFailed': 'Nu s-au putut încărca setlist-urile',
+  'setlists.eventBadge': 'Event',
+  'setlists.songsCount_one': '{count} cântec',
+  'setlists.songsCount_few': '{count} cântece',
+  'setlists.songsCount_many': '{count} cântece',
 
   'setlist.emptySongsTitle': 'Încă nu sunt cântece',
   'setlist.emptySongsDesc': 'Adăugați cântece din bibliotecă',
@@ -594,6 +610,8 @@ const ro: MessageDict = {
   'setlist.reorderFailed': 'Nu s-a putut schimba ordinea',
   'setlist.alreadyIn': 'Deja în setlist',
   'setlist.added': 'Adăugat',
+  'setlist.editTitleAria': 'Editează titlul',
+  'setlist.editDateAria': 'Editează data',
 
   'members.title': 'Echipă',
   'members.inviteSection': 'Invitație',
@@ -665,6 +683,7 @@ const ro: MessageDict = {
   'chart.sectionTypeAria': 'Tip secțiune: {title}',
   'chart.addFirstBar': 'Adaugă prima măsură',
   'chart.moveBar': 'Mută măsura',
+  'chart.deleteBar': 'Șterge măsura',
   'chart.addChord': 'Adaugă acord',
   'chart.insertHere': 'Inserează aici',
   'chart.addChordShort': '+ acord',
@@ -841,7 +860,9 @@ const en: MessageDict = {
   'repertoire.period.6m': '6 mo',
   'repertoire.period.12m': '12 mo',
   'repertoire.period.all': 'All time',
-  'repertoire.playsCount': '{count}×',
+  'repertoire.playsCount_one': '{count} play',
+  'repertoire.playsCount_few': '{count} plays',
+  'repertoire.playsCount_many': '{count} plays',
   'repertoire.lastPlayed': 'last {date}',
   'repertoire.lastPlayedShort': 'Last',
   'repertoire.firstPlayed': 'First',
@@ -933,6 +954,10 @@ const en: MessageDict = {
   'setlists.fieldDate': 'Date',
   'setlists.createFailed': 'Could not create',
   'setlists.loadFailed': 'Could not load setlists',
+  'setlists.eventBadge': 'Event',
+  'setlists.songsCount_one': '{count} song',
+  'setlists.songsCount_few': '{count} songs',
+  'setlists.songsCount_many': '{count} songs',
 
   'setlist.emptySongsTitle': 'No songs yet',
   'setlist.emptySongsDesc': 'Add songs from the library',
@@ -948,6 +973,8 @@ const en: MessageDict = {
   'setlist.reorderFailed': 'Could not reorder',
   'setlist.alreadyIn': 'Already in setlist',
   'setlist.added': 'Added',
+  'setlist.editTitleAria': 'Edit title',
+  'setlist.editDateAria': 'Edit date',
 
   'members.title': 'Team',
   'members.inviteSection': 'Invite',
@@ -1019,6 +1046,7 @@ const en: MessageDict = {
   'chart.sectionTypeAria': 'Section type: {title}',
   'chart.addFirstBar': 'Add first bar',
   'chart.moveBar': 'Move bar',
+  'chart.deleteBar': 'Delete bar',
   'chart.addChord': 'Add chord',
   'chart.insertHere': 'Insert here',
   'chart.addChordShort': '+ chord',
@@ -1090,4 +1118,16 @@ export function localizeSessionTitle(title: string, locale: AppLocale): string {
     }
   }
   return title
+}
+
+/** Дефолтное воскресное служение (любая локаль) — не «ивент». */
+export function isDefaultSessionTitle(title: string): boolean {
+  const trimmed = title.trim()
+  if (!trimmed) return false
+  for (const key of SESSION_TITLE_KEYS) {
+    for (const loc of Object.keys(messages) as AppLocale[]) {
+      if (messages[loc][key] === trimmed) return true
+    }
+  }
+  return false
 }

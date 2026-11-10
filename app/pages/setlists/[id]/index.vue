@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import Sortable from 'sortablejs'
 import type { SetlistItemWithSong, SetlistWithItems, Song } from '~~/shared/types'
+import { localDayKey } from '~/utils/dates'
 import { icons } from '~/utils/icons'
 import { soundingKey } from '~/utils/music/capo'
 
@@ -9,6 +10,7 @@ const workspace = useWorkspaceStore()
 const { t, sessionTitle, locale } = useAppLocale()
 const {
   getSetlist,
+  updateSetlist,
   addSongToSetlist,
   removeItem,
   reorderItems,
@@ -183,6 +185,210 @@ function formatDate(iso: string) {
   }
 }
 
+const canEditMeta = computed(() => workspace.canEditSetlists)
+/** Одна строка в шапке — не даём уезжать в простыню. */
+const TITLE_MAX_LEN = 48
+const titleFocused = ref(false)
+const dateOpen = ref(false)
+const dateDraft = ref<Date | null>(null)
+const titleEl = ref<HTMLElement | null>(null)
+const datePicker = ref<{ $el?: HTMLElement } | null>(null)
+const metaBusy = ref(false)
+
+async function syncTitleEl(raw?: string | null) {
+  await nextTick()
+  if (!titleEl.value || titleFocused.value) return
+  const value = raw ?? setlist.value?.title
+  if (value == null) return
+  // Только сырой title — без sessionTitle, иначе focus перезаписывает DOM и каретка в конец
+  if (titleEl.value.textContent !== value) {
+    titleEl.value.textContent = value
+  }
+}
+
+watch(
+  () => setlist.value?.title,
+  (next) => {
+    void syncTitleEl(next)
+  },
+)
+
+watch(titleEl, () => {
+  void syncTitleEl()
+})
+
+watch(
+  () => setlist.value?.serviceDate,
+  (next) => {
+    if (!next || dateOpen.value) return
+    dateDraft.value = new Date(`${next}T12:00:00`)
+  },
+)
+
+function readTitleText() {
+  return (titleEl.value?.innerText ?? '').replace(/\s+/g, ' ').trim()
+}
+
+function placeTitleCaretAtEnd() {
+  const el = titleEl.value
+  if (!el) return
+  const range = document.createRange()
+  range.selectNodeContents(el)
+  range.collapse(false)
+  const sel = window.getSelection()
+  sel?.removeAllRanges()
+  sel?.addRange(range)
+}
+
+function onTitlePointerDown(event: PointerEvent) {
+  // preventDefault — браузер не ставит каретку в точку клика (без вспышки)
+  event.preventDefault()
+  const el = titleEl.value
+  if (!el || !setlist.value) return
+  if (!titleFocused.value) {
+    titleFocused.value = true
+    haptics.tap()
+  }
+  el.focus({ preventScroll: true })
+  placeTitleCaretAtEnd()
+}
+
+function onTitleFocus() {
+  if (!setlist.value) return
+  titleFocused.value = true
+  placeTitleCaretAtEnd()
+}
+
+function onTitleKeydown(event: KeyboardEvent) {
+  if (event.key === 'Enter') {
+    event.preventDefault()
+    titleEl.value?.blur()
+    return
+  }
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    if (setlist.value && titleEl.value) {
+      titleEl.value.textContent = setlist.value.title
+    }
+    titleEl.value?.blur()
+  }
+}
+
+function onTitleBeforeInput(event: Event) {
+  const e = event as InputEvent
+  if (!e.inputType.startsWith('insert')) return
+  const el = titleEl.value
+  if (!el) return
+  const sel = window.getSelection()
+  const selected = sel?.toString().length ?? 0
+  const len = (el.innerText || '').length - selected
+  const incoming = e.data?.length ?? 1
+  if (len + incoming > TITLE_MAX_LEN) {
+    e.preventDefault()
+  }
+}
+
+function onTitlePaste(event: ClipboardEvent) {
+  event.preventDefault()
+  const el = titleEl.value
+  if (!el) return
+  const paste = event.clipboardData?.getData('text/plain') ?? ''
+  const sel = window.getSelection()
+  const selected = sel?.toString().length ?? 0
+  const current = el.innerText || ''
+  const room = TITLE_MAX_LEN - (current.length - selected)
+  if (room <= 0) return
+  document.execCommand('insertText', false, paste.slice(0, room))
+}
+
+async function commitTitle() {
+  titleFocused.value = false
+  if (!setlist.value || metaBusy.value) return
+  const next = readTitleText().slice(0, TITLE_MAX_LEN)
+  if (!next) {
+    if (titleEl.value) titleEl.value.textContent = setlist.value.title
+    return
+  }
+  if (titleEl.value) titleEl.value.textContent = next
+  if (next === setlist.value.title) return
+
+  metaBusy.value = true
+  const prev = setlist.value.title
+  setlist.value = { ...setlist.value, title: next }
+  try {
+    await updateSetlist(setlist.value.id, {
+      title: next,
+      serviceDate: setlist.value.serviceDate,
+    })
+  } catch (e) {
+    setlist.value = { ...setlist.value, title: prev }
+    if (titleEl.value) titleEl.value.textContent = prev
+    toast.add({
+      severity: 'error',
+      summary: t('common.error'),
+      detail: e instanceof Error ? e.message : t('common.saveFailed'),
+      life: 4000,
+    })
+  } finally {
+    metaBusy.value = false
+  }
+}
+
+function openDatePanel() {
+  if (!canEditMeta.value || !setlist.value || metaBusy.value) return
+  titleEl.value?.blur()
+  dateDraft.value = new Date(`${setlist.value.serviceDate}T12:00:00`)
+  haptics.tap()
+  void nextTick(() => {
+    const root = datePicker.value?.$el as HTMLElement | undefined
+    const trigger =
+      root?.querySelector?.('button.p-datepicker-dropdown') ??
+      root?.querySelector?.('input')
+    if (trigger instanceof HTMLElement) trigger.click()
+  })
+}
+
+function onDateShow() {
+  dateOpen.value = true
+}
+
+function onDateHide() {
+  dateOpen.value = false
+  if (setlist.value) {
+    dateDraft.value = new Date(`${setlist.value.serviceDate}T12:00:00`)
+  }
+}
+
+async function commitDate(value?: Date | Date[] | null) {
+  if (!setlist.value || metaBusy.value) return
+  const picked = Array.isArray(value) ? value[0] : (value ?? dateDraft.value)
+  if (!(picked instanceof Date) || Number.isNaN(picked.getTime())) return
+
+  const next = localDayKey(picked)
+  if (next === setlist.value.serviceDate) return
+
+  metaBusy.value = true
+  const prev = setlist.value.serviceDate
+  setlist.value = { ...setlist.value, serviceDate: next }
+  try {
+    await updateSetlist(setlist.value.id, {
+      title: setlist.value.title,
+      serviceDate: next,
+    })
+  } catch (e) {
+    setlist.value = { ...setlist.value, serviceDate: prev }
+    dateDraft.value = new Date(`${prev}T12:00:00`)
+    toast.add({
+      severity: 'error',
+      summary: t('common.error'),
+      detail: e instanceof Error ? e.message : t('common.saveFailed'),
+      life: 4000,
+    })
+  } finally {
+    metaBusy.value = false
+  }
+}
+
 async function openPicker() {
   await fetchSongs()
   pickerVisible.value = true
@@ -353,10 +559,62 @@ const availableSongs = computed(() => {
     <AppLoading v-if="loading" />
     <AppError v-else-if="error" :message="error" @retry="load" />
     <template v-else-if="setlist">
-      <AppHeader
-        :title="sessionTitle(setlist.title)"
-        :subtitle="formatDate(setlist.serviceDate)"
-      />
+      <AppHeader>
+        <template #title>
+          <h1
+            v-if="canEditMeta"
+            ref="titleEl"
+            class="setlist-header__title setlist-header__title--editable"
+            :class="{ 'is-editing': titleFocused }"
+            contenteditable="true"
+            spellcheck="false"
+            :aria-label="t('setlist.editTitleAria')"
+            @pointerdown="onTitlePointerDown"
+            @focus="onTitleFocus"
+            @blur="commitTitle"
+            @keydown="onTitleKeydown"
+            @beforeinput="onTitleBeforeInput"
+            @paste="onTitlePaste"
+          />
+          <h1 v-else class="setlist-header__title">{{ sessionTitle(setlist.title) }}</h1>
+        </template>
+        <template #subtitle>
+          <div
+            class="setlist-header__date-wrap"
+            :class="{
+              'is-editable': canEditMeta,
+              'is-open': dateOpen,
+            }"
+          >
+            <button
+              v-if="canEditMeta"
+              type="button"
+              class="setlist-header__subtitle"
+              :aria-label="t('setlist.editDateAria')"
+              :aria-expanded="dateOpen"
+              @click="openDatePanel"
+            >
+              {{ formatDate(setlist.serviceDate) }}
+            </button>
+            <p v-else class="setlist-header__subtitle">{{ formatDate(setlist.serviceDate) }}</p>
+            <DatePicker
+              v-if="canEditMeta"
+              ref="datePicker"
+              v-model="dateDraft"
+              date-format="dd.mm.yy"
+              class="setlist-header__date-ghost"
+              :manual-input="false"
+              append-to=".app-shell"
+              panel-class="setlist-header-datepicker"
+              tabindex="-1"
+              aria-hidden="true"
+              @show="onDateShow"
+              @hide="onDateHide"
+              @date-select="commitDate"
+            />
+          </div>
+        </template>
+      </AppHeader>
 
       <AppEmptyState
         v-if="!setlist.items.length"
@@ -641,6 +899,106 @@ const availableSongs = computed(() => {
   font-size: var(--app-text-xs);
   font-weight: 700;
 }
+
+.setlist-header__date-wrap {
+  position: relative;
+  margin-top: 0.15rem;
+  width: fit-content;
+  max-width: 100%;
+}
+
+/*
+  contenteditable h1 — не input, поэтому глобальный input{font-size:16px}
+  из main.css не давит размер. Ширина = текст → черта совпадает.
+*/
+.setlist-header__title {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  /* Крупнее стандартного header (2xl = 1.625rem) — contenteditable, не input */
+  font-size: 2.125rem !important;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.12;
+  color: var(--app-ink);
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.setlist-header__title--editable {
+  cursor: pointer;
+  outline: none;
+  caret-color: var(--app-accent-text);
+  box-shadow: inset 0 -1.5px 0 transparent;
+  transition: box-shadow 160ms var(--app-ease);
+}
+
+.setlist-header__title--editable.is-editing {
+  text-overflow: clip;
+  box-shadow: inset 0 -1.5px 0 var(--app-accent);
+}
+
+.setlist-header__title--editable::selection {
+  background: color-mix(in srgb, var(--app-accent) 22%, transparent);
+}
+
+.setlist-header__subtitle {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0;
+  padding: 0.1rem 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: var(--app-text-sm);
+  font-weight: 500;
+  line-height: 1.3;
+  text-align: left;
+  color: var(--app-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-radius: 0.25rem;
+  box-shadow: inset 0 -1.5px 0 transparent;
+  transition:
+    color 160ms var(--app-ease),
+    box-shadow 160ms var(--app-ease),
+    opacity 120ms var(--app-ease);
+}
+
+.setlist-header__date-wrap.is-editable .setlist-header__subtitle {
+  cursor: pointer;
+}
+
+.setlist-header__date-wrap.is-editable .setlist-header__subtitle:active {
+  opacity: 0.7;
+}
+
+.setlist-header__date-wrap.is-open .setlist-header__subtitle {
+  color: var(--app-accent-text);
+  box-shadow: inset 0 -1.5px 0 var(--app-accent);
+}
+
+/* Скрытый DatePicker — только для панели, текст даты не прыгает */
+.setlist-header__date-ghost {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
 </style>
 
 <style>
@@ -654,5 +1012,13 @@ html.setlist-drag-freeze body {
 
 html.setlist-drag-freeze .app-shell__content {
   overscroll-behavior: none;
+}
+
+.app-shell > .p-datepicker-panel.setlist-header-datepicker,
+.app-shell .p-datepicker-panel.setlist-header-datepicker {
+  position: fixed !important;
+  z-index: 1300 !important;
+  translate: 0 calc(-1 * var(--app-safe-bottom));
+  padding-bottom: var(--app-space-1) !important;
 }
 </style>

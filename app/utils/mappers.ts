@@ -61,7 +61,13 @@ export function mapSong(row: DbSong): Song {
   }
 }
 
-export function mapSetlist(row: DbSetlist): Setlist {
+type DbSetlistWithItemCount = DbSetlist & {
+  setlist_items?: Array<{ count: number }> | null
+}
+
+export function mapSetlist(row: DbSetlist | DbSetlistWithItemCount): Setlist {
+  const countRow = 'setlist_items' in row ? row.setlist_items?.[0] : undefined
+  const itemCount = typeof countRow?.count === 'number' ? countRow.count : undefined
   return {
     id: row.id,
     workspaceId: row.workspace_id,
@@ -70,6 +76,7 @@ export function mapSetlist(row: DbSetlist): Setlist {
     createdBy: row.created_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    itemCount,
   }
 }
 

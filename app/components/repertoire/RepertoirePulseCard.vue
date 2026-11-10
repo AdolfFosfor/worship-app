@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { REPERTOIRE_THRESHOLDS } from '~~/shared/repertoire/thresholds'
 import type { RepertoirePulseSummary } from '~~/shared/types'
+import { pluralForm } from '~/utils/i18n/plural'
 import { icons } from '~/utils/icons'
 import { periodLabelKey } from '~/utils/repertoire/period'
 
@@ -8,8 +9,12 @@ const props = defineProps<{
   summary: RepertoirePulseSummary
 }>()
 
-const { t } = useAppLocale()
+const { t, locale } = useAppLocale()
 const { period } = useRepertoirePulse()
+
+function playsLabel(count: number) {
+  return t(`repertoire.playsCount_${pluralForm(count, locale.value)}`, { count })
+}
 
 /** Только RPC-подсказка, без пересчёта топа на клиенте. */
 const frequent = computed(() =>
@@ -98,7 +103,7 @@ function songLink(id: string) {
               <div class="pulse-card__fav-row">
                 <span class="pulse-card__fav-title">{{ item.title }}</span>
                 <span class="pulse-card__fav-plays">
-                  {{ t('repertoire.playsCount', { count: item.total }) }}
+                  {{ playsLabel(item.total) }}
                 </span>
               </div>
               <div
@@ -107,7 +112,7 @@ function songLink(id: string) {
                 :aria-valuenow="barWidth(item.total)"
                 aria-valuemin="0"
                 aria-valuemax="100"
-                :aria-label="t('repertoire.playsCount', { count: item.total })"
+                :aria-label="playsLabel(item.total)"
               >
                 <span
                   class="pulse-card__bar-fill"
@@ -283,7 +288,7 @@ function songLink(id: string) {
 .pulse-card__fav-link {
   display: grid;
   grid-template-columns: 1.35rem minmax(0, 1fr);
-  align-items: start;
+  align-items: center;
   gap: 0.55rem;
   min-width: 0;
   margin: 0 -0.35rem;
@@ -299,11 +304,11 @@ function songLink(id: string) {
   justify-content: center;
   width: 1.35rem;
   height: 1.35rem;
-  margin-top: 0.05rem;
   border-radius: var(--app-radius-pill);
   font-size: var(--app-text-xs);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+  line-height: 1;
   color: var(--app-muted);
   background: var(--app-hover);
 }
