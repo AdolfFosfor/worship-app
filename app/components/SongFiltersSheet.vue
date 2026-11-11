@@ -14,7 +14,6 @@ import {
   type SongActivity,
   type SongLibraryFilters,
   type SongTempo,
-  type SongType,
 } from '~~/shared/songs/library'
 
 const open = defineModel<boolean>('open', { default: false })
@@ -54,7 +53,7 @@ function toggleValue<T extends string>(list: T[], value: T): T[] {
   return list.includes(value) ? list.filter((item) => item !== value) : [...list, value]
 }
 
-function toggleType(type: SongType) {
+function toggleType(type: string) {
   patch({ types: toggleValue(filters.value.types, type) })
 }
 

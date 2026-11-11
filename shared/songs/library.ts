@@ -30,13 +30,55 @@ export const TEMPO_BPM: Record<SongTempo, { min: number; max: number }> = {
 }
 
 export const SONG_ARTIST_MAX = 120
+export const SONG_TYPE_MAX = 40
+export const SONG_TYPE_LIMIT = 12
 export const SONG_THEME_MAX = 40
 export const SONG_THEME_LIMIT = 12
 
 const TIME_SIGNATURE = /^[1-9]\d?\/[1-9]\d?$/
 
+/**
+ * Маска ввода размера: только цифры, авто `/`, до 2 цифр в числителе и знаменателе
+ * (как в `TIME_SIGNATURE`: 1–99 / 1–99). `12…` → двузначный числитель, иначе `/` после 1-й цифры.
+ * Хвостовой `/` держим только пока он ещё есть во вводе — Backspace со `12/8` → `12/` → `12`.
+ */
+export function maskTimeSignatureInput(raw: string): string {
+  const trimmed = raw.trim()
+  const hadSlash = trimmed.includes('/')
+  const digits: string[] = []
+  for (const ch of trimmed) {
+    if (!/\d/.test(ch)) continue
+    if (digits.length === 0 && ch === '0') continue
+    digits.push(ch)
+    if (digits.length >= 4) break
+  }
+  if (!digits.length) return ''
+
+  const first = digits[0]!
+  let numerator: string
+  let rest: string[]
+  if (digits.length >= 2 && first === '1') {
+    numerator = `${first}${digits[1]}`
+    rest = digits.slice(2)
+  } else {
+    numerator = first
+    rest = digits.slice(1)
+  }
+
+  let denominator = ''
+  for (const digit of rest) {
+    if (!denominator && digit === '0') continue
+    denominator += digit
+    if (denominator.length >= 2) break
+  }
+
+  if (denominator) return `${numerator}/${denominator}`
+  // Нет знаменателя: `/` только если пользователь его ещё не стёр
+  return hadSlash ? `${numerator}/` : numerator
+}
+
 export interface SongLibraryFilters {
-  types: SongType[]
+  types: string[]
   themes: string[]
   tempos: SongTempo[]
   keys: string[]
@@ -71,6 +113,10 @@ export function isSongActivity(value: string): value is SongActivity {
   return (SONG_ACTIVITIES as readonly string[]).includes(value)
 }
 
+export function songTypeMessageKey(type: string): string | null {
+  return isSongType(type) ? `songs.type.${type}` : null
+}
+
 export function songThemeMessageKey(theme: string): string | null {
   return isSongThemeId(theme) ? `songs.theme.${theme}` : null
 }
@@ -81,9 +127,19 @@ export function normalizeArtist(value: string | null | undefined): string | null
   return trimmed.slice(0, SONG_ARTIST_MAX)
 }
 
-export function normalizeTypes(value: readonly string[] | null | undefined): SongType[] {
-  const selected = new Set(value ?? [])
-  return SONG_TYPES.filter((type) => selected.has(type))
+export function normalizeTypes(value: readonly string[] | null | undefined): string[] {
+  const out: string[] = []
+  for (const item of value ?? []) {
+    const type = item.trim()
+    if (!type || type.length > SONG_TYPE_MAX) continue
+    const duplicate = out.some(
+      (existing) => existing.localeCompare(type, undefined, { sensitivity: 'accent' }) === 0,
+    )
+    if (duplicate) continue
+    out.push(type)
+    if (out.length >= SONG_TYPE_LIMIT) break
+  }
+  return out
 }
 
 export function normalizeThemes(value: readonly string[] | null | undefined): string[] {

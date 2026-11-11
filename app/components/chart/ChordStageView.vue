@@ -24,11 +24,15 @@ const props = defineProps<{
   fullscreen?: boolean
   /** Название текущей песни — в фуллскрине */
   title?: string
-  /** BPM · meter — справа от S/M/L */
-  facts?: string | null
+  /** BPM label справа от S/M/L */
+  tempo?: string | null
+  /** Meter справа от S/M/L */
+  meter?: string | null
   /** Контекст сет-листа: позиция и возможность листания */
   playlist?: StagePlaylistInfo | null
 }>()
+
+const factsVisible = computed(() => Boolean(props.tempo || props.meter))
 
 const emit = defineEmits<{
   'update:fullscreen': [value: boolean]
@@ -214,7 +218,10 @@ onBeforeUnmount(() => {
             {{ opt.label }}
           </button>
         </div>
-        <p v-if="facts" class="chord-stage__facts">{{ facts }}</p>
+        <div v-if="factsVisible" class="app-fact-row" role="group">
+          <span v-if="tempo" class="app-fact app-fact--bpm">{{ tempo }}</span>
+          <span v-if="meter" class="app-fact app-fact--meter">{{ meter }}</span>
+        </div>
       </div>
       <button
         type="button"
@@ -298,7 +305,10 @@ onBeforeUnmount(() => {
               {{ opt.label }}
             </button>
           </div>
-          <p v-if="facts" class="chord-stage__facts">{{ facts }}</p>
+          <div v-if="factsVisible" class="app-fact-row" role="group">
+            <span v-if="tempo" class="app-fact app-fact--bpm">{{ tempo }}</span>
+            <span v-if="meter" class="app-fact app-fact--meter">{{ meter }}</span>
+          </div>
         </div>
         <button
           type="button"
@@ -429,17 +439,6 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: var(--app-space-3);
   min-width: 0;
-}
-
-.chord-stage__facts {
-  margin: 0;
-  min-width: 0;
-  color: var(--app-ink);
-  font-size: var(--app-text-md);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
-  white-space: nowrap;
 }
 
 .chord-stage--fullscreen .chord-stage__toolbar {

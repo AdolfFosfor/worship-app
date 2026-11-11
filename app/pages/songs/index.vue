@@ -7,7 +7,7 @@ import {
   type SongActivity,
   type SongLibraryFilters,
   type SongTempo,
-  type SongType,
+  songTypeMessageKey,
 } from '~~/shared/songs/library'
 import { icons } from '~/utils/icons'
 import { soundingKey } from '~/utils/music/capo'
@@ -60,7 +60,7 @@ const filterCount = computed(() => {
 })
 
 type ActiveFilter =
-  | { id: string; label: string; kind: 'type'; value: SongType }
+  | { id: string; label: string; kind: 'type'; value: string }
   | { id: string; label: string; kind: 'theme'; value: string }
   | { id: string; label: string; kind: 'tempo'; value: SongTempo }
   | { id: string; label: string; kind: 'key'; value: string }
@@ -70,12 +70,15 @@ type ActiveFilter =
 const activeFilters = computed<ActiveFilter[]>(() => {
   const current = filters.value
   return [
-    ...current.types.map((value) => ({
-      id: `type:${value}`,
-      label: t(`songs.type.${value}`),
-      kind: 'type' as const,
-      value,
-    })),
+    ...current.types.map((value) => {
+      const key = songTypeMessageKey(value)
+      return {
+        id: `type:${value}`,
+        label: key ? t(key) : value,
+        kind: 'type' as const,
+        value,
+      }
+    }),
     ...current.themes.map((value) => {
       const key = songThemeMessageKey(value)
       return {

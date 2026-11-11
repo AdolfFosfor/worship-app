@@ -525,6 +525,51 @@ html.app-dark .app-pill--theme {
   color: #f472b6;
 }
 
+/* BPM / meter fact chips (form + stage) */
+.app-fact-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.app-fact {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.85rem;
+  padding: 0 0.7rem;
+  border: 0;
+  border-radius: var(--app-radius-sm);
+  background: transparent;
+  font: inherit;
+  font-size: var(--app-text-xs);
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.app-fact--bpm {
+  background: color-mix(in srgb, var(--app-warn) 16%, transparent);
+  color: var(--app-warn);
+}
+
+.app-fact--meter {
+  --fact-tone: #06b6d4;
+  background: color-mix(in srgb, var(--fact-tone) 16%, transparent);
+  color: var(--fact-tone);
+}
+
+html.app-dark .app-fact--meter {
+  --fact-tone: #22d3ee;
+}
+
+html.app-dark .app-fact--bpm,
+html.app-dark .app-fact--meter {
+  background: color-mix(in srgb, currentColor 20%, transparent);
+}
+
 .app-pill--sm {
   min-height: 1.35rem;
   padding-inline: 0.5rem;

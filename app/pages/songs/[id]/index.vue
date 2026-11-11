@@ -7,7 +7,7 @@ import { normalizeLegacyChordsText, transposeChart } from '~/utils/music/chart'
 import { keyDistance, transposeKeyLabel } from '~/utils/music/keys'
 import { transposeText } from '~/utils/music/transpose'
 import { localTodayKey } from '~/utils/dates'
-import { songThemeMessageKey } from '~~/shared/songs/library'
+import { songThemeMessageKey, songTypeMessageKey } from '~~/shared/songs/library'
 import { songToInput } from '~/utils/mappers'
 import { safeInternalPath } from '~/utils/safeInternalPath'
 
@@ -72,7 +72,10 @@ const libraryTempo = computed(() => {
 const libraryMeter = computed(() => song.value?.timeSignature || null)
 
 const libraryTypes = computed(() =>
-  (song.value?.types ?? []).map((type) => t(`songs.type.${type}`)),
+  (song.value?.types ?? []).map((type) => {
+    const key = songTypeMessageKey(type)
+    return key ? t(key) : type
+  }),
 )
 
 const libraryThemes = computed(() =>
@@ -86,12 +89,9 @@ const libraryTagsVisible = computed(
   () => libraryTypes.value.length > 0 || libraryThemes.value.length > 0,
 )
 
-const libraryFacts = computed(() => {
-  const parts: string[] = []
-  if (libraryTempo.value) parts.push(libraryTempo.value)
-  if (libraryMeter.value) parts.push(libraryMeter.value)
-  return parts.length ? parts.join(' · ') : null
-})
+const libraryFactsVisible = computed(
+  () => Boolean(libraryTempo.value || libraryMeter.value),
+)
 
 const capoBadge = computed(() => {
   const fret = capoOpen.value ? clampCapo(viewCapo.value) : (song.value?.capo ?? 0)
@@ -627,7 +627,8 @@ async function addToSetlist(setlist: Setlist) {
         <ChordStageView
           :chart="displayChart"
           :title="song.title"
-          :facts="libraryFacts"
+          :tempo="libraryTempo"
+          :meter="libraryMeter"
           :playlist="stagePlaylist"
           :fullscreen="stageFullscreen"
           @update:fullscreen="stageFullscreen = $event"
@@ -636,7 +637,10 @@ async function addToSetlist(setlist: Setlist) {
         />
       </AppSection>
       <AppSection v-else-if="displayChords" :title="t('song.fieldChords')">
-        <p v-if="libraryFacts" class="song-view__library-facts">{{ libraryFacts }}</p>
+        <div v-if="libraryFactsVisible" class="app-fact-row song-view__library-facts" role="group">
+          <span v-if="libraryTempo" class="app-fact app-fact--bpm">{{ libraryTempo }}</span>
+          <span v-if="libraryMeter" class="app-fact app-fact--meter">{{ libraryMeter }}</span>
+        </div>
         <ChordSheet :text="displayChords" />
       </AppSection>
 
@@ -889,11 +893,6 @@ async function addToSetlist(setlist: Setlist) {
 
 .song-view__library-facts {
   margin: 0 0 var(--app-space-2);
-  color: var(--app-ink);
-  font-size: var(--app-text-md);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
 }
 
 .song-view__tags {

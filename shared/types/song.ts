@@ -16,8 +16,8 @@ export interface Song extends Timestamps {
   capo: number
   /** Optional tempo in BPM; null when unset. */
   bpm: number | null
-  /** Song types. Empty until set. */
-  types: SongType[]
+  /** Type slugs or custom labels. Empty until set. */
+  types: string[]
   /** Catalog slugs or custom labels. Empty until set. */
   themes: string[]
   /** Meter such as 4/4. Null until set. */
@@ -37,7 +37,7 @@ export interface SongInput {
   key: SongKey
   capo?: number
   bpm?: number | null
-  types?: SongType[]
+  types?: string[]
   themes?: string[]
   timeSignature?: string | null
   chords?: string | null
