@@ -92,7 +92,7 @@ async function save() {
       <div class="app-create-menu">
         <button
           type="button"
-          class="app-create-menu__item app-create-menu__item--song"
+          class="app-create-menu__item app-create-menu__item--lyrics"
           role="menuitem"
           @click="pickExtra('lyrics')"
         >
@@ -103,18 +103,7 @@ async function save() {
         </button>
         <button
           type="button"
-          class="app-create-menu__item app-create-menu__item--setlist"
-          role="menuitem"
-          @click="pickExtra('youtube')"
-        >
-          <span class="app-create-menu__icon">
-            <AppIcon :name="icons.youtube" :size="18" />
-          </span>
-          <span class="app-create-menu__label">{{ t('song.extraYoutube') }}</span>
-        </button>
-        <button
-          type="button"
-          class="app-create-menu__item app-create-menu__item--song"
+          class="app-create-menu__item app-create-menu__item--bpm"
           role="menuitem"
           @click="pickExtra('bpm')"
         >
@@ -125,7 +114,18 @@ async function save() {
         </button>
         <button
           type="button"
-          class="app-create-menu__item app-create-menu__item--song"
+          class="app-create-menu__item app-create-menu__item--meter"
+          role="menuitem"
+          @click="pickExtra('meter')"
+        >
+          <span class="app-create-menu__icon">
+            <AppIcon :name="icons.notes" :size="18" />
+          </span>
+          <span class="app-create-menu__label">{{ t('song.fieldMeter') }}</span>
+        </button>
+        <button
+          type="button"
+          class="app-create-menu__item app-create-menu__item--types"
           role="menuitem"
           @click="pickExtra('types')"
         >
@@ -136,7 +136,7 @@ async function save() {
         </button>
         <button
           type="button"
-          class="app-create-menu__item app-create-menu__item--song"
+          class="app-create-menu__item app-create-menu__item--themes"
           role="menuitem"
           @click="pickExtra('themes')"
         >
@@ -147,14 +147,14 @@ async function save() {
         </button>
         <button
           type="button"
-          class="app-create-menu__item app-create-menu__item--song"
+          class="app-create-menu__item app-create-menu__item--youtube"
           role="menuitem"
-          @click="pickExtra('meter')"
+          @click="pickExtra('youtube')"
         >
           <span class="app-create-menu__icon">
-            <AppIcon :name="icons.notes" :size="18" />
+            <AppIcon :name="icons.youtube" :size="18" />
           </span>
-          <span class="app-create-menu__label">{{ t('song.fieldMeter') }}</span>
+          <span class="app-create-menu__label">{{ t('song.extraYoutube') }}</span>
         </button>
       </div>
     </AppAnchoredMenu>

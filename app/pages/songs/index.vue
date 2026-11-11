@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { Setlist, Song } from '~~/shared/types'
 import {
-  SONG_TYPES,
   emptySongLibraryFilters,
   libraryFiltersActive,
   songThemeMessageKey,
@@ -131,19 +130,6 @@ function removeFilter(chip: ActiveFilter) {
   } else {
     filters.value = { ...current, activity: without(current.activity, chip.value) }
   }
-}
-
-function toggleType(type: SongType) {
-  const current = filters.value
-  filters.value = {
-    ...current,
-    types: current.types.includes(type) ? without(current.types, type) : [...current.types, type],
-  }
-}
-
-function selectAllTypes() {
-  if (!filters.value.types.length) return
-  filters.value = { ...filters.value, types: [] }
 }
 
 function resetFilters() {
@@ -298,8 +284,25 @@ const canSwipeAdd = computed(() => workspace.canEditSetlists)
 <template>
   <div class="app-page">
     <AppHeader :title="t('songs.title')">
-      <template v-if="workspace.canEditSongs" #trailing>
-        <NuxtLink to="/songs/new" class="app-header-action" :aria-label="t('songs.ariaAdd')">
+      <template #trailing>
+        <button
+          type="button"
+          class="app-header-action songs-filter-action"
+          :class="{ 'songs-filter-action--on': filtersActive }"
+          :aria-label="t('songs.filters')"
+          :aria-expanded="filtersOpen"
+          aria-controls="song-filters-sheet"
+          @click="filtersOpen = true"
+        >
+          <AppIcon :name="icons.filter" />
+          <span v-if="filterCount" class="songs-filter-action__count">{{ filterCount }}</span>
+        </button>
+        <NuxtLink
+          v-if="workspace.canEditSongs"
+          to="/songs/new"
+          class="app-header-action"
+          :aria-label="t('songs.ariaAdd')"
+        >
           <AppIcon :name="icons.add" />
         </NuxtLink>
       </template>
@@ -315,42 +318,6 @@ const canSwipeAdd = computed(() => workspace.canEditSetlists)
         />
       </div>
 
-      <div class="songs-types">
-        <div class="app-chip-row">
-          <button
-            type="button"
-            class="songs-chip"
-            :class="{ 'songs-chip--on': !filters.types.length }"
-            :aria-pressed="!filters.types.length"
-            @click="selectAllTypes"
-          >
-            {{ t('songs.type.all') }}
-          </button>
-          <button
-            v-for="type in SONG_TYPES"
-            :key="type"
-            type="button"
-            class="songs-chip"
-            :class="{ 'songs-chip--on': filters.types.includes(type) }"
-            :aria-pressed="filters.types.includes(type)"
-            @click="toggleType(type)"
-          >
-            {{ t(`songs.type.${type}`) }}
-          </button>
-        </div>
-        <button
-          type="button"
-          class="songs-filter-btn"
-          :class="{ 'songs-filter-btn--on': filtersActive }"
-          :aria-expanded="filtersOpen"
-          aria-controls="song-filters-sheet"
-          @click="filtersOpen = true"
-        >
-          {{ t('songs.filters') }}
-          <span v-if="filterCount" class="songs-filter-btn__count">{{ filterCount }}</span>
-        </button>
-      </div>
-
       <div v-if="showResultMeta" class="songs-meta">
         <span>{{ foundLabel }}</span>
         <button
@@ -363,12 +330,13 @@ const canSwipeAdd = computed(() => workspace.canEditSetlists)
         </button>
       </div>
 
-      <div v-if="activeFilters.length" class="songs-active">
+      <div v-if="activeFilters.length" class="songs-active app-chip-row">
         <button
           v-for="chip in activeFilters"
           :key="chip.id"
           type="button"
           class="songs-active__chip"
+          :class="`songs-active__chip--${chip.kind}`"
           :aria-label="t('songs.removeFilter', { label: chip.label })"
           @click="removeFilter(chip)"
         >
@@ -486,20 +454,42 @@ const canSwipeAdd = computed(() => workspace.canEditSetlists)
   gap: var(--app-space-3);
 }
 
-.songs-types {
-  display: flex;
+:deep(.app-header__trailing) {
+  gap: var(--app-space-3);
+}
+
+.songs-filter-action {
+  position: relative;
+}
+
+.songs-filter-action :deep(.app-icon) {
+  width: 1.15rem !important;
+  height: 1.15rem !important;
+}
+
+.songs-filter-action--on {
+  background: color-mix(in srgb, var(--app-accent-text) 16%, transparent);
+}
+
+.songs-filter-action__count {
+  position: absolute;
+  top: -0.2rem;
+  right: -0.2rem;
+  display: inline-flex;
   align-items: center;
-  gap: var(--app-space-2);
-  min-width: 0;
+  justify-content: center;
+  min-width: 1.05rem;
+  height: 1.05rem;
+  padding: 0 0.25rem;
+  border-radius: var(--app-radius-pill);
+  background: var(--app-accent-text);
+  color: var(--app-accent-contrast);
+  font-size: 0.65rem;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
 
-.songs-types .app-chip-row {
-  flex: 1;
-  min-width: 0;
-}
-
-.songs-chip,
-.songs-filter-btn,
 .songs-active__chip {
   display: inline-flex;
   align-items: center;
@@ -507,39 +497,13 @@ const canSwipeAdd = computed(() => workspace.canEditSetlists)
   gap: 0.3rem;
   min-height: 2rem;
   padding: 0 0.75rem;
-  border: 1px solid var(--app-border);
+  border: 1px solid transparent;
   border-radius: var(--app-radius-pill);
-  background: var(--app-surface);
-  color: var(--app-ink);
   font: inherit;
   font-size: var(--app-text-xs);
   font-weight: 650;
   cursor: pointer;
   flex-shrink: 0;
-}
-
-.songs-chip--on,
-.songs-filter-btn--on {
-  border-color: transparent;
-  background: var(--app-accent);
-  color: var(--app-accent-contrast);
-}
-
-.songs-filter-btn {
-  gap: 0.35rem;
-}
-
-.songs-filter-btn__count {
-  min-width: 1.15rem;
-  padding: 0 0.3rem;
-  border-radius: var(--app-radius-pill);
-  background: color-mix(in srgb, var(--app-accent-contrast) 18%, transparent);
-  font-variant-numeric: tabular-nums;
-}
-
-.songs-filter-btn:not(.songs-filter-btn--on) .songs-filter-btn__count {
-  background: var(--app-accent-muted);
-  color: var(--app-accent-text);
 }
 
 .songs-meta {
@@ -564,15 +528,59 @@ const canSwipeAdd = computed(() => workspace.canEditSetlists)
 }
 
 .songs-active {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
+  margin-inline: calc(-1 * var(--app-space-4));
+  padding-inline: var(--app-space-4);
 }
 
 .songs-active__chip {
-  background: var(--app-accent-muted);
+  --chip-tone: var(--app-accent-text);
   border-color: transparent;
-  color: var(--app-accent-text);
+  background: color-mix(in srgb, var(--chip-tone) 16%, transparent);
+  color: var(--chip-tone);
+}
+
+.songs-active__chip--type {
+  --chip-tone: #8b5cf6;
+}
+
+.songs-active__chip--theme {
+  --chip-tone: #ec4899;
+}
+
+.songs-active__chip--tempo {
+  --chip-tone: var(--app-warn);
+}
+
+.songs-active__chip--meter {
+  --chip-tone: #06b6d4;
+}
+
+:global(html.app-dark) .songs-active__chip--type {
+  --chip-tone: #a78bfa;
+}
+
+:global(html.app-dark) .songs-active__chip--theme {
+  --chip-tone: #f472b6;
+}
+
+:global(html.app-dark) .songs-active__chip--meter {
+  --chip-tone: #22d3ee;
+}
+
+:global(html.app-dark) .songs-active__chip--type,
+:global(html.app-dark) .songs-active__chip--theme,
+:global(html.app-dark) .songs-active__chip--tempo,
+:global(html.app-dark) .songs-active__chip--meter,
+:global(html.app-dark) .songs-active__chip--key,
+:global(html.app-dark) .songs-active__chip--activity {
+  background: color-mix(in srgb, var(--chip-tone) 20%, transparent);
+}
+
+@media (min-width: 768px) {
+  .songs-active {
+    margin-inline: calc(-1 * var(--app-space-6));
+    padding-inline: var(--app-space-6);
+  }
 }
 
 .songs-search__icon {

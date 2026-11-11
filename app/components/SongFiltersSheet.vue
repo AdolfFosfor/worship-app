@@ -128,7 +128,7 @@ function close() {
                   v-for="type in SONG_TYPES"
                   :key="type"
                   type="button"
-                  class="song-filters-sheet__chip"
+                  class="song-filters-sheet__chip song-filters-sheet__chip--types"
                   :class="{ 'song-filters-sheet__chip--on': filters.types.includes(type) }"
                   :aria-pressed="filters.types.includes(type)"
                   @click="toggleType(type)"
@@ -145,7 +145,7 @@ function close() {
                   v-for="theme in themeChoices"
                   :key="theme"
                   type="button"
-                  class="song-filters-sheet__chip"
+                  class="song-filters-sheet__chip song-filters-sheet__chip--themes"
                   :class="{ 'song-filters-sheet__chip--on': filters.themes.includes(theme) }"
                   :aria-pressed="filters.themes.includes(theme)"
                   @click="toggleTheme(theme)"
@@ -162,7 +162,7 @@ function close() {
                   v-for="tempo in SONG_TEMPOS"
                   :key="tempo"
                   type="button"
-                  class="song-filters-sheet__chip"
+                  class="song-filters-sheet__chip song-filters-sheet__chip--tempo"
                   :class="{ 'song-filters-sheet__chip--on': filters.tempos.includes(tempo) }"
                   :aria-pressed="filters.tempos.includes(tempo)"
                   @click="toggleTempo(tempo)"
@@ -196,7 +196,7 @@ function close() {
                   v-for="meter in meterChoices"
                   :key="meter"
                   type="button"
-                  class="song-filters-sheet__chip"
+                  class="song-filters-sheet__chip song-filters-sheet__chip--meter"
                   :class="{ 'song-filters-sheet__chip--on': filters.timeSignatures.includes(meter) }"
                   :aria-pressed="filters.timeSignatures.includes(meter)"
                   @click="toggleMeter(meter)"
@@ -330,10 +330,53 @@ function close() {
   cursor: pointer;
 }
 
+.song-filters-sheet__chip--types {
+  --chip-tone: #8b5cf6;
+}
+
+.song-filters-sheet__chip--themes {
+  --chip-tone: #ec4899;
+}
+
+.song-filters-sheet__chip--tempo {
+  --chip-tone: var(--app-warn);
+}
+
+.song-filters-sheet__chip--meter {
+  --chip-tone: #06b6d4;
+}
+
+:global(html.app-dark) .song-filters-sheet__chip--types {
+  --chip-tone: #a78bfa;
+}
+
+:global(html.app-dark) .song-filters-sheet__chip--themes {
+  --chip-tone: #f472b6;
+}
+
+:global(html.app-dark) .song-filters-sheet__chip--meter {
+  --chip-tone: #22d3ee;
+}
+
 .song-filters-sheet__chip--on {
   border-color: transparent;
   background: var(--app-accent);
   color: var(--app-accent-contrast);
+}
+
+.song-filters-sheet__chip--types.song-filters-sheet__chip--on,
+.song-filters-sheet__chip--themes.song-filters-sheet__chip--on,
+.song-filters-sheet__chip--tempo.song-filters-sheet__chip--on,
+.song-filters-sheet__chip--meter.song-filters-sheet__chip--on {
+  background: color-mix(in srgb, var(--chip-tone) 16%, transparent);
+  color: var(--chip-tone);
+}
+
+:global(html.app-dark) .song-filters-sheet__chip--types.song-filters-sheet__chip--on,
+:global(html.app-dark) .song-filters-sheet__chip--themes.song-filters-sheet__chip--on,
+:global(html.app-dark) .song-filters-sheet__chip--tempo.song-filters-sheet__chip--on,
+:global(html.app-dark) .song-filters-sheet__chip--meter.song-filters-sheet__chip--on {
+  background: color-mix(in srgb, var(--chip-tone) 20%, transparent);
 }
 
 .song-filters-sheet__foot {

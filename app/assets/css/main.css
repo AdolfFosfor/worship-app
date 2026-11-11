@@ -505,6 +505,26 @@ body {
   font-weight: 600;
 }
 
+.app-pill--type {
+  background: color-mix(in srgb, #8b5cf6 16%, transparent);
+  color: #8b5cf6;
+}
+
+.app-pill--theme {
+  background: color-mix(in srgb, #ec4899 16%, transparent);
+  color: #ec4899;
+}
+
+html.app-dark .app-pill--type {
+  background: color-mix(in srgb, #a78bfa 20%, transparent);
+  color: #a78bfa;
+}
+
+html.app-dark .app-pill--theme {
+  background: color-mix(in srgb, #f472b6 20%, transparent);
+  color: #f472b6;
+}
+
 .app-pill--sm {
   min-height: 1.35rem;
   padding-inline: 0.5rem;
@@ -680,6 +700,42 @@ body {
 
 .app-create-menu__item--setlist {
   --create-tone: var(--app-warn);
+}
+
+.app-create-menu__item--lyrics {
+  --create-tone: var(--app-accent-text);
+}
+
+.app-create-menu__item--youtube {
+  --create-tone: #ff0033;
+}
+
+.app-create-menu__item--bpm {
+  --create-tone: var(--app-warn);
+}
+
+.app-create-menu__item--types {
+  --create-tone: #8b5cf6;
+}
+
+.app-create-menu__item--themes {
+  --create-tone: #ec4899;
+}
+
+.app-create-menu__item--meter {
+  --create-tone: #06b6d4;
+}
+
+html.app-dark .app-create-menu__item--types {
+  --create-tone: #a78bfa;
+}
+
+html.app-dark .app-create-menu__item--themes {
+  --create-tone: #f472b6;
+}
+
+html.app-dark .app-create-menu__item--meter {
+  --create-tone: #22d3ee;
 }
 
 .app-create-menu__icon {

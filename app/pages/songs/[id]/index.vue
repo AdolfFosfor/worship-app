@@ -64,14 +64,33 @@ const originalSounding = computed(() =>
   song.value ? soundingKey(song.value.key, song.value.capo) : '',
 )
 
-const libraryTags = computed(() => {
-  if (!song.value) return []
-  const types = song.value.types.map((type) => t(`songs.type.${type}`))
-  const themes = song.value.themes.map((theme) => {
+const libraryTempo = computed(() => {
+  if (!song.value?.bpm) return null
+  return `${song.value.bpm} ${t('song.bpmUnit')}`
+})
+
+const libraryMeter = computed(() => song.value?.timeSignature || null)
+
+const libraryTypes = computed(() =>
+  (song.value?.types ?? []).map((type) => t(`songs.type.${type}`)),
+)
+
+const libraryThemes = computed(() =>
+  (song.value?.themes ?? []).map((theme) => {
     const key = songThemeMessageKey(theme)
     return key ? t(key) : theme
-  })
-  return [...types, ...themes]
+  }),
+)
+
+const libraryTagsVisible = computed(
+  () => libraryTypes.value.length > 0 || libraryThemes.value.length > 0,
+)
+
+const libraryFacts = computed(() => {
+  const parts: string[] = []
+  if (libraryTempo.value) parts.push(libraryTempo.value)
+  if (libraryMeter.value) parts.push(libraryMeter.value)
+  return parts.length ? parts.join(' · ') : null
 })
 
 const capoBadge = computed(() => {
@@ -560,20 +579,25 @@ async function addToSetlist(setlist: Setlist) {
         </div>
       </nav>
 
+      <div v-if="libraryTagsVisible" class="song-view__tags app-chip-row">
+        <span
+          v-for="(tag, index) in libraryTypes"
+          :key="`type-${tag}-${index}`"
+          class="app-pill app-pill--type"
+        >{{ tag }}</span>
+        <span
+          v-for="(tag, index) in libraryThemes"
+          :key="`theme-${tag}-${index}`"
+          class="app-pill app-pill--theme"
+        >{{ tag }}</span>
+      </div>
+
       <section class="song-view__panel app-panel">
         <div class="song-view__row song-view__row--head">
           <div class="song-view__copy">
             <p v-if="song.artist" class="song-view__artist">{{ song.artist }}</p>
             <span class="song-view__label">{{ t('songs.originalKey') }}</span>
             <p class="song-view__original">{{ originalSounding }}</p>
-            <p v-if="song.bpm || song.timeSignature" class="song-view__bpm">
-              <template v-if="song.bpm">
-                {{ song.bpm }}
-                <span>{{ t('song.bpmUnit') }}</span>
-              </template>
-              <template v-if="song.bpm && song.timeSignature"> · </template>
-              <template v-if="song.timeSignature">{{ song.timeSignature }}</template>
-            </p>
           </div>
           <button
             type="button"
@@ -599,18 +623,11 @@ async function addToSetlist(setlist: Setlist) {
         </div>
       </section>
 
-      <div v-if="libraryTags.length" class="song-view__tags">
-        <span
-          v-for="(tag, index) in libraryTags"
-          :key="`${tag}-${index}`"
-          class="app-pill app-pill--soft"
-        >{{ tag }}</span>
-      </div>
-
       <AppSection v-if="displayChart" :title="t('song.fieldChords')">
         <ChordStageView
           :chart="displayChart"
           :title="song.title"
+          :facts="libraryFacts"
           :playlist="stagePlaylist"
           :fullscreen="stageFullscreen"
           @update:fullscreen="stageFullscreen = $event"
@@ -619,6 +636,7 @@ async function addToSetlist(setlist: Setlist) {
         />
       </AppSection>
       <AppSection v-else-if="displayChords" :title="t('song.fieldChords')">
+        <p v-if="libraryFacts" class="song-view__library-facts">{{ libraryFacts }}</p>
         <ChordSheet :text="displayChords" />
       </AppSection>
 
@@ -869,26 +887,19 @@ async function addToSetlist(setlist: Setlist) {
   color: var(--app-ink);
 }
 
-.song-view__bpm {
-  margin: 0.15rem 0 0;
-  font-size: var(--app-text-sm);
-  font-weight: 650;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
-  color: var(--app-muted);
-}
-
-.song-view__bpm span {
-  margin-left: 0.2rem;
-  font-size: var(--app-text-xs);
+.song-view__library-facts {
+  margin: 0 0 var(--app-space-2);
+  color: var(--app-ink);
+  font-size: var(--app-text-md);
   font-weight: 700;
-  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
 }
 
 .song-view__tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
+  margin-block-start: calc(var(--app-space-1) - var(--app-space-5));
+  margin-inline: calc(-1 * var(--app-space-4));
+  padding-inline: var(--app-space-4);
 }
 
 .song-view__capo-btn {

@@ -24,6 +24,8 @@ const props = defineProps<{
   fullscreen?: boolean
   /** Название текущей песни — в фуллскрине */
   title?: string
+  /** BPM · meter — справа от S/M/L */
+  facts?: string | null
   /** Контекст сет-листа: позиция и возможность листания */
   playlist?: StagePlaylistInfo | null
 }>()
@@ -199,17 +201,20 @@ onBeforeUnmount(() => {
 <template>
   <div class="chord-stage" :class="`chord-stage--${size}`">
     <div class="chord-stage__toolbar">
-      <div class="chord-stage__sizes" role="group" :aria-label="t('stage.ariaSize')">
-        <button
-          v-for="opt in sizeOptions"
-          :key="opt.value"
-          type="button"
-          class="chord-stage__size"
-          :class="{ 'chord-stage__size--active': size === opt.value }"
-          @click="size = opt.value"
-        >
-          {{ opt.label }}
-        </button>
+      <div class="chord-stage__lead">
+        <div class="chord-stage__sizes" role="group" :aria-label="t('stage.ariaSize')">
+          <button
+            v-for="opt in sizeOptions"
+            :key="opt.value"
+            type="button"
+            class="chord-stage__size"
+            :class="{ 'chord-stage__size--active': size === opt.value }"
+            @click="size = opt.value"
+          >
+            {{ opt.label }}
+          </button>
+        </div>
+        <p v-if="facts" class="chord-stage__facts">{{ facts }}</p>
       </div>
       <button
         type="button"
@@ -280,17 +285,20 @@ onBeforeUnmount(() => {
       @wheel="onWheel"
     >
       <div class="chord-stage__toolbar">
-        <div class="chord-stage__sizes" role="group" :aria-label="t('stage.ariaSize')">
-          <button
-            v-for="opt in sizeOptions"
-            :key="`fs-${opt.value}`"
-            type="button"
-            class="chord-stage__size"
-            :class="{ 'chord-stage__size--active': size === opt.value }"
-            @click="size = opt.value"
-          >
-            {{ opt.label }}
-          </button>
+        <div class="chord-stage__lead">
+          <div class="chord-stage__sizes" role="group" :aria-label="t('stage.ariaSize')">
+            <button
+              v-for="opt in sizeOptions"
+              :key="`fs-${opt.value}`"
+              type="button"
+              class="chord-stage__size"
+              :class="{ 'chord-stage__size--active': size === opt.value }"
+              @click="size = opt.value"
+            >
+              {{ opt.label }}
+            </button>
+          </div>
+          <p v-if="facts" class="chord-stage__facts">{{ facts }}</p>
         </div>
         <button
           type="button"
@@ -414,6 +422,24 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   gap: var(--app-space-3);
+}
+
+.chord-stage__lead {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-3);
+  min-width: 0;
+}
+
+.chord-stage__facts {
+  margin: 0;
+  min-width: 0;
+  color: var(--app-ink);
+  font-size: var(--app-text-md);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
 }
 
 .chord-stage--fullscreen .chord-stage__toolbar {

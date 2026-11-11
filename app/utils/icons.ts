@@ -18,6 +18,7 @@ export const icons = {
   usersLinear: 'users-group-rounded-linear',
   add: 'add-circle-bold',
   search: 'magnifier-linear',
+  filter: 'filters-bold',
   trash: 'trash-bin-trash-linear',
   edit: 'pen-linear',
   save: 'diskette-bold',

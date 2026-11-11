@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { ChordChart, SongInput, SongType } from '~~/shared/types'
 import {
-  SONG_ARTIST_MAX,
   SONG_METERS,
   SONG_THEME_MAX,
   SONG_THEMES,
@@ -46,6 +45,24 @@ const canSubmit = computed(
 
 const themeDraft = ref('')
 const meterDraft = ref('')
+
+const bpmSummary = computed(() => {
+  const bpm = props.modelValue.bpm
+  if (bpm == null) return null
+  return `${bpm} ${t('song.bpmUnit')}`
+})
+
+const meterSummary = computed(() => normalizeTimeSignature(props.modelValue.timeSignature))
+
+const selectedTypes = computed(() => props.modelValue.types ?? [])
+
+const selectedThemes = computed(() => props.modelValue.themes ?? [])
+
+const factsVisible = computed(() => Boolean(bpmSummary.value || meterSummary.value))
+
+const libraryVisible = computed(
+  () => selectedTypes.value.length > 0 || selectedThemes.value.length > 0,
+)
 
 const themeOptions = computed(() => {
   const extras = (props.modelValue.themes ?? []).filter((theme) => !isSongThemeId(theme))
@@ -253,17 +270,6 @@ defineExpose({
       />
     </label>
 
-    <label class="song-form__field">
-      <span>{{ t('song.fieldArtist') }}</span>
-      <InputText
-        :model-value="form.artist ?? ''"
-        class="w-full"
-        :maxlength="SONG_ARTIST_MAX"
-        :placeholder="t('song.artistPlaceholder')"
-        @update:model-value="patch('artist', String($event ?? '') || null)"
-      />
-    </label>
-
     <div class="song-form__meta">
       <label class="song-form__field song-form__field--key">
         <span>{{ t('song.fieldKey') }}</span>
@@ -286,15 +292,59 @@ defineExpose({
     </div>
     <p class="song-form__hint">{{ t('song.capoHint') }}</p>
 
+    <p v-if="factsVisible" class="song-form__facts">
+      <button
+        v-if="bpmSummary"
+        type="button"
+        class="song-form__fact"
+        @click="openExtra('bpm')"
+      >
+        {{ bpmSummary }}
+      </button>
+      <span v-if="bpmSummary && meterSummary" class="song-form__facts-sep" aria-hidden="true">·</span>
+      <button
+        v-if="meterSummary"
+        type="button"
+        class="song-form__fact"
+        @click="openExtra('meter')"
+      >
+        {{ meterSummary }}
+      </button>
+    </p>
+
+    <div
+      v-if="libraryVisible"
+      class="song-form__library app-chip-row"
+      role="group"
+      :aria-label="t('songs.ariaExtras')"
+    >
+      <button
+        v-for="type in selectedTypes"
+        :key="type"
+        type="button"
+        class="song-form__library-chip song-form__library-chip--type"
+        @click="openExtra('types')"
+      >
+        {{ t(`songs.type.${type}`) }}
+      </button>
+      <button
+        v-for="theme in selectedThemes"
+        :key="theme"
+        type="button"
+        class="song-form__library-chip song-form__library-chip--theme"
+        @click="openExtra('themes')"
+      >
+        {{ themeLabel(theme) }}
+      </button>
+    </div>
+
     <div class="song-form__field song-form__field--chart">
-      <span>{{ t('song.fieldChords') }}</span>
       <ChordChartEditor
         :model-value="form.chordChart ?? null"
         :legacy-chords="form.chords"
-        :bpm="form.bpm ?? null"
+        :title="t('song.fieldChords')"
         :time-signature="form.timeSignature ?? null"
         @update:model-value="onChartUpdate"
-        @update:bpm="patch('bpm', $event)"
       />
     </div>
 
@@ -535,6 +585,81 @@ defineExpose({
   font-size: var(--app-text-2xs);
   font-weight: 500;
   color: var(--app-muted);
+}
+
+.song-form__facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem;
+  margin: 0;
+  color: var(--app-ink);
+  font-size: var(--app-text-md);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.song-form__facts-sep {
+  color: var(--app-muted);
+  font-weight: 650;
+}
+
+.song-form__fact {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.song-form__fact:active {
+  color: var(--app-accent-text);
+}
+
+.song-form__library {
+  margin-inline: calc(-1 * var(--app-space-4));
+  padding-inline: var(--app-space-4);
+}
+
+.song-form__library-chip {
+  flex-shrink: 0;
+  max-width: 11.5rem;
+  min-height: 2rem;
+  padding: 0 0.75rem;
+  border: 0;
+  border-radius: var(--app-radius-pill);
+  font: inherit;
+  font-size: var(--app-text-xs);
+  font-weight: 650;
+  line-height: 1.2;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.song-form__library-chip--type {
+  background: color-mix(in srgb, #8b5cf6 16%, transparent);
+  color: #8b5cf6;
+}
+
+.song-form__library-chip--theme {
+  background: color-mix(in srgb, #ec4899 16%, transparent);
+  color: #ec4899;
+}
+
+:global(html.app-dark) .song-form__library-chip--type {
+  background: color-mix(in srgb, #a78bfa 20%, transparent);
+  color: #a78bfa;
+}
+
+:global(html.app-dark) .song-form__library-chip--theme {
+  background: color-mix(in srgb, #f472b6 20%, transparent);
+  color: #f472b6;
 }
 
 .song-form__chips {

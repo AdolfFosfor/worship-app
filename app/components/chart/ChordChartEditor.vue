@@ -54,14 +54,14 @@ const props = withDefaults(
   defineProps<{
     modelValue: ChordChart | null
     legacyChords?: string | null
-    /** Optional song tempo, shown when set. */
-    bpm?: number | null
+    /** Field label shown on one row with undo/redo. */
+    title?: string | null
     /** Song meter. Known values update the chart; the editor has no own picker. */
     timeSignature?: string | null
   }>(),
   {
     legacyChords: null,
-    bpm: null,
+    title: null,
     timeSignature: null,
   },
 )
@@ -69,17 +69,7 @@ const props = withDefaults(
 const emit = defineEmits<{
   'update:modelValue': [value: ChordChart]
   'update:legacyChords': [value: string | null]
-  'update:bpm': [value: number | null]
 }>()
-
-function onBpmInput(value: number | null | undefined) {
-  if (value == null || !Number.isFinite(Number(value))) {
-    emit('update:bpm', null)
-    return
-  }
-  const n = Math.round(Number(value))
-  emit('update:bpm', Math.max(30, Math.min(300, n)))
-}
 
 const { revealElement, revealSelector } = useEditorReveal()
 
@@ -1337,42 +1327,8 @@ onBeforeUnmount(() => {
       'chart-editor--duplicating': isDragDuplicating,
     }"
   >
-    <div v-if="showConvert || showReconvert" class="chart-editor__banner">
-      <p>{{ showConvert ? t('chart.convertAsk') : t('chart.reconvertAsk') }}</p>
-      <button type="button" class="chart-editor__banner-btn" @click="convertLegacy">
-        {{ showConvert ? t('chart.convert') : t('chart.reconvert') }}
-      </button>
-    </div>
-
     <div class="chart-editor__chrome">
-      <div v-if="bpm != null" class="chart-editor__bpm">
-        <InputNumber
-          :model-value="bpm"
-          :min="30"
-          :max="300"
-          :use-grouping="false"
-          :min-fraction-digits="0"
-          :max-fraction-digits="0"
-          inputmode="numeric"
-          :aria-label="t('song.fieldBpm')"
-          class="chart-editor__bpm-input"
-          @update:model-value="onBpmInput($event as number | null)"
-        />
-        <span class="chart-editor__bpm-suffix" aria-hidden="true">{{ t('song.bpmUnit') }}</span>
-      </div>
-
-      <div class="chart-editor__add-sections">
-        <button
-          v-for="type in pickableSectionTypes"
-          :key="type"
-          type="button"
-          class="chart-editor__add-pill"
-          @click="onAddSection(type)"
-        >
-          + {{ t(`chart.section.${type}`) }}
-        </button>
-      </div>
-
+      <span v-if="title" class="chart-editor__title">{{ title }}</span>
       <div class="chart-editor__history">
         <button type="button" :disabled="!canUndo" :aria-label="t('chart.undo')" @click="undo">
           <AppIcon :name="icons.undo" size="1rem" />
@@ -1381,6 +1337,18 @@ onBeforeUnmount(() => {
           <AppIcon :name="icons.redo" size="1rem" />
         </button>
       </div>
+    </div>
+
+    <div class="chart-editor__add-sections">
+      <button
+        v-for="type in pickableSectionTypes"
+        :key="type"
+        type="button"
+        class="chart-editor__add-pill"
+        @click="onAddSection(type)"
+      >
+        + {{ t(`chart.section.${type}`) }}
+      </button>
     </div>
 
     <div class="chart-editor__score">
@@ -1624,6 +1592,13 @@ onBeforeUnmount(() => {
       </section>
     </div>
 
+    <div v-if="showConvert || showReconvert" class="chart-editor__banner">
+      <p>{{ showConvert ? t('chart.convertAsk') : t('chart.reconvertAsk') }}</p>
+      <button type="button" class="chart-editor__banner-btn" @click="convertLegacy">
+        {{ showConvert ? t('chart.convert') : t('chart.reconvert') }}
+      </button>
+    </div>
+
     <ChordKeyboard
       :open="keyboardOpen"
       @close="closeChrome"
@@ -1710,59 +1685,17 @@ onBeforeUnmount(() => {
 
 .chart-editor__chrome {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: space-between;
   gap: 0.4rem;
   min-width: 0;
 }
 
-.chart-editor__bpm {
-  position: relative;
-  display: inline-flex;
-  flex-shrink: 0;
-  align-items: center;
+.chart-editor__title {
   min-width: 0;
-  height: 2.875rem;
-  border-radius: var(--app-radius);
-  border: 1px solid var(--app-border);
-  background: var(--app-bg);
-  overflow: hidden;
-}
-
-.chart-editor__bpm-input {
-  width: 4.75rem;
-}
-
-.chart-editor__bpm-input :deep(.p-inputnumber),
-.chart-editor__bpm-input :deep(.p-inputnumber-input) {
-  width: 100%;
-  min-height: 100%;
-  height: 2.875rem;
-}
-
-.chart-editor__bpm-input :deep(.p-inputnumber-input) {
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  padding: 0 2.15rem 0 0.55rem !important;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-
-.chart-editor__bpm-suffix {
-  position: absolute;
-  right: 0.45rem;
-  top: 50%;
-  transform: translateY(-50%);
-  pointer-events: none;
-  font-size: 0.65rem;
-  font-weight: 750;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--app-muted);
-  opacity: 0.75;
+  font-size: var(--app-text-xs);
+  font-weight: 650;
+  color: var(--app-section-header);
 }
 
 .chart-editor__history {
@@ -2279,10 +2212,16 @@ onBeforeUnmount(() => {
 
 .chart-editor__add-sections {
   display: flex;
-  flex: 1;
-  min-width: 0;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.4rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+
+.chart-editor__add-sections::-webkit-scrollbar {
+  display: none;
 }
 
 .chart-editor__add-pill {
