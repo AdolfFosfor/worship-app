@@ -65,7 +65,8 @@ const ru: MessageDict = {
     'Привяжите email и Telegram к одному аккаунту — тогда браузер (Magic Link) и Mini App открывают одни и те же песни и сет-листы.',
   'settings.language': 'Язык',
   'settings.languageHint': 'Интерфейс приложения на выбранном языке',
-  'settings.languageHintTelegram': 'Как в Telegram — смените язык в настройках Telegram и заново откройте приложение',
+  'settings.languageHintTelegram':
+    'Можно выбрать здесь. Если смените язык в Telegram — приложение подхватит его при следующем открытии',
   'settings.displayName': 'Отображаемое имя',
   'settings.displayNameLabel': 'Как вас видят в команде',
   'settings.displayNameHint': 'Это имя видят в команде и на главной',
@@ -488,7 +489,7 @@ const ro: MessageDict = {
   'settings.language': 'Limbă',
   'settings.languageHint': 'Interfața aplicației în limba aleasă',
   'settings.languageHintTelegram':
-    'Ca în Telegram — schimbați limba în setările Telegram și redeschideți aplicația',
+    'Puteți alege aici. Dacă schimbați limba în Telegram, aplicația o preia la următoarea deschidere',
   'settings.displayName': 'Nume afișat',
   'settings.displayNameLabel': 'Cum vă văd în echipă',
   'settings.displayNameHint': 'Acest nume este vizibil în echipă și pe ecranul principal',
@@ -909,7 +910,7 @@ const en: MessageDict = {
   'settings.language': 'Language',
   'settings.languageHint': 'App interface in the selected language',
   'settings.languageHintTelegram':
-    'Follows Telegram — change language in Telegram settings and reopen the app',
+    'You can choose here. If you change Telegram language, the app picks it up on next open',
   'settings.displayName': 'Display name',
   'settings.displayNameLabel': 'How the team sees you',
   'settings.displayNameHint': 'This name appears in the team and on the home screen',

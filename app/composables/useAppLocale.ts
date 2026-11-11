@@ -7,11 +7,7 @@ import {
   type AppLocale,
 } from '~~/shared/i18n/locales'
 import { localizeSessionTitle, translate } from '~~/shared/i18n/messages'
-import {
-  isDevMockInitData,
-  parseTelegramUserFromInitData,
-  readTelegramWebAppLanguageCode,
-} from '~/utils/telegram/readInitDataUser'
+import { readTelegramLocaleFromClient } from '~/utils/telegram/localeFromInitData'
 
 const DEFAULT_LOCALE: AppLocale = 'en'
 
@@ -24,71 +20,71 @@ function detectFromNavigator(): AppLocale | null {
   return null
 }
 
-/**
- * Актуальный язык Telegram-клиента.
- * Не завязан только на isTelegramEnvironment — берём любой не-mock initData.
- */
-function readTelegramLocale(): AppLocale | null {
-  if (!import.meta.client) return null
-
-  const codes: Array<string | null | undefined> = []
-
+function readStorage(key: string): string | null {
   try {
-    const telegram = useTelegramApp()
-    const raw = telegram.getInitDataRaw()
-    if (raw && !isDevMockInitData(raw)) {
-      codes.push(parseTelegramUserFromInitData(raw)?.language_code)
-    }
-    if (telegram.isTelegramEnvironment.value) {
-      codes.push(telegram.user.value?.language_code)
-    }
+    return localStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
+
+function writeStorage(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value)
   } catch {
     // ignore
   }
+}
 
-  codes.push(readTelegramWebAppLanguageCode())
+function readTelegramLocale(): AppLocale | null {
+  return readTelegramLocaleFromClient()?.locale ?? null
+}
 
+function isTelegramClient(): boolean {
   try {
-    const auth = useAuthStore()
-    const fromAuth = auth.user?.languageCode
-    // Метаданные сессии — только как доп. источник, если есть признаки TMA
-    if (fromAuth && codes.some(Boolean)) {
-      codes.push(fromAuth)
-    }
+    const telegram = useTelegramApp()
+    if (telegram.isTelegramEnvironment.value) return true
+    return Boolean(telegram.getInitDataRaw())
   } catch {
-    // pinia / auth ещё не готовы
+    return false
   }
-
-  for (const code of codes) {
-    const locale = normalizeAppLocale(code)
-    if (locale) return locale
-  }
-  return null
 }
 
 /**
  * Порядок:
- * 1) язык Telegram-клиента из initData (всегда перекрывает кэш)
- * 2) сохранённый выбор — только без Telegram initData
- * 3) язык системы → English
+ * 1) В Telegram: смена language_code (или первый снимок) → язык Telegram
+ * 2) Сохранённый выбор в настройках (пока TG-язык тот же)
+ * 3) Вне Telegram: настройки → система → en
+ *
+ * Navigator/система в Mini App не используются.
  */
 function detectLocale(): AppLocale {
   if (!import.meta.client) return DEFAULT_LOCALE
 
   const fromTg = readTelegramLocale()
+  const lastTg = readStorage(APP_LOCALE_TG_KEY)
+  const stored = readStorage(APP_LOCALE_STORAGE_KEY)
+  const inTelegram = isTelegramClient() || fromTg !== null
+
   if (fromTg) {
-    try {
-      localStorage.setItem(APP_LOCALE_TG_KEY, fromTg)
-      localStorage.setItem(APP_LOCALE_STORAGE_KEY, fromTg)
-    } catch {
-      // ignore
+    // Первый снимок или реальная смена языка Telegram → всегда следуем TG
+    if (!lastTg || fromTg !== lastTg) {
+      writeStorage(APP_LOCALE_TG_KEY, fromTg)
+      writeStorage(APP_LOCALE_STORAGE_KEY, fromTg)
+      return fromTg
     }
+    // TG не менялся — уважаем ручной выбор в настройках
+    if (isAppLocale(stored)) return stored
     return fromTg
   }
 
-  const stored = localStorage.getItem(APP_LOCALE_STORAGE_KEY)
-  if (isAppLocale(stored)) return stored
+  if (inTelegram) {
+    // InitData есть/TMA, но locale не прочитали — не падаем в язык системы
+    if (isAppLocale(stored)) return stored
+    return DEFAULT_LOCALE
+  }
 
+  if (isAppLocale(stored)) return stored
   return detectFromNavigator() ?? DEFAULT_LOCALE
 }
 
@@ -99,7 +95,7 @@ function applyDocumentLang(locale: AppLocale) {
 
 /**
  * App UI language (ru / ro / en).
- * В Telegram всегда следует language_code из initData.
+ * Относительно языка Telegram-клиента; ручной выбор живёт, пока TG не сменится.
  */
 export function useAppLocale() {
   const locale = useState<AppLocale>('app-locale', () => DEFAULT_LOCALE)
@@ -109,22 +105,21 @@ export function useAppLocale() {
     if (!isAppLocale(next)) return
     locale.value = next
     if (import.meta.client) {
-      try {
-        localStorage.setItem(APP_LOCALE_STORAGE_KEY, next)
-      } catch {
-        // ignore
-      }
+      writeStorage(APP_LOCALE_STORAGE_KEY, next)
+      const fromTg = readTelegramLocale()
+      if (fromTg) writeStorage(APP_LOCALE_TG_KEY, fromTg)
       applyDocumentLang(next)
     }
   }
 
-  /** Применить язык из Telegram / fallback. Можно вызывать повторно. */
   function syncLocaleFromTelegram() {
     if (!import.meta.client) return locale.value
     const next = detectLocale()
     locale.value = next
     applyDocumentLang(next)
     ready.value = true
+    // Menu Button — строго по language_code Telegram, не по системному языку
+    void syncTelegramMenuButton()
     return next
   }
 
@@ -137,7 +132,6 @@ export function useAppLocale() {
     return translate(locale.value, key, vars)
   }
 
-  /** Локализует шаблон названия сессии (не названия песен). */
   function sessionTitle(title: string) {
     return localizeSessionTitle(title, locale.value)
   }
@@ -151,5 +145,38 @@ export function useAppLocale() {
     syncLocaleFromTelegram,
     t,
     sessionTitle,
+  }
+}
+
+/** Per-chat Menu Button по language_code из initData. */
+async function syncTelegramMenuButton() {
+  if (!import.meta.client) return
+  try {
+    const telegram = useTelegramApp()
+    if (!telegram.isTelegramEnvironment.value) return
+    const initData = telegram.getInitDataRaw()?.trim()
+    if (!initData) return
+
+    const tg = readTelegramLocaleFromClient()
+    const langKey = (tg?.languageCode || tg?.locale || 'en').toLowerCase()
+
+    try {
+      if (sessionStorage.getItem('worship-menu-synced-lang') === langKey) return
+    } catch {
+      // continue
+    }
+
+    const res = await $fetch<{ ok?: boolean }>('/api/telegram/sync-menu', {
+      method: 'POST',
+      body: { initData },
+    })
+    if (res?.ok === false) return
+    try {
+      sessionStorage.setItem('worship-menu-synced-lang', langKey)
+    } catch {
+      // ignore
+    }
+  } catch {
+    // retry next open
   }
 }

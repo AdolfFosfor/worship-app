@@ -17,6 +17,7 @@ const BOT_MESSAGES = {
 
 export type BotMessageKey = keyof typeof BOT_MESSAGES
 
+/** Пустой / неизвестный language_code Telegram → en (не язык устройства). */
 export function resolveBotLocale(languageCode: string | null | undefined): AppLocale {
   return normalizeAppLocale(languageCode) ?? 'en'
 }

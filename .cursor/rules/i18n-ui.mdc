@@ -33,8 +33,12 @@ toast.add({ summary: t('common.saved') })
 
 ## Язык приложения
 
-- В Telegram Mini App UI следует `language_code` из свежего initData (не кэшу настроек).
-- Вне Telegram — выбор в настройках / localStorage.
+- Источник в Mini App — `language_code` из initData Telegram, **не** язык системы (navigator).
+- Пустой `language_code` у user → считаем English.
+- Если язык Telegram сменился (или первый снимок) — UI и Menu Button следуют ему.
+- Пока Telegram-язык тот же — можно держать ручной выбор в настройках.
+- Menu Button (Open / Открыть / Deschide) — всегда по Telegram `language_code`.
+- Вне Telegram — настройки / localStorage / navigator.
 
 ## При правках
 

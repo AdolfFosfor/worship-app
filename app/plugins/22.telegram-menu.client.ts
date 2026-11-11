@@ -1,9 +1,9 @@
-import { parseTelegramUserFromInitData } from '~/utils/telegram/readInitDataUser'
+import { readTelegramLocaleFromClient } from '~/utils/telegram/localeFromInitData'
 
 const SYNCED_KEY = 'worship-menu-synced-lang'
 
 /**
- * При открытии Mini App синхронизирует Menu Button с language_code из свежего initData.
+ * Menu Button всегда по language_code Telegram (initData), не по языку системы.
  */
 export default defineNuxtPlugin(() => {
   if (!import.meta.client) return
@@ -11,31 +11,52 @@ export default defineNuxtPlugin(() => {
   const { isTelegramEnvironment, getInitDataRaw, user } = useTelegramApp()
   if (!isTelegramEnvironment.value) return
 
-  const initData = getInitDataRaw()?.trim()
-  if (!initData) return
+  async function syncMenu() {
+    const initData = getInitDataRaw()?.trim()
+    if (!initData) return
 
-  const fromRaw = parseTelegramUserFromInitData(initData)?.language_code
-  const lang = (fromRaw || user.value?.language_code || 'en').toLowerCase()
+    const tg = readTelegramLocaleFromClient()
+    const lang = (
+      tg?.languageCode ||
+      user.value?.language_code ||
+      tg?.locale ||
+      'en'
+    ).toLowerCase()
 
-  try {
-    if (sessionStorage.getItem(SYNCED_KEY) === lang) return
-  } catch {
-    // continue without dedupe
-  }
+    try {
+      if (sessionStorage.getItem(SYNCED_KEY) === lang) return
+    } catch {
+      // continue without dedupe
+    }
 
-  void $fetch<{ ok?: boolean }>('/api/telegram/sync-menu', {
-    method: 'POST',
-    body: { initData },
-  })
-    .then((res) => {
+    try {
+      const res = await $fetch<{ ok?: boolean }>('/api/telegram/sync-menu', {
+        method: 'POST',
+        body: { initData },
+      })
       if (res?.ok === false) return
       try {
         sessionStorage.setItem(SYNCED_KEY, lang)
       } catch {
         // ignore
       }
-    })
-    .catch(() => {
+    } catch {
       // retry next open / PTR
-    })
+    }
+  }
+
+  void syncMenu()
+
+  watch(
+    () => user.value?.language_code,
+    (next, prev) => {
+      if (!next || next === prev) return
+      try {
+        sessionStorage.removeItem(SYNCED_KEY)
+      } catch {
+        // ignore
+      }
+      void syncMenu()
+    },
+  )
 })

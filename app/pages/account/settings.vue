@@ -258,7 +258,6 @@ async function submitTelegram() {
         :options="localeOptions"
         option-label="label"
         option-value="value"
-        :disabled="telegram.isTelegramEnvironment.value"
         @update:model-value="onLocaleChange($event as AppLocale)"
       />
       <p class="settings-block__hint">
