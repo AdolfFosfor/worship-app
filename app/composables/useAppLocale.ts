@@ -1,6 +1,7 @@
 import {
   APP_LOCALE_OPTIONS,
   APP_LOCALE_STORAGE_KEY,
+  APP_LOCALE_TG_KEY,
   isAppLocale,
   normalizeAppLocale,
   type AppLocale,
@@ -10,10 +11,7 @@ import { localizeSessionTitle, translate } from '~~/shared/i18n/messages'
 const DEFAULT_LOCALE: AppLocale = 'en'
 
 function detectFromNavigator(): AppLocale | null {
-  const candidates = [
-    ...(navigator.languages ?? []),
-    navigator.language,
-  ]
+  const candidates = [...(navigator.languages ?? []), navigator.language]
   for (const raw of candidates) {
     const match = normalizeAppLocale(raw)
     if (match) return match
@@ -21,21 +19,43 @@ function detectFromNavigator(): AppLocale | null {
   return null
 }
 
+function readTelegramLocale(): AppLocale | null {
+  try {
+    const telegram = useTelegramApp()
+    return normalizeAppLocale(telegram.user.value?.language_code)
+  } catch {
+    return null
+  }
+}
+
 /**
- * Порядок: сохранённый выбор → Telegram → язык системы → English.
+ * Порядок:
+ * 1) язык Telegram-клиента, если он сменился с прошлого захода
+ * 2) сохранённый выбор (ручной / прошлый TG)
+ * 3) язык системы → English
+ *
+ * Если зашли из Telegram с другим language_code — UI переключается на него.
  */
 function detectLocale(): AppLocale {
   if (!import.meta.client) return DEFAULT_LOCALE
 
+  const fromTg = readTelegramLocale()
+  if (fromTg) {
+    const lastTg = localStorage.getItem(APP_LOCALE_TG_KEY)
+    if (lastTg !== fromTg) {
+      localStorage.setItem(APP_LOCALE_TG_KEY, fromTg)
+      localStorage.setItem(APP_LOCALE_STORAGE_KEY, fromTg)
+      return fromTg
+    }
+  }
+
   const stored = localStorage.getItem(APP_LOCALE_STORAGE_KEY)
   if (isAppLocale(stored)) return stored
 
-  try {
-    const telegram = useTelegramApp()
-    const fromTg = normalizeAppLocale(telegram.user.value?.language_code)
-    if (fromTg) return fromTg
-  } catch {
-    // Telegram SDK may be unavailable during early boot.
+  if (fromTg) {
+    localStorage.setItem(APP_LOCALE_TG_KEY, fromTg)
+    localStorage.setItem(APP_LOCALE_STORAGE_KEY, fromTg)
+    return fromTg
   }
 
   return detectFromNavigator() ?? DEFAULT_LOCALE

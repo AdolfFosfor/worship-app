@@ -72,7 +72,7 @@ export default defineEventHandler(async (event) => {
     return { ok: true }
   }
 
-  if (message.chat.type !== 'private' || !isStartCommand(message.text)) {
+  if (message.chat.type !== 'private') {
     return { ok: true }
   }
 
@@ -83,21 +83,25 @@ export default defineEventHandler(async (event) => {
     event,
     (config.telegramMiniAppUrl as string) || process.env.NUXT_TELEGRAM_MINI_APP_URL || '',
   )
+  const isStart = isStartCommand(message.text)
 
   try {
+    // Menu Button всегда по language_code клиента (не только на /start)
     await setChatMenuButtonWebApp({
       botToken,
       chatId: message.chat.id,
       buttonText: openLabel,
       webAppUrl,
     })
-    await sendWebAppOpenMessage({
-      botToken,
-      chatId: message.chat.id,
-      text: startText,
-      buttonText: openLabel,
-      webAppUrl,
-    })
+    if (isStart) {
+      await sendWebAppOpenMessage({
+        botToken,
+        chatId: message.chat.id,
+        text: startText,
+        buttonText: openLabel,
+        webAppUrl,
+      })
+    }
   } catch (err) {
     const detail = err instanceof TelegramBotApiError ? err.message : 'Webhook handler failed'
     console.error('[telegram/webhook]', detail)
