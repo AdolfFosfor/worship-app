@@ -208,7 +208,7 @@ const historyGroups = computed((): HistoryMonthGroup[] => {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--app-space-3);
-  padding: var(--app-space-4);
+  padding: var(--app-page-inline);
 }
 
 .song-pulse__metric {
@@ -272,7 +272,7 @@ const historyGroups = computed((): HistoryMonthGroup[] => {
 }
 
 .song-pulse__dyn {
-  padding: var(--app-space-3) var(--app-space-4) var(--app-space-3);
+  padding: var(--app-space-3) var(--app-page-inline) var(--app-space-3);
 }
 
 .song-pulse__dyn-caption {
@@ -316,7 +316,7 @@ const historyGroups = computed((): HistoryMonthGroup[] => {
   align-items: center;
   gap: 0.7rem;
   min-height: 3.35rem;
-  padding: 0.55rem var(--app-space-4) 0.55rem 0.55rem;
+  padding: 0.55rem var(--app-page-inline) 0.55rem 0.55rem;
   text-decoration: none;
   color: inherit;
   box-shadow: inset 0 -1px 0 var(--app-border);

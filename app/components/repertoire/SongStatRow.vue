@@ -129,7 +129,7 @@ const sinceLabel = computed(() => formatSinceLast(props.song.lastDate, t))
   align-items: center;
   gap: var(--app-space-3);
   min-height: 3.5rem;
-  padding: 0.85rem var(--app-space-4);
+  padding: 0.85rem var(--app-page-inline);
   text-decoration: none;
   color: inherit;
 }

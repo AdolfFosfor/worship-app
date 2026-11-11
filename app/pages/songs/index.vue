@@ -534,8 +534,8 @@ const canSwipeAdd = computed(() => workspace.canEditSetlists)
 }
 
 .songs-active {
-  margin-inline: calc(-1 * var(--app-space-4));
-  padding-inline: var(--app-space-4);
+  margin-inline: calc(-1 * var(--app-page-inline));
+  padding-inline: var(--app-page-inline);
 }
 
 .songs-active__chip {
@@ -615,7 +615,7 @@ const canSwipeAdd = computed(() => workspace.canEditSetlists)
 .songs-swipe:not(:last-child) :deep(.app-list-row)::after {
   content: '';
   position: absolute;
-  left: var(--app-space-4);
+  left: var(--app-page-inline);
   right: 0;
   bottom: 0;
   height: var(--app-hairline);
@@ -631,7 +631,7 @@ const canSwipeAdd = computed(() => workspace.canEditSetlists)
   justify-content: space-between;
   gap: var(--app-space-3);
   min-height: 3.25rem;
-  padding: var(--app-space-3) var(--app-space-4);
+  padding: var(--app-space-3) var(--app-page-inline);
   border: 0;
   background: transparent;
   color: var(--app-ink);
@@ -643,7 +643,7 @@ const canSwipeAdd = computed(() => workspace.canEditSetlists)
 .songs-picker-row:not(:last-child)::after {
   content: '';
   position: absolute;
-  left: var(--app-space-4);
+  left: var(--app-page-inline);
   right: 0;
   bottom: 0;
   height: var(--app-hairline);

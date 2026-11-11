@@ -11,7 +11,7 @@ defineProps<{
 <style scoped>
 .chord-sheet {
   margin: 0;
-  padding: var(--app-space-4);
+  padding: var(--app-page-inline);
   border-radius: var(--app-radius-lg);
   background: var(--app-surface);
   font-family:

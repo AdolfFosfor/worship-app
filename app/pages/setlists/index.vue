@@ -258,7 +258,7 @@ function confirmDeleteSetlist(item: Setlist) {
   align-items: center;
   gap: 0.7rem;
   min-height: 3.35rem;
-  padding: 0.55rem var(--app-space-4) 0.55rem 0.55rem;
+  padding: 0.55rem var(--app-page-inline) 0.55rem 0.55rem;
   text-decoration: none;
   color: inherit;
 }

@@ -43,7 +43,7 @@ defineProps<{
   align-items: center;
   gap: var(--app-space-3);
   min-height: 3.5rem;
-  padding: 0.85rem var(--app-space-4);
+  padding: 0.85rem var(--app-page-inline);
   background: transparent;
   color: inherit;
   text-decoration: none;
@@ -57,7 +57,7 @@ defineProps<{
 .app-list-row:not(:last-child)::after {
   content: '';
   position: absolute;
-  left: var(--app-space-4);
+  left: var(--app-page-inline);
   right: 0;
   bottom: 0;
   height: var(--app-hairline);

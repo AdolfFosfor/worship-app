@@ -785,7 +785,7 @@ const filteredPickerSongs = computed(() => {
 .setlist-item:not(:last-child)::after {
   content: '';
   position: absolute;
-  left: var(--app-space-4);
+  left: var(--app-page-inline);
   right: 0;
   bottom: 0;
   z-index: 2;
@@ -844,7 +844,7 @@ const filteredPickerSongs = computed(() => {
   align-items: center;
   gap: var(--app-space-3);
   min-height: 3.5rem;
-  padding: 0.7rem var(--app-space-4);
+  padding: 0.7rem var(--app-page-inline);
   transition:
     transform 180ms var(--app-ease),
     box-shadow 180ms var(--app-ease);
@@ -961,7 +961,7 @@ const filteredPickerSongs = computed(() => {
   justify-content: space-between;
   gap: var(--app-space-3);
   min-height: 3.25rem;
-  padding: var(--app-space-3) var(--app-space-4);
+  padding: var(--app-space-3) var(--app-page-inline);
   border: 0;
   background: transparent;
   color: var(--app-ink);
@@ -975,7 +975,7 @@ const filteredPickerSongs = computed(() => {
 .picker-row:not(:last-child)::after {
   content: '';
   position: absolute;
-  left: var(--app-space-4);
+  left: var(--app-page-inline);
   right: 0;
   bottom: 0;
   height: var(--app-hairline);

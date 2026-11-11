@@ -129,7 +129,7 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  padding: var(--app-space-2) var(--app-space-4) var(--app-space-1);
+  padding: var(--app-space-2) var(--app-page-inline) var(--app-space-1);
 }
 
 .app-top-sheet__title {
@@ -149,7 +149,7 @@ onBeforeUnmount(() => {
   gap: var(--app-space-3);
   flex: 1;
   min-height: 0;
-  padding: var(--app-space-3) var(--app-space-4) var(--app-space-4);
+  padding: var(--app-space-3) var(--app-page-inline) var(--app-space-4);
   overflow: auto;
   -webkit-overflow-scrolling: touch;
 }

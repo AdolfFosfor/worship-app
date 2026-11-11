@@ -227,7 +227,7 @@ function formatDatePill(iso: string) {
 
 .home-hero__chevron {
   position: absolute;
-  right: var(--app-space-4);
+  right: var(--app-page-inline);
   top: 50%;
   transform: translateY(-50%);
   color: var(--app-muted);

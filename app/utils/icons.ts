@@ -33,6 +33,7 @@ export const icons = {
   copy: 'copy-linear',
   share: 'share-bold',
   fullscreen: 'full-screen-bold',
+  fullscreenExit: 'quit-full-screen-bold',
   link: 'link-round-linear',
   youtube: 'play-circle-bold',
   up: 'alt-arrow-up-linear',

@@ -205,19 +205,19 @@ onBeforeUnmount(() => {
 <template>
   <div class="chord-stage" :class="`chord-stage--${size}`">
     <div class="chord-stage__toolbar">
-      <div class="chord-stage__lead">
-        <div class="chord-stage__sizes" role="group" :aria-label="t('stage.ariaSize')">
-          <button
-            v-for="opt in sizeOptions"
-            :key="opt.value"
-            type="button"
-            class="chord-stage__size"
-            :class="{ 'chord-stage__size--active': size === opt.value }"
-            @click="size = opt.value"
-          >
-            {{ opt.label }}
-          </button>
-        </div>
+      <div class="chord-stage__sizes" role="group" :aria-label="t('stage.ariaSize')">
+        <button
+          v-for="opt in sizeOptions"
+          :key="opt.value"
+          type="button"
+          class="chord-stage__size"
+          :class="{ 'chord-stage__size--active': size === opt.value }"
+          @click="size = opt.value"
+        >
+          {{ opt.label }}
+        </button>
+      </div>
+      <div class="chord-stage__mid">
         <div v-if="factsVisible" class="app-fact-row" role="group">
           <span v-if="tempo" class="app-fact app-fact--bpm">{{ tempo }}</span>
           <span v-if="meter" class="app-fact app-fact--meter">{{ meter }}</span>
@@ -229,8 +229,7 @@ onBeforeUnmount(() => {
         :aria-label="t('stage.ariaFullscreen')"
         @click="setFullscreen(true)"
       >
-        <AppIcon :name="icons.fullscreen" size="1.1rem" />
-        <span>{{ t('stage.fullscreen') }}</span>
+        <AppIcon :name="icons.fullscreen" size="1.15rem" />
       </button>
     </div>
 
@@ -292,19 +291,19 @@ onBeforeUnmount(() => {
       @wheel="onWheel"
     >
       <div class="chord-stage__toolbar">
-        <div class="chord-stage__lead">
-          <div class="chord-stage__sizes" role="group" :aria-label="t('stage.ariaSize')">
-            <button
-              v-for="opt in sizeOptions"
-              :key="`fs-${opt.value}`"
-              type="button"
-              class="chord-stage__size"
-              :class="{ 'chord-stage__size--active': size === opt.value }"
-              @click="size = opt.value"
-            >
-              {{ opt.label }}
-            </button>
-          </div>
+        <div class="chord-stage__sizes" role="group" :aria-label="t('stage.ariaSize')">
+          <button
+            v-for="opt in sizeOptions"
+            :key="`fs-${opt.value}`"
+            type="button"
+            class="chord-stage__size"
+            :class="{ 'chord-stage__size--active': size === opt.value }"
+            @click="size = opt.value"
+          >
+            {{ opt.label }}
+          </button>
+        </div>
+        <div class="chord-stage__mid">
           <div v-if="factsVisible" class="app-fact-row" role="group">
             <span v-if="tempo" class="app-fact app-fact--bpm">{{ tempo }}</span>
             <span v-if="meter" class="app-fact app-fact--meter">{{ meter }}</span>
@@ -316,8 +315,7 @@ onBeforeUnmount(() => {
           :aria-label="t('stage.ariaExitFullscreen')"
           @click="setFullscreen(false)"
         >
-          <AppIcon :name="icons.close" size="1.1rem" />
-          <span>{{ t('common.close') }}</span>
+          <AppIcon :name="icons.fullscreenExit" size="1.15rem" />
         </button>
       </div>
 
@@ -428,21 +426,22 @@ onBeforeUnmount(() => {
 }
 
 .chord-stage__toolbar {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--app-space-3);
+  gap: var(--app-space-2);
 }
 
-.chord-stage__lead {
+.chord-stage__mid {
   display: flex;
-  align-items: center;
-  gap: var(--app-space-3);
+  justify-content: center;
+  justify-self: center;
   min-width: 0;
 }
 
 .chord-stage--fullscreen .chord-stage__toolbar {
-  padding: var(--app-space-2) var(--app-space-4) 0;
+  /* Как .app-page — один gutter с остальным приложением */
+  padding: var(--app-space-2) var(--app-page-inline) 0;
 }
 
 .chord-stage__titlebar {
@@ -450,12 +449,12 @@ onBeforeUnmount(() => {
   grid-template-columns: 2.5rem minmax(0, 1fr) 2.5rem;
   align-items: center;
   gap: var(--app-space-1);
-  padding: 0 var(--app-space-3);
+  padding: 0 var(--app-page-inline);
 }
 
 .chord-stage__titlebar--solo {
   grid-template-columns: minmax(0, 1fr);
-  padding-inline: var(--app-space-4);
+  padding-inline: var(--app-page-inline);
 }
 
 .chord-stage__title-block {
@@ -483,13 +482,15 @@ onBeforeUnmount(() => {
   font-variant-numeric: tabular-nums;
 }
 
-.chord-stage__nav {
+.chord-stage__nav,
+.chord-stage__fs {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 2.5rem;
   height: 2.5rem;
   margin: 0;
+  padding: 0;
   border: 0;
   border-radius: var(--app-radius-pill);
   background: var(--app-hover);
@@ -513,11 +514,12 @@ onBeforeUnmount(() => {
 }
 
 .chord-stage--fullscreen .chord-stage__body {
-  padding: 0 var(--app-space-4) var(--app-space-4);
+  padding: 0 var(--app-page-inline) var(--app-space-4);
 }
 
 .chord-stage__sizes {
   display: inline-flex;
+  justify-self: start;
   padding: 0.15rem;
   border-radius: var(--app-radius-pill);
   background: var(--app-hover);
@@ -563,22 +565,8 @@ onBeforeUnmount(() => {
 }
 
 .chord-stage__fs {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--app-space-2);
-  min-height: 2.25rem;
-  padding: 0 0.75rem;
-  border: 0;
-  border-radius: var(--app-radius-pill);
-  background: var(--app-hover);
-  color: var(--app-accent-text);
-  font: inherit;
-  font-size: var(--app-text-sm);
-  font-weight: 650;
-  cursor: pointer;
-  transition:
-    background-color var(--app-duration) var(--app-ease),
-    outline-color var(--app-duration) var(--app-ease);
+  justify-self: end;
+  flex-shrink: 0;
 }
 
 .chord-stage__section {

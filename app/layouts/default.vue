@@ -270,8 +270,8 @@ const confirmPt = {
   right: auto !important;
   transform: translateX(-50%);
   width: min(
-    calc(28rem - 2 * var(--app-space-4)),
-    calc(100% - var(--app-safe-left) - var(--app-safe-right) - 2 * var(--app-space-4))
+    calc(28rem - 2 * var(--app-page-inline)),
+    calc(100% - var(--app-safe-left) - var(--app-safe-right) - 2 * var(--app-page-inline))
   );
   max-width: none;
   padding-left: 0;
@@ -281,8 +281,8 @@ const confirmPt = {
 @media (min-width: 1100px) {
   .p-toast {
     width: min(
-      calc(30rem - 2 * var(--app-space-4)),
-      calc(100% - var(--app-safe-left) - var(--app-safe-right) - 2 * var(--app-space-4))
+      calc(30rem - 2 * var(--app-page-inline)),
+      calc(100% - var(--app-safe-left) - var(--app-safe-right) - 2 * var(--app-page-inline))
     );
   }
 }
@@ -452,7 +452,7 @@ const confirmPt = {
 .p-dialog .p-dialog-header {
   align-items: center !important;
   gap: var(--app-space-2) !important;
-  padding: 0.7rem var(--app-space-4) !important;
+  padding: 0.7rem var(--app-page-inline) !important;
   min-height: 0 !important;
 }
 
@@ -556,7 +556,7 @@ const confirmPt = {
   display: flex;
   flex-direction: column;
   gap: var(--app-space-5);
-  padding: var(--app-space-5) var(--app-space-4)
+  padding: var(--app-space-5) var(--app-page-inline)
     calc(var(--app-space-4) + var(--app-safe-bottom));
 }
 

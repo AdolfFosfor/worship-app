@@ -28,7 +28,7 @@ const { t } = useAppLocale()
   flex-direction: column;
   align-items: center;
   gap: var(--app-space-3);
-  padding: var(--app-space-6) var(--app-space-4);
+  padding: var(--app-space-6) var(--app-page-inline);
   text-align: center;
 }
 

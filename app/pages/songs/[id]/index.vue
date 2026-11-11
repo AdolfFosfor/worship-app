@@ -840,7 +840,7 @@ async function addToSetlist(setlist: Setlist) {
   display: flex;
   flex-direction: column;
   gap: var(--app-space-3);
-  padding: var(--app-space-4);
+  padding: var(--app-page-inline);
 }
 
 .song-view__row {
@@ -897,8 +897,8 @@ async function addToSetlist(setlist: Setlist) {
 
 .song-view__tags {
   margin-block-start: calc(var(--app-space-1) - var(--app-space-5));
-  margin-inline: calc(-1 * var(--app-space-4));
-  padding-inline: var(--app-space-4);
+  margin-inline: calc(-1 * var(--app-page-inline));
+  padding-inline: var(--app-page-inline);
 }
 
 .song-view__capo-btn {
@@ -977,7 +977,7 @@ async function addToSetlist(setlist: Setlist) {
   gap: var(--app-space-3);
   width: 100%;
   min-height: 3.5rem;
-  padding: var(--app-space-3) var(--app-space-4);
+  padding: var(--app-space-3) var(--app-page-inline);
   border-radius: var(--app-radius-lg);
   background: var(--app-surface);
   color: var(--app-ink);
@@ -1073,7 +1073,7 @@ async function addToSetlist(setlist: Setlist) {
   justify-content: space-between;
   gap: var(--app-space-3);
   min-height: 3.25rem;
-  padding: var(--app-space-3) var(--app-space-4);
+  padding: var(--app-space-3) var(--app-page-inline);
   border: 0;
   background: transparent;
   color: var(--app-ink);
@@ -1085,7 +1085,7 @@ async function addToSetlist(setlist: Setlist) {
 .song-view__picker-row:not(:last-child)::after {
   content: '';
   position: absolute;
-  left: var(--app-space-4);
+  left: var(--app-page-inline);
   right: 0;
   bottom: 0;
   height: var(--app-hairline);

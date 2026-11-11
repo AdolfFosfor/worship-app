@@ -366,7 +366,7 @@ function isOwn(member: WorkspaceMember) {
   gap: var(--app-space-3);
   width: 100%;
   min-height: 3.75rem;
-  padding: 0.85rem var(--app-space-4);
+  padding: 0.85rem var(--app-page-inline);
   border: 0 !important;
   outline: none !important;
   box-shadow: none !important;

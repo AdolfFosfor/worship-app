@@ -269,7 +269,7 @@ function close() {
   justify-content: space-between;
   gap: var(--app-space-3);
   flex-shrink: 0;
-  padding: var(--app-space-5) var(--app-space-4) var(--app-space-3);
+  padding: var(--app-space-5) var(--app-page-inline) var(--app-space-3);
 }
 
 .song-filters-sheet__title {
@@ -297,7 +297,7 @@ function close() {
   display: flex;
   flex-direction: column;
   gap: var(--app-space-4);
-  padding: 0 var(--app-space-4) var(--app-space-3);
+  padding: 0 var(--app-page-inline) var(--app-space-3);
   -webkit-overflow-scrolling: touch;
 }
 
@@ -380,7 +380,7 @@ function close() {
 
 .song-filters-sheet__foot {
   flex-shrink: 0;
-  padding: var(--app-space-2) var(--app-space-4) calc(var(--app-space-4) + var(--app-safe-bottom));
+  padding: var(--app-space-2) var(--app-page-inline) calc(var(--app-space-4) + var(--app-safe-bottom));
 }
 
 .song-filters-sheet__done {

@@ -713,8 +713,8 @@ defineExpose({
 }
 
 .song-form__library {
-  margin-inline: calc(-1 * var(--app-space-4));
-  padding-inline: var(--app-space-4);
+  margin-inline: calc(-1 * var(--app-page-inline));
+  padding-inline: var(--app-page-inline);
 }
 
 .song-form__library-chip {
@@ -838,9 +838,9 @@ defineExpose({
   );
   z-index: 6;
   padding: var(--app-space-2)
-    calc(var(--app-safe-right) + var(--app-space-4))
+    calc(var(--app-safe-right) + var(--app-page-inline))
     var(--app-space-3)
-    calc(var(--app-safe-left) + var(--app-space-4));
+    calc(var(--app-safe-left) + var(--app-page-inline));
   background: linear-gradient(
     to top,
     var(--app-bg) 70%,
