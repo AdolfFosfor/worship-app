@@ -4,6 +4,8 @@
  * На ПК: трекпад (deltaX) и Shift+колёсико мыши как горизонтальный жест.
  */
 
+import { hasUiInteractionLock } from '~/utils/uiInteractionLocks'
+
 const EDGE_PX = 24
 const COMMIT_PX = 72
 const COMMIT_RATIO = 0.22
@@ -42,11 +44,7 @@ function isHorizontalGestureRegion(target: EventTarget | null): boolean {
 }
 
 function hasBlockingOverlay(): boolean {
-  return Boolean(
-    document.querySelector(
-      '.app-sheet, .app-top-sheet, .create-setlist-sheet-mask, .member-sheet-mask, .p-dialog-mask, .chord-stage--fullscreen, [data-no-edge-swipe]',
-    ),
-  )
+  return hasUiInteractionLock()
 }
 
 /** Сопротивление: сначала почти 1:1, ближе к краю — тяжелее. */

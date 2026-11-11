@@ -40,3 +40,4 @@ PrimeVue часто пишет инлайн `top: 20px` / `position: fixed` — 
 - Не раздувать отступы «на всякий»; опираться на `--app-safe-*`, `--app-page-inline` (16px) и `--app-overlay-gap`.
 - Не тащить disabled-кнопки с неочевидной задержкой (PrimeVue InputNumber обновляет model на blur — слушать `@input` если от UI зависит сразу).
 - Mobile autofocus в sheet: proxy-focus в user-gesture + перенос после `after-enter`.
+- Drag/reorder (setlist, chart, swipe-row): PTR и edge-swipe гасятся через `hasUiInteractionLock` — при новом drag добавлять класс в `uiInteractionLocks.ts` или `html.app-drag-active` / `[data-app-dragging]`.

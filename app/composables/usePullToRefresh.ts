@@ -1,20 +1,14 @@
 /**
  * Pull-to-refresh как в мобильных браузерах — на главном скролле shell.
- * Срабатывает только при scrollTop ≈ 0; не конфликтует с edge-swipe / оверлеями.
+ * Срабатывает только при scrollTop ≈ 0; не конфликтует с edge-swipe / оверлеями / drag.
  */
+
+import { hasUiInteractionLock } from '~/utils/uiInteractionLocks'
 
 const THRESHOLD = 68
 const MAX_PULL = 112
 const AXIS_LOCK = 10
 const EDGE_GUARD = 22
-
-function hasBlockingOverlay(): boolean {
-  return Boolean(
-    document.querySelector(
-      '.app-sheet, .app-top-sheet, .create-setlist-sheet-mask, .member-sheet-mask, .p-dialog-mask, .chord-stage--fullscreen, .swipe-delete--dragging, .app-shell--swiping, .app-shell--keyboard-open, .app-shell--chord-kb-open, [data-no-edge-swipe]',
-    ),
-  )
-}
 
 function rubber(dy: number): number {
   if (dy <= 0) return 0
@@ -62,6 +56,10 @@ export function usePullToRefresh(scrollRef: Ref<HTMLElement | null>) {
 
   async function commitRefresh() {
     if (refreshing.value) return
+    if (hasUiInteractionLock()) {
+      resetPull()
+      return
+    }
     refreshing.value = true
     pull.value = THRESHOLD
     dragging.value = false
@@ -82,7 +80,7 @@ export function usePullToRefresh(scrollRef: Ref<HTMLElement | null>) {
 
   function begin(clientX: number, clientY: number) {
     const el = scrollRef.value
-    if (!el || refreshing.value || hasBlockingOverlay()) return
+    if (!el || refreshing.value || hasUiInteractionLock()) return
     if (el.scrollTop > 1) return
     if (clientX < EDGE_GUARD) return
     tracking = true
@@ -93,6 +91,11 @@ export function usePullToRefresh(scrollRef: Ref<HTMLElement | null>) {
 
   function move(clientX: number, clientY: number): boolean {
     if (!tracking || refreshing.value) return false
+    // Drag/sheet начались уже во время pull — сразу гасим refresh
+    if (hasUiInteractionLock()) {
+      resetPull()
+      return false
+    }
     const dx = clientX - startX
     const dy = clientY - startY
 
@@ -109,7 +112,7 @@ export function usePullToRefresh(scrollRef: Ref<HTMLElement | null>) {
         return false
       }
       const el = scrollRef.value
-      if (!el || el.scrollTop > 1 || hasBlockingOverlay()) {
+      if (!el || el.scrollTop > 1 || hasUiInteractionLock()) {
         tracking = false
         return false
       }
@@ -134,6 +137,12 @@ export function usePullToRefresh(scrollRef: Ref<HTMLElement | null>) {
     if (!tracking && !dragging.value) return
     tracking = false
     axis = null
+    if (hasUiInteractionLock()) {
+      dragging.value = false
+      armed.value = false
+      pull.value = 0
+      return
+    }
     const shouldRefresh = pull.value >= THRESHOLD && !refreshing.value
     dragging.value = false
     if (shouldRefresh) {
@@ -187,7 +196,10 @@ export function usePullToRefresh(scrollRef: Ref<HTMLElement | null>) {
   function onWheel(e: WheelEvent) {
     if (refreshing.value || e.ctrlKey || activeTouch) return
     const el = scrollRef.value
-    if (!el || el.scrollTop > 1 || hasBlockingOverlay()) return
+    if (!el || el.scrollTop > 1 || hasUiInteractionLock()) {
+      if (wheelArmed || dragging.value) resetPull()
+      return
+    }
 
     const scale =
       e.deltaMode === WheelEvent.DOM_DELTA_LINE
