@@ -48,7 +48,10 @@ const confirmPt = {
       <div class="app-shell__swipe-shade" aria-hidden="true" />
 
       <div class="app-shell__swipe-layer flex min-h-0 flex-1 flex-col">
-        <Toast position="top-center" />
+        <Toast
+          position="top-center"
+          :close-button-props="{ autofocus: false }"
+        />
         <ConfirmDialog
           :draggable="false"
           :breakpoints="{ '960px': '100vw' }"
@@ -284,22 +287,58 @@ const confirmPt = {
   }
 }
 
-/* Aura detailColor = surface-0 (#17212b) — нечитаемо на тёмной теме */
+/* Единая структура тоста на всех ширинах; без обводки у крестика */
 .p-toast .p-toast-message {
+  margin: 0 0 0.5rem !important;
+  padding: 0 !important;
+  overflow: hidden;
+  border-radius: var(--app-radius-lg) !important;
   background: var(--app-surface) !important;
   border: 1px solid var(--app-border) !important;
   color: var(--app-ink) !important;
   box-shadow: 0 8px 24px color-mix(in srgb, #000 35%, transparent);
 }
 
-.p-toast .p-toast-summary,
-.p-toast .p-toast-detail,
+.p-toast .p-toast-message-content {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 0.65rem !important;
+  width: 100%;
+  padding: 0.75rem 0.7rem 0.75rem 0.85rem !important;
+}
+
+.p-toast .p-toast-message-icon {
+  flex-shrink: 0;
+  width: 1.15rem !important;
+  height: 1.15rem !important;
+  margin: 0.15rem 0 0 !important;
+}
+
 .p-toast .p-toast-message-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
   color: var(--app-ink) !important;
 }
 
+.p-toast .p-toast-summary {
+  margin: 0 !important;
+  color: var(--app-ink) !important;
+  font-size: var(--app-text-sm) !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.015em;
+  line-height: 1.3 !important;
+}
+
 .p-toast .p-toast-detail {
-  opacity: 0.85;
+  margin: 0 !important;
+  color: var(--app-ink) !important;
+  opacity: 0.78;
+  font-size: var(--app-text-xs) !important;
+  font-weight: 500 !important;
+  line-height: 1.35 !important;
 }
 
 .p-toast .p-toast-message-error {
@@ -321,6 +360,41 @@ const confirmPt = {
 
 .p-toast .p-toast-message-success .p-toast-message-icon {
   color: var(--app-success) !important;
+}
+
+.p-toast .p-toast-close-button {
+  flex-shrink: 0;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem !important;
+  height: 1.75rem !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: var(--app-radius-pill) !important;
+  background: transparent !important;
+  color: var(--app-muted) !important;
+  box-shadow: none !important;
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.p-toast .p-toast-close-button:hover,
+.p-toast .p-toast-close-button:active,
+.p-toast .p-toast-close-button:focus,
+.p-toast .p-toast-close-button:focus-visible,
+.p-toast .p-toast-close-button.p-focus {
+  border: 0 !important;
+  background: var(--app-hover) !important;
+  color: var(--app-ink) !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.p-toast .p-toast-close-icon {
+  width: 0.9rem !important;
+  height: 0.9rem !important;
 }
 
 /*

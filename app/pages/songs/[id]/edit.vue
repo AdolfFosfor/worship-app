@@ -84,7 +84,8 @@ async function save() {
   try {
     await updateSong(id.value, form.value)
     toast.add({ severity: 'success', summary: t('common.saved'), life: 2000 })
-    await navigateTo(songViewTarget())
+    // replace: иначе view→edit→view и Back в TMA зацикливается
+    await navigateTo(songViewTarget(), { replace: true })
   } catch (e) {
     toast.add({
       severity: 'error',

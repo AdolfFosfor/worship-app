@@ -179,6 +179,11 @@ onBeforeUnmount(() => {
   -webkit-overflow-scrolling: touch;
 }
 
+.app-top-sheet__body :deep(.app-top-sheet__form) {
+  width: 100%;
+  margin: 0;
+}
+
 .app-top-sheet__body :deep(.app-top-sheet__field--bpm) {
   font-variant-numeric: tabular-nums;
   font-weight: 700;

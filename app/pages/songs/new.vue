@@ -48,7 +48,7 @@ async function save() {
   try {
     const song = await createSong(form.value)
     toast.add({ severity: 'success', summary: t('common.saved'), life: 2000 })
-    await navigateTo(`/songs/${song.id}`)
+    await navigateTo(`/songs/${song.id}`, { replace: true })
   } catch (e) {
     const detail =
       e instanceof Error && e.message

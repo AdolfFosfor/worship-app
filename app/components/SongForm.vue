@@ -312,6 +312,13 @@ function parseBpmDraft(raw: string): number | null {
   return Math.max(30, Math.min(300, n))
 }
 
+function onBpmDraftInput(event: Event) {
+  const el = event.target as HTMLInputElement
+  const next = el.value.replace(/\D/g, '').slice(0, 3)
+  sheetDraft.value = next
+  if (el.value !== next) el.value = next
+}
+
 function confirmSheet() {
   if (!sheetKind.value) return
   const kind = sheetKind.value
@@ -349,9 +356,19 @@ function onDraftFieldBlur() {
 
 /**
  * KeepAlive оставляет Teleport в .app-shell после ухода со страницы —
- * снимаем shell-UI при deactivate.
+ * снимаем shell-UI при deactivate. CTA только на маршрутах формы.
  */
+const route = useRoute()
 const shellUiActive = ref(true)
+
+const formRouteActive = computed(() => {
+  const path = route.path
+  return path === '/songs/new' || /^\/songs\/[^/]+\/edit\/?$/.test(path)
+})
+
+const showFormCta = computed(
+  () => shellUiActive.value && formRouteActive.value && !sheetOpen.value,
+)
 
 onActivated(() => {
   shellUiActive.value = true
@@ -469,8 +486,8 @@ defineExpose({
       autocomplete="off"
     >
 
-    <Teleport to=".app-shell">
-      <div v-if="shellUiActive && !sheetOpen" class="song-form-cta">
+    <Teleport v-if="showFormCta" to=".app-shell">
+      <div class="song-form-cta">
         <Button
           type="button"
           class="w-full"
@@ -487,7 +504,7 @@ defineExpose({
     </Teleport>
 
     <AppTopSheet
-      :open="shellUiActive && sheetOpen"
+      :open="shellUiActive && formRouteActive && sheetOpen"
       :title="sheetTitle"
       :expanded="sheetChoices"
       @dismiss="confirmSheet"
@@ -519,20 +536,25 @@ defineExpose({
         @blur="onDraftFieldBlur"
         @keydown.enter.prevent="confirmSheet"
       >
-      <input
+      <form
         v-show="sheetKind === 'bpm'"
-        ref="bpmInput"
-        v-model="sheetDraft"
-        class="app-top-sheet__field app-top-sheet__field--bpm"
-        type="text"
-        inputmode="numeric"
-        pattern="[0-9]*"
-        :placeholder="t('song.bpmPlaceholder')"
-        enterkeyhint="done"
-        autocomplete="off"
-        @blur="onDraftFieldBlur"
-        @keydown.enter.prevent="confirmSheet"
+        class="app-top-sheet__form"
+        action="."
+        @submit.prevent="confirmSheet"
       >
+        <input
+          ref="bpmInput"
+          :value="sheetDraft"
+          class="app-top-sheet__field app-top-sheet__field--bpm"
+          type="text"
+          inputmode="decimal"
+          enterkeyhint="done"
+          :placeholder="t('song.bpmPlaceholder')"
+          autocomplete="off"
+          @input="onBpmDraftInput"
+          @blur="onDraftFieldBlur"
+        >
+      </form>
       <div v-show="sheetKind === 'types'" class="app-top-sheet__choices">
         <div class="song-form__chips song-form__chips--grid">
           <button
