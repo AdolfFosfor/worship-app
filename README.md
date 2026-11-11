@@ -55,6 +55,24 @@ npm run dev
 
 Auth: клиент отправляет `initData` на `POST /api/auth/telegram`, сервер проверяет подпись и выдаёт сессию Supabase.
 
+### Кнопки открытия (локаль клиента)
+
+Webhook `POST /api/telegram/webhook` на `/start` в личке:
+
+- Menu Button и inline-кнопка `web_app` с текстом по `language_code` (`ru` / `ro`, иначе `en`)
+- URL приложения: `NUXT_TELEGRAM_MINI_APP_URL` или origin запроса
+
+Зарегистрировать webhook (подставьте домен, токен и secret):
+
+```bash
+curl -sS "https://api.telegram.org/bot${NUXT_TELEGRAM_BOT_TOKEN}/setWebhook" \
+  -d "url=https://YOUR_PAGES_DOMAIN/api/telegram/webhook" \
+  -d "secret_token=${NUXT_TELEGRAM_WEBHOOK_SECRET}" \
+  -d "allowed_updates=[\"message\"]"
+```
+
+Env: `NUXT_TELEGRAM_WEBHOOK_SECRET`, опционально `NUXT_TELEGRAM_MINI_APP_URL`.
+
 ## Роли
 
 | Роль | Песни / сет-листы | Участники |
@@ -96,6 +114,8 @@ Env (Pages → Settings → Environment variables):
 - `NUXT_PUBLIC_SUPABASE_ANON_KEY`
 - `NUXT_SUPABASE_SERVICE_ROLE_KEY` (secret)
 - `NUXT_TELEGRAM_BOT_TOKEN` (secret)
+- `NUXT_TELEGRAM_WEBHOOK_SECRET` (secret)
+- `NUXT_TELEGRAM_MINI_APP_URL` (опционально, HTTPS Mini App)
 - `NUXT_PUBLIC_ALLOW_TELEGRAM_DEV_MOCK=false`
 
 Supabase Auth → Site URL / Redirect URLs: `https://YOUR_PAGES_DOMAIN` и `https://YOUR_PAGES_DOMAIN/auth/callback` (плюс `/**` если нужно).

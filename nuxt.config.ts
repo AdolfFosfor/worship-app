@@ -96,6 +96,10 @@ export default defineNuxtConfig({
   runtimeConfig: {
     supabaseServiceRoleKey: process.env.NUXT_SUPABASE_SERVICE_ROLE_KEY || '',
     telegramBotToken: process.env.NUXT_TELEGRAM_BOT_TOKEN || '',
+    // Secret for X-Telegram-Bot-Api-Secret-Token (setWebhook secret_token)
+    telegramWebhookSecret: process.env.NUXT_TELEGRAM_WEBHOOK_SECRET || '',
+    // HTTPS Mini App URL for web_app buttons; falls back to request origin
+    telegramMiniAppUrl: process.env.NUXT_TELEGRAM_MINI_APP_URL || '',
     public: {
       supabaseUrl:
         process.env.NUXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '',

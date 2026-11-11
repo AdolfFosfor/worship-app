@@ -1,4 +1,5 @@
 import { backButton } from '@tma.js/sdk-vue'
+import { popAppNavStack } from '~/composables/useAppNavStack'
 import { safeInternalPath } from '~/utils/safeInternalPath'
 
 /** Корневые вкладки и публичные экраны — без Telegram BackButton. */
@@ -33,9 +34,8 @@ function fallbackParent(path: string): string {
 /**
  * Единый «назад» для TMA BackButton и edge-swipe.
  *
- * В Telegram WebView `history.length` почти всегда > 1, поэтому `router.back()`
- * непредсказуем (петли, уход «мимо» родителя). Всегда ведём на известный экран
- * через `replace`.
+ * Стек в sessionStorage переживает PTR/reload; иначе — `from` / fallback-родитель.
+ * Всегда `replace`, чтобы не плодить history в WebView.
  */
 export function navigateAppBack() {
   const route = useRoute()
@@ -46,11 +46,18 @@ export function navigateAppBack() {
   const from = safeInternalPath(route.query.from, '')
   const key = typeof route.query.key === 'string' ? route.query.key : ''
 
+  const stacked = popAppNavStack()
+
   const editMatch = route.path.match(/^\/songs\/([^/]+)\/edit\/?$/)
   if (editMatch) {
+    const songPrefix = `/songs/${editMatch[1]}`
+    if (stacked && stacked.startsWith(songPrefix) && !stacked.includes('/edit')) {
+      void navigateTo(stacked, { replace: true })
+      return
+    }
     void navigateTo(
       {
-        path: `/songs/${editMatch[1]}`,
+        path: songPrefix,
         query: {
           ...(from ? { from } : {}),
           ...(key ? { key } : {}),
@@ -58,6 +65,11 @@ export function navigateAppBack() {
       },
       { replace: true },
     )
+    return
+  }
+
+  if (stacked && stacked !== route.fullPath) {
+    void navigateTo(stacked, { replace: true })
     return
   }
 
