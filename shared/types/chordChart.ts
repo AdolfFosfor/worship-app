@@ -83,7 +83,6 @@ export const ANNOTATION_PRESETS: { preset: AnnotationPreset; text: string }[] = 
   { preset: 'x3', text: '×3' },
   { preset: 'x4', text: '×4' },
   { preset: 'stop', text: 'STOP' },
-  { preset: 'inst', text: 'Inst' },
   { preset: 'vox', text: 'Vocal' },
   { preset: 'cresc', text: '↗' },
   { preset: 'dim', text: '↘' },
