@@ -6,6 +6,10 @@ import {
 } from '../../utils/telegramAccounts'
 import { syncTelegramAvatar } from '../../utils/telegramAvatar'
 import { validateTelegramInitData } from '../../utils/telegramAuth'
+import {
+  resolveTelegramMiniAppUrl,
+  syncTelegramMenuButtonForChat,
+} from '../../utils/telegramMenuButton'
 import { telegramPassword } from '../../utils/telegramPassword'
 
 export default defineEventHandler(async (event) => {
@@ -59,6 +63,21 @@ export default defineEventHandler(async (event) => {
       })
     } catch (e) {
       console.error('[avatar] sync failed', e)
+    }
+
+    // Per-chat Menu Button — default BotFather (Main Mini App) API не локализует
+    const webAppUrl = resolveTelegramMiniAppUrl(
+      (config.telegramMiniAppUrl as string) || process.env.NUXT_TELEGRAM_MINI_APP_URL || '',
+      getRequestURL(event).origin,
+    )
+    const menu = await syncTelegramMenuButtonForChat({
+      botToken,
+      chatId: validated.user.id,
+      languageCode: validated.user.language_code,
+      webAppUrl,
+    })
+    if (!menu.ok) {
+      console.error('[menu] sync failed', menu.reason)
     }
   }
 

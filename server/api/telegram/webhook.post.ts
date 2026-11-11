@@ -1,9 +1,9 @@
 import { botMessage } from '../../../shared/i18n/botMessages'
+import { sendWebAppOpenMessage, TelegramBotApiError } from '../../utils/telegramBotApi'
 import {
-  sendWebAppOpenMessage,
-  setChatMenuButtonWebApp,
-  TelegramBotApiError,
-} from '../../utils/telegramBotApi'
+  resolveTelegramMiniAppUrl,
+  syncTelegramMenuButtonForChat,
+} from '../../utils/telegramMenuButton'
 
 interface TelegramUser {
   id: number
@@ -23,9 +23,19 @@ interface TelegramMessage {
   chat: TelegramChat
 }
 
+interface TelegramChatMemberUpdated {
+  chat: TelegramChat
+  from: TelegramUser
+  new_chat_member: {
+    status: string
+    user: TelegramUser
+  }
+}
+
 interface TelegramUpdate {
   update_id: number
   message?: TelegramMessage
+  my_chat_member?: TelegramChatMemberUpdated
 }
 
 function isStartCommand(text: string | undefined): boolean {
@@ -33,13 +43,6 @@ function isStartCommand(text: string | undefined): boolean {
   const trimmed = text.trim()
   // /start or /start@BotName (+ optional payload)
   return /^\/start(?:@\w+)?(?:\s|$)/i.test(trimmed)
-}
-
-function resolveMiniAppUrl(event: Parameters<typeof getRequestURL>[0], configured: string): string {
-  const fromEnv = configured.trim().replace(/\/$/, '')
-  if (fromEnv) return fromEnv
-  const url = getRequestURL(event)
-  return url.origin
 }
 
 export default defineEventHandler(async (event) => {
@@ -65,6 +68,30 @@ export default defineEventHandler(async (event) => {
   }
 
   const update = await readBody<TelegramUpdate>(event)
+  const webAppUrl = resolveTelegramMiniAppUrl(
+    (config.telegramMiniAppUrl as string) || process.env.NUXT_TELEGRAM_MINI_APP_URL || '',
+    getRequestURL(event).origin,
+  )
+
+  // Старт / разблокировка бота — сразу локализуем Menu Button
+  const memberUpdate = update?.my_chat_member
+  if (memberUpdate?.chat.type === 'private' && !memberUpdate.from.is_bot) {
+    const status = memberUpdate.new_chat_member?.status
+    if (status === 'member' || status === 'restricted') {
+      const languageCode = memberUpdate.from.language_code ?? null
+      const synced = await syncTelegramMenuButtonForChat({
+        botToken,
+        chatId: memberUpdate.chat.id,
+        languageCode,
+        webAppUrl,
+      })
+      if (!synced.ok) {
+        console.error('[telegram/webhook] my_chat_member menu', synced.reason)
+      }
+    }
+    return { ok: true }
+  }
+
   const message = update?.message
 
   // Always 200 for unknown updates — Telegram retries on non-OK
@@ -79,20 +106,19 @@ export default defineEventHandler(async (event) => {
   const languageCode = message.from.language_code ?? null
   const openLabel = botMessage('open', languageCode)
   const startText = botMessage('start', languageCode)
-  const webAppUrl = resolveMiniAppUrl(
-    event,
-    (config.telegramMiniAppUrl as string) || process.env.NUXT_TELEGRAM_MINI_APP_URL || '',
-  )
   const isStart = isStartCommand(message.text)
 
   try {
     // Menu Button всегда по language_code клиента (не только на /start)
-    await setChatMenuButtonWebApp({
+    const synced = await syncTelegramMenuButtonForChat({
       botToken,
       chatId: message.chat.id,
-      buttonText: openLabel,
+      languageCode,
       webAppUrl,
     })
+    if (!synced.ok) {
+      console.error('[telegram/webhook] menu', synced.reason)
+    }
     if (isStart) {
       await sendWebAppOpenMessage({
         botToken,

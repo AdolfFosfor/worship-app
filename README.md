@@ -68,7 +68,7 @@ Webhook `POST /api/telegram/webhook` на `/start` в личке:
 curl -sS "https://api.telegram.org/bot${NUXT_TELEGRAM_BOT_TOKEN}/setWebhook" \
   -d "url=https://YOUR_PAGES_DOMAIN/api/telegram/webhook" \
   -d "secret_token=${NUXT_TELEGRAM_WEBHOOK_SECRET}" \
-  -d "allowed_updates=[\"message\"]"
+  -d "allowed_updates=[\"message\",\"my_chat_member\"]"
 ```
 
 Env: `NUXT_TELEGRAM_WEBHOOK_SECRET`, опционально `NUXT_TELEGRAM_MINI_APP_URL`.

@@ -14,24 +14,25 @@ export default defineNuxtPlugin(() => {
 
   const lang = (user.value?.language_code || 'en').toLowerCase()
 
-  // Один раз на language_code за сессию WebView (sessionStorage переживает PTR)
   try {
     if (sessionStorage.getItem(SYNCED_KEY) === lang) return
-    sessionStorage.setItem(SYNCED_KEY, lang)
   } catch {
     // continue without dedupe
   }
 
-  void $fetch('/api/telegram/sync-menu', {
+  void $fetch<{ ok?: boolean }>('/api/telegram/sync-menu', {
     method: 'POST',
     body: { initData },
-  }).catch(() => {
-    try {
-      if (sessionStorage.getItem(SYNCED_KEY) === lang) {
-        sessionStorage.removeItem(SYNCED_KEY)
-      }
-    } catch {
-      // ignore
-    }
   })
+    .then((res) => {
+      if (res?.ok === false) return
+      try {
+        sessionStorage.setItem(SYNCED_KEY, lang)
+      } catch {
+        // ignore
+      }
+    })
+    .catch(() => {
+      // retry next open / PTR
+    })
 })

@@ -1,11 +1,14 @@
-import { botMessage } from '../../../shared/i18n/botMessages'
 import { isDevAuthAllowed } from '../../utils/devAuthGate'
-import { setChatMenuButtonWebApp, TelegramBotApiError } from '../../utils/telegramBotApi'
+import {
+  resolveTelegramMiniAppUrl,
+  syncTelegramMenuButtonForChat,
+} from '../../utils/telegramMenuButton'
 import { validateTelegramInitData } from '../../utils/telegramAuth'
 
 /**
  * Локализует Menu Button для чата пользователя по language_code из initData.
  * Вызывается при открытии Mini App (не только на /start).
+ * Soft-fail: без чата с ботом Telegram отвечает "chat not found" — не 502.
  */
 export default defineEventHandler(async (event) => {
   const body = await readBody<{ initData?: string }>(event)
@@ -25,33 +28,31 @@ export default defineEventHandler(async (event) => {
   }
 
   const validated = validateTelegramInitData(initData, botToken, { allowDevMock })
-  const webAppUrl = (
-    (config.telegramMiniAppUrl as string) ||
-    process.env.NUXT_TELEGRAM_MINI_APP_URL ||
-    getRequestURL(event).origin
+  const webAppUrl = resolveTelegramMiniAppUrl(
+    (config.telegramMiniAppUrl as string) || process.env.NUXT_TELEGRAM_MINI_APP_URL || '',
+    getRequestURL(event).origin,
   )
-    .trim()
-    .replace(/\/$/, '')
 
-  const buttonText = botMessage('open', validated.user.language_code)
+  // В личке chat_id === user.id
+  const synced = await syncTelegramMenuButtonForChat({
+    botToken,
+    chatId: validated.user.id,
+    languageCode: validated.user.language_code,
+    webAppUrl,
+  })
 
-  try {
-    // В личке chat_id === user.id
-    await setChatMenuButtonWebApp({
-      botToken,
-      chatId: validated.user.id,
-      buttonText,
-      webAppUrl,
-    })
-  } catch (err) {
-    const detail = err instanceof TelegramBotApiError ? err.message : 'sync-menu failed'
-    console.error('[telegram/sync-menu]', detail)
-    throw createError({ statusCode: 502, statusMessage: 'Failed to update menu button' })
+  if (!synced.ok) {
+    console.error('[telegram/sync-menu]', synced.reason)
+    return {
+      ok: false,
+      reason: synced.reason,
+      languageCode: validated.user.language_code ?? null,
+    }
   }
 
   return {
     ok: true,
-    buttonText,
+    buttonText: synced.buttonText,
     languageCode: validated.user.language_code ?? null,
   }
 })
