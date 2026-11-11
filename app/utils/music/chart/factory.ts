@@ -54,6 +54,16 @@ export function cloneBar(bar: ChartBar): ChartBar {
   return createBar(bar.items.map(cloneBarItem))
 }
 
+/** Копия секции с новыми id у секции, тактов и чипов. */
+export function cloneSection(section: ChartSection): ChartSection {
+  return {
+    id: uid('sec'),
+    type: section.type,
+    ...(section.title ? { title: section.title } : {}),
+    bars: section.bars.map(cloneBar),
+  }
+}
+
 export function createSection(
   type: SectionType = 'verse',
   title?: string,

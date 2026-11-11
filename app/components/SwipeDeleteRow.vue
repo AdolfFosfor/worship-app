@@ -1,10 +1,19 @@
 <script setup lang="ts">
 import { icons, type AppIconName } from '~/utils/icons'
 
+export type SwipeActionTone = 'danger' | 'accent' | 'neutral'
+
+export type SwipeAction = {
+  id: string
+  label: string
+  icon?: AppIconName
+  tone?: SwipeActionTone
+}
+
 /**
  * Горизонтальный свайп:
- * - влево (end) → удаление
- * - вправо (start) → доп. действие (например в сет-лист)
+ * - влево (end) → удаление (commit) или панель кнопок (endActions, как в Telegram)
+ * - вправо (start) → доп. действие
  * ПК: wheel / Shift+колёсико над строкой.
  * Мобилка: non-passive touchmove, иначе браузер скроллит и рвёт жест.
  */
@@ -12,7 +21,7 @@ const props = withDefaults(
   defineProps<{
     disabled?: boolean
     threshold?: number
-    /** Свайп влево → commit (по умолчанию удаление) */
+    /** Свайп влево → commit (по умолчанию удаление). Игнор., если заданы endActions. */
     endEnabled?: boolean
     /** Свайп вправо → start */
     startEnabled?: boolean
@@ -20,6 +29,11 @@ const props = withDefaults(
     startLabel?: string
     endIcon?: AppIconName
     startIcon?: AppIconName
+    /**
+     * Несколько кнопок справа (Telegram-style): свайп открывает панель,
+     * действие срабатывает по тапу. Отключает auto-commit влево.
+     */
+    endActions?: SwipeAction[]
   }>(),
   {
     disabled: false,
@@ -30,6 +44,7 @@ const props = withDefaults(
     startLabel: undefined,
     endIcon: undefined,
     startIcon: undefined,
+    endActions: undefined,
   },
 )
 
@@ -38,6 +53,7 @@ const emit = defineEmits<{
   commit: []
   end: []
   start: []
+  action: [id: string]
 }>()
 
 const { t } = useAppLocale()
@@ -46,6 +62,7 @@ const haptics = useHaptics()
 /** >0 влево (удаление), <0 вправо (start) */
 const offset = ref(0)
 const dragging = ref(false)
+const open = ref(false)
 const contentEl = ref<HTMLElement | null>(null)
 
 let startX = 0
@@ -58,10 +75,30 @@ let activePointerId: number | null = null
 let wheelTracking = false
 let wheelIdleTimer: ReturnType<typeof setTimeout> | null = null
 const EDGE_GUARD = 22
-const MAX = 104
 const AXIS_LOCK = 8
 const WHEEL_START = 6
 const WHEEL_IDLE_MS = 90
+const ACTION_BTN_WIDTH = 88
+const COMMIT_MAX = 104
+
+const revealMode = computed(() => (props.endActions?.length ?? 0) > 0)
+const revealActions = computed(() => props.endActions ?? [])
+const revealWidth = computed(() => {
+  const n = revealActions.value.length
+  if (!n) return 0
+  return n * ACTION_BTN_WIDTH + 8
+})
+const endSideEnabled = computed(() =>
+  revealMode.value ? true : props.endEnabled,
+)
+const maxPull = computed(() =>
+  revealMode.value ? Math.max(revealWidth.value + 28, COMMIT_MAX) : COMMIT_MAX,
+)
+const snapThreshold = computed(() =>
+  revealMode.value
+    ? Math.min(props.threshold, revealWidth.value * 0.45)
+    : props.threshold,
+)
 
 const endLabelText = computed(() => props.endLabel ?? t('common.delete'))
 const startLabelText = computed(() => props.startLabel ?? t('songs.addToSetShort'))
@@ -73,8 +110,19 @@ const contentStyle = computed(() => ({
   transition: dragging.value ? 'none' : 'transform 220ms var(--app-ease)',
 }))
 
-const showEndAction = computed(() => offset.value > 0.5 || (dragging.value && offset.value >= 0))
-const showStartAction = computed(() => offset.value < -0.5 || (dragging.value && offset.value <= 0))
+const showEndAction = computed(
+  () =>
+    !revealMode.value
+    && (offset.value > 0.5 || (dragging.value && offset.value >= 0)),
+)
+const showStartAction = computed(
+  () => offset.value < -0.5 || (dragging.value && offset.value <= 0),
+)
+const showRevealPanel = computed(
+  () =>
+    revealMode.value
+    && (offset.value > 0.5 || open.value || (dragging.value && offset.value >= 0)),
+)
 
 function clearWheelIdle() {
   if (wheelIdleTimer !== null) {
@@ -92,12 +140,26 @@ function reset() {
   wheelTracking = false
   clearWheelIdle()
   dragging.value = false
+  open.value = false
   offset.value = 0
+}
+
+function snapOpen() {
+  tracking = false
+  axis = null
+  armed = null
+  activePointerId = null
+  wheelTracking = false
+  clearWheelIdle()
+  dragging.value = false
+  open.value = true
+  offset.value = revealWidth.value
+  haptics.tick()
 }
 
 function clampSigned(next: number) {
   let v = next
-  if (!props.endEnabled) v = Math.min(0, v)
+  if (!endSideEnabled.value) v = Math.min(0, v)
   if (!props.startEnabled) v = Math.max(0, v)
   return v
 }
@@ -105,33 +167,36 @@ function clampSigned(next: number) {
 function rubber(v: number) {
   const sign = v < 0 ? -1 : 1
   const abs = Math.abs(v)
-  const soft = abs <= MAX ? abs : MAX + (abs - MAX) * 0.28
+  const cap = maxPull.value
+  const soft = abs <= cap ? abs : cap + (abs - cap) * 0.28
   return sign * soft
 }
 
 function applyOffset(next: number) {
   offset.value = rubber(clampSigned(next))
   const abs = Math.abs(offset.value)
-  if (offset.value >= props.threshold) {
+  const thr = snapThreshold.value
+  if (offset.value >= thr) {
     if (armed !== 'end') {
       armed = 'end'
       haptics.tick()
     }
-  } else if (offset.value <= -props.threshold) {
+  } else if (offset.value <= -thr) {
     if (armed !== 'start') {
       armed = 'start'
       haptics.tick()
     }
-  } else if (armed && abs < props.threshold * 0.75) {
+  } else if (armed && abs < thr * 0.75) {
     armed = null
   }
 }
 
 function commitIfArmed() {
+  const thr = snapThreshold.value
   const which =
-    offset.value >= props.threshold
+    offset.value >= thr
       ? 'end'
-      : offset.value <= -props.threshold
+      : offset.value <= -thr
         ? 'start'
         : null
   dragging.value = false
@@ -139,16 +204,36 @@ function commitIfArmed() {
   tracking = false
   axis = null
   activePointerId = null
-  offset.value = 0
   armed = null
-  if (which === 'end' && props.endEnabled) {
+
+  if (which === 'end' && endSideEnabled.value) {
+    if (revealMode.value) {
+      snapOpen()
+      return
+    }
+    offset.value = 0
+    open.value = false
     haptics.warning()
     emit('end')
     emit('commit')
-  } else if (which === 'start' && props.startEnabled) {
+    return
+  }
+
+  if (which === 'start' && props.startEnabled) {
+    offset.value = 0
+    open.value = false
     haptics.impact('medium')
     emit('start')
+    return
   }
+
+  // Ниже порога: если уже были открыты — закрыть; иначе дотянуть к 0
+  if (revealMode.value && open.value && offset.value > revealWidth.value * 0.55) {
+    snapOpen()
+    return
+  }
+  open.value = false
+  offset.value = 0
 }
 
 function beginTrack(clientX: number, clientY: number) {
@@ -156,7 +241,8 @@ function beginTrack(clientX: number, clientY: number) {
   axis = null
   armed = null
   moved = false
-  startX = clientX
+  // Учитываем текущий сдвиг (открытая панель), чтобы жест продолжался от неё
+  startX = clientX + offset.value
   startY = clientY
 }
 
@@ -172,11 +258,11 @@ function moveTrack(clientX: number, clientY: number): boolean {
       tracking = false
       return false
     }
-    if (dx < 0 && !props.endEnabled) {
+    if (dx < 0 && !endSideEnabled.value && !open.value) {
       tracking = false
       return false
     }
-    if (dx > 0 && !props.startEnabled) {
+    if (dx > 0 && !props.startEnabled && !open.value) {
       tracking = false
       return false
     }
@@ -199,7 +285,7 @@ function endTrack() {
 
 function onPointerDown(e: PointerEvent) {
   if (props.disabled || e.button !== 0) return
-  if (e.clientX < EDGE_GUARD) return
+  if (e.clientX < EDGE_GUARD && !open.value) return
   if (wheelTracking) return
   // Touch ведём через touch* (passive: false) — иначе iOS скроллит и шлёт pointercancel
   if (e.pointerType === 'touch') return
@@ -244,7 +330,7 @@ function onTouchStart(e: TouchEvent) {
   if (e.touches.length !== 1) return
   const touch = e.touches[0]
   if (!touch) return
-  if (touch.clientX < EDGE_GUARD) return
+  if (touch.clientX < EDGE_GUARD && !open.value) return
   beginTrack(touch.clientX, touch.clientY)
 }
 
@@ -267,14 +353,37 @@ function onTouchEnd() {
 
 function onTouchCancel() {
   // Браузер перехватил жест — просто откат, без ложного commit
-  if (dragging.value || tracking) reset()
+  if (dragging.value || tracking) {
+    if (open.value) {
+      tracking = false
+      axis = null
+      dragging.value = false
+      offset.value = revealWidth.value
+    } else {
+      reset()
+    }
+  }
 }
 
 function onClickCapture(e: MouseEvent) {
-  if (!moved) return
-  e.preventDefault()
-  e.stopPropagation()
-  moved = false
+  if (moved) {
+    e.preventDefault()
+    e.stopPropagation()
+    moved = false
+    return
+  }
+  if (open.value) {
+    e.preventDefault()
+    e.stopPropagation()
+    reset()
+  }
+}
+
+function onActionClick(id: string) {
+  if (props.disabled) return
+  haptics.impact('medium')
+  emit('action', id)
+  reset()
 }
 
 function onWheel(e: WheelEvent) {
@@ -305,14 +414,20 @@ function onWheel(e: WheelEvent) {
 
   if (!wheelTracking) {
     if (absX < WHEEL_START || absY > absX * 1.25) return
-    if (pull > 0 && !props.endEnabled) return
-    if (pull < 0 && !props.startEnabled) return
+    if (pull > 0 && !endSideEnabled.value && !open.value) return
+    if (pull < 0 && !props.startEnabled && !open.value) return
     if (pull === 0) return
     wheelTracking = true
     dragging.value = true
     armed = null
-  } else if (!e.shiftKey && absY > absX * 1.6 && Math.abs(offset.value) < props.threshold * 0.35) {
-    reset()
+  } else if (!e.shiftKey && absY > absX * 1.6 && Math.abs(offset.value) < snapThreshold.value * 0.35) {
+    if (open.value) {
+      wheelTracking = false
+      dragging.value = false
+      offset.value = revealWidth.value
+    } else {
+      reset()
+    }
     return
   }
 
@@ -364,13 +479,34 @@ defineExpose({ reset })
     :class="{
       'swipe-delete--disabled': disabled,
       'swipe-delete--dragging': dragging,
-      'swipe-delete--armed-end': offset >= threshold,
-      'swipe-delete--armed-start': offset <= -threshold,
+      'swipe-delete--open': open,
+      'swipe-delete--reveal': revealMode,
+      'swipe-delete--armed-end': offset >= snapThreshold,
+      'swipe-delete--armed-start': offset <= -snapThreshold,
     }"
     @wheel.capture="onWheel"
   >
     <div
-      v-if="endEnabled"
+      v-if="revealMode"
+      class="swipe-delete__panel swipe-delete__panel--end"
+      :class="{ 'swipe-delete__panel--on': showRevealPanel }"
+      :style="{ width: `${revealWidth}px` }"
+    >
+      <button
+        v-for="action in revealActions"
+        :key="action.id"
+        type="button"
+        class="swipe-delete__btn"
+        :class="`swipe-delete__btn--${action.tone ?? 'neutral'}`"
+        :aria-label="action.label"
+        @click.stop="onActionClick(action.id)"
+      >
+        <AppIcon :name="action.icon ?? icons.copy" size="1.15rem" />
+        <span>{{ action.label }}</span>
+      </button>
+    </div>
+    <div
+      v-else-if="endEnabled"
       class="swipe-delete__action swipe-delete__action--end"
       :class="{ 'swipe-delete__action--on': showEndAction }"
       aria-hidden="true"
@@ -458,6 +594,67 @@ defineExpose({ reset })
 .swipe-delete__action--on {
   opacity: 1;
   visibility: visible;
+}
+
+.swipe-delete__panel {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 0;
+  display: flex;
+  align-items: stretch;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.swipe-delete__panel--end {
+  right: 0;
+}
+
+.swipe-delete__panel--on {
+  opacity: 1;
+  visibility: visible;
+}
+
+.swipe-delete--open .swipe-delete__panel {
+  pointer-events: auto;
+}
+
+.swipe-delete__btn {
+  flex: 1 1 0;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  box-sizing: border-box;
+  min-width: 0;
+  margin: 0;
+  padding: 0.45rem 0.7rem;
+  border: 0;
+  color: #fff;
+  font: inherit;
+  font-size: var(--app-text-xs);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.swipe-delete__btn--danger {
+  background: var(--app-destructive);
+}
+
+.swipe-delete__btn--accent {
+  background: var(--app-accent);
+  color: var(--app-accent-contrast);
+}
+
+.swipe-delete__btn--neutral {
+  background: color-mix(in srgb, var(--app-muted) 55%, #64748b);
+  color: #fff;
 }
 
 .swipe-delete__content {

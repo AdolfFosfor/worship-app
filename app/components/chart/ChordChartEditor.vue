@@ -28,9 +28,11 @@ import {
   moveSection,
   duplicateBar,
   duplicateItem,
+  duplicateSection,
   swapItems,
   removeBar,
   removeItem,
+  replaceItem,
   removeSection,
   updateSection,
   withChart,
@@ -41,6 +43,7 @@ import { useEditorReveal } from '~/composables/useEditorReveal'
 
 const { t } = useAppLocale()
 const haptics = useHaptics()
+const { requireDanger } = useAppConfirm()
 
 function sectionLabel(type: string) {
   return t(`chart.section.${type}`)
@@ -337,11 +340,52 @@ function startFirstBar(sectionId: string) {
 function onAddSection(type: SectionType) {
   const next = addSection(currentChart(), type)
   commit(next)
+  const section = next.sections[next.sections.length - 1]
+  const bar = section?.bars[0]
+  if (!section || !bar) return
+  selected.value = { sectionId: section.id, barId: bar.id, insertIndex: 0 }
+  openKeyboard()
+  void nextTick(() => revealSelection({ force: true }))
 }
 
 function onRemoveSection(sectionId: string) {
   commit(removeSection(currentChart(), sectionId))
   if (selected.value?.sectionId === sectionId) selected.value = null
+}
+
+function confirmRemoveSection(sectionId: string) {
+  const title = autoSectionTitle(sectionId)
+  requireDanger({
+    title: t('chart.deleteSectionConfirmTitle'),
+    message: t('chart.deleteSectionConfirmMessage', { title }),
+    acceptLabel: t('common.delete'),
+    accept: () => onRemoveSection(sectionId),
+  })
+}
+
+function onDuplicateSection(sectionId: string) {
+  commit(duplicateSection(currentChart(), sectionId))
+  haptics.impact('medium')
+}
+
+const sectionSwipeActions = computed(() => [
+  {
+    id: 'duplicate',
+    label: t('common.duplicate'),
+    icon: icons.copy,
+    tone: 'accent' as const,
+  },
+  {
+    id: 'delete',
+    label: t('common.delete'),
+    icon: icons.trash,
+    tone: 'danger' as const,
+  },
+])
+
+function onSectionSwipeAction(sectionId: string, actionId: string) {
+  if (actionId === 'duplicate') onDuplicateSection(sectionId)
+  else if (actionId === 'delete') confirmRemoveSection(sectionId)
 }
 
 function changeSectionType(sectionId: string, type: SectionType) {
@@ -422,7 +466,8 @@ function onBarGripClick(sectionId: string, barId: string, itemCount: number) {
 function selectItem(sectionId: string, barId: string, itemId: string, afterIndex: number) {
   barMenuId.value = null
   selected.value = { sectionId, barId, insertIndex: afterIndex + 1, itemId }
-  revealSelection()
+  openKeyboard()
+  revealSelection({ force: true })
 }
 
 function onAddBar(sectionId: string, afterBarId?: string) {
@@ -475,9 +520,22 @@ function resolveInsertTarget(base: ChordChart) {
 
 function onChord(symbol: string) {
   const base = currentChart()
+  const sel = selected.value
+  const chord = createChord(symbol)
+  if (sel?.itemId) {
+    commit(replaceItem(base, sel.sectionId, sel.barId, sel.itemId, chord))
+    selected.value = {
+      sectionId: sel.sectionId,
+      barId: sel.barId,
+      insertIndex: sel.insertIndex,
+      itemId: chord.id,
+    }
+    void nextTick(() => revealSelection({ force: true }))
+    return
+  }
   const target = resolveInsertTarget(base)
   if (!target) return
-  commit(insertItem(base, target.sectionId, target.barId, createChord(symbol), target.insertIndex))
+  commit(insertItem(base, target.sectionId, target.barId, chord, target.insertIndex))
   selected.value = {
     sectionId: target.sectionId,
     barId: target.barId,
@@ -488,11 +546,22 @@ function onChord(symbol: string) {
 
 function onAnnotation(text: string, preset?: AnnotationPreset) {
   const base = currentChart()
+  const sel = selected.value
+  const note = createAnnotation(text, preset)
+  if (sel?.itemId) {
+    commit(replaceItem(base, sel.sectionId, sel.barId, sel.itemId, note))
+    selected.value = {
+      sectionId: sel.sectionId,
+      barId: sel.barId,
+      insertIndex: sel.insertIndex,
+      itemId: note.id,
+    }
+    void nextTick(() => revealSelection({ force: true }))
+    return
+  }
   const target = resolveInsertTarget(base)
   if (!target) return
-  commit(
-    insertItem(base, target.sectionId, target.barId, createAnnotation(text, preset), target.insertIndex),
-  )
+  commit(insertItem(base, target.sectionId, target.barId, note, target.insertIndex))
   selected.value = {
     sectionId: target.sectionId,
     barId: target.barId,
@@ -526,6 +595,13 @@ function onRemoveItem(sectionId: string, barId: string, itemId: string) {
     barId,
     insertIndex: Math.max(0, idx),
   }
+}
+
+function onKeyboardDelete() {
+  const sel = selected.value
+  if (!sel?.itemId) return
+  onRemoveItem(sel.sectionId, sel.barId, sel.itemId)
+  haptics.warning()
 }
 
 function clearLongPress() {
@@ -1362,39 +1438,36 @@ onBeforeUnmount(() => {
           {{ t('common.create') }}
         </button>
       </div>
-      <section
+      <SwipeDeleteRow
         v-for="(section, sectionIndex) in chart.sections"
         :key="section.id"
-        class="chart-section"
-        :class="{
-          'chart-section--dragging': drag?.kind === 'section' && drag.sectionId === section.id,
-          'chart-section--drop-before': isSectionBlockDrop(section.id, 'before'),
-          'chart-section--drop-after': isSectionBlockDrop(section.id, 'after'),
-        }"
-        data-drop-section-block
-        :data-section-id="section.id"
-        :data-section-index="sectionIndex"
-        :style="{
-          '--section-wash': SECTION_COLOR_VAR[section.type] ?? SECTION_COLOR_VAR.custom,
-          '--section-accent': SECTION_ACCENT_VAR[section.type] ?? SECTION_ACCENT_VAR.custom,
-        }"
+        class="chart-section-swipe"
+        :disabled="Boolean(drag)"
+        :end-actions="sectionSwipeActions"
+        @action="onSectionSwipeAction(section.id, $event)"
       >
-        <button
-          type="button"
-          class="chart-section__trash"
-          :aria-label="t('chart.deleteSection')"
-          @click="onRemoveSection(section.id)"
+        <section
+          class="chart-section"
+          :class="{
+            'chart-section--dragging': drag?.kind === 'section' && drag.sectionId === section.id,
+            'chart-section--drop-before': isSectionBlockDrop(section.id, 'before'),
+            'chart-section--drop-after': isSectionBlockDrop(section.id, 'after'),
+          }"
+          data-drop-section-block
+          :data-section-id="section.id"
+          :data-section-index="sectionIndex"
+          :style="{
+            '--section-wash': SECTION_COLOR_VAR[section.type] ?? SECTION_COLOR_VAR.custom,
+            '--section-accent': SECTION_ACCENT_VAR[section.type] ?? SECTION_ACCENT_VAR.custom,
+          }"
         >
-          <AppIcon :name="icons.trash" size="0.85rem" />
-        </button>
-
         <header class="chart-section__head">
           <button
             type="button"
             class="chart-section__badge"
             :aria-label="t('chart.moveSection')"
             aria-haspopup="menu"
-            @pointerdown="startSectionDrag(section.id, $event)"
+            @pointerdown.stop="startSectionDrag(section.id, $event)"
             @click="onSectionBadgeClick($event, section.id)"
           >
             <span class="chart-section__dot" aria-hidden="true" />
@@ -1589,7 +1662,8 @@ onBeforeUnmount(() => {
             {{ t('chart.addBarShort') }}
           </button>
         </div>
-      </section>
+        </section>
+      </SwipeDeleteRow>
     </div>
 
     <div v-if="showConvert || showReconvert" class="chart-editor__banner">
@@ -1601,10 +1675,12 @@ onBeforeUnmount(() => {
 
     <ChordKeyboard
       :open="keyboardOpen"
+      :can-delete="Boolean(selected?.itemId)"
       @close="closeChrome"
       @chord="onChord"
       @annotation="onAnnotation"
       @next-bar="onNextBar"
+      @delete="onKeyboardDelete"
     />
 
     <Teleport to="body">
@@ -1729,9 +1805,17 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: var(--app-space-4);
-  /* Room for trash sitting on the outer card corner */
-  padding: 0.4rem 0.5rem 0.1rem 0;
+  padding: 0.1rem 0;
   overflow: visible;
+}
+
+.chart-section-swipe {
+  border-radius: var(--app-radius-lg);
+  background: transparent;
+}
+
+.chart-section-swipe :deep(.swipe-delete__content) {
+  background: transparent;
 }
 
 .chart-editor__empty {
@@ -1853,31 +1937,6 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
   border-radius: 999px;
   background: var(--section-accent);
-}
-
-.chart-section__trash {
-  position: absolute;
-  top: 0;
-  right: 0;
-  z-index: 2;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.55rem;
-  height: 1.55rem;
-  border: 0;
-  border-radius: 999px;
-  background: var(--app-surface);
-  color: var(--app-danger);
-  box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--app-danger) 35%, transparent),
-    var(--app-shadow-soft);
-  transform: translate(35%, -35%);
-  cursor: pointer;
-}
-
-.chart-section__trash:hover {
-  background: color-mix(in srgb, var(--app-danger) 14%, var(--app-surface));
 }
 
 .chart-section__flow {

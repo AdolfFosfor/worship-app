@@ -520,7 +520,7 @@ defineExpose({
         class="app-top-sheet__field app-top-sheet__field--area"
         rows="8"
         :placeholder="t('song.lyricsPlaceholder')"
-        enterkeyhint="done"
+        enterkeyhint="enter"
         @blur="onDraftFieldBlur"
         @keydown.meta.enter.prevent="confirmSheet"
         @keydown.ctrl.enter.prevent="confirmSheet"

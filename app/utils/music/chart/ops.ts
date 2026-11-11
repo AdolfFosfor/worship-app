@@ -5,7 +5,14 @@ import type {
   ChordChart,
   SectionType,
 } from '~~/shared/types'
-import { cloneBar, cloneBarItem, cloneChart, createBar, createSection } from './factory'
+import {
+  cloneBar,
+  cloneBarItem,
+  cloneChart,
+  cloneSection,
+  createBar,
+  createSection,
+} from './factory'
 
 export type ItemPath = { sectionId: string; barId: string; itemId: string }
 export type BarPath = { sectionId: string; barId: string }
@@ -33,14 +40,26 @@ export function addSection(
   title?: string,
 ): ChordChart {
   return withChart(chart, (d) => {
-    // Новый блок без пустого такта — пользователь добавит или перетащит
-    d.sections.push(createSection(type, title, []))
+    // Один пустой такт: сразу можно писать; для дропа чужого такта
+    // пустой блок всё ещё считается blank (onlyBlanks).
+    d.sections.push(createSection(type, title))
   })
 }
 
 export function removeSection(chart: ChordChart, sectionId: string): ChordChart {
   return withChart(chart, (d) => {
     d.sections = d.sections.filter((s) => s.id !== sectionId)
+  })
+}
+
+/** Вставить копию секции сразу после оригинала. */
+export function duplicateSection(chart: ChordChart, sectionId: string): ChordChart {
+  return withChart(chart, (d) => {
+    const idx = d.sections.findIndex((s) => s.id === sectionId)
+    if (idx < 0) return
+    const source = d.sections[idx]
+    if (!source) return
+    d.sections.splice(idx + 1, 0, cloneSection(source))
   })
 }
 
@@ -158,6 +177,24 @@ export function removeItem(
     const b = s ? findBar(s, barId) : null
     if (!b) return
     b.items = b.items.filter((i) => i.id !== itemId)
+  })
+}
+
+/** Заменить чип на месте (новый id). */
+export function replaceItem(
+  chart: ChordChart,
+  sectionId: string,
+  barId: string,
+  itemId: string,
+  item: BarItem,
+): ChordChart {
+  return withChart(chart, (d) => {
+    const s = findSection(d, sectionId)
+    const b = s ? findBar(s, barId) : null
+    if (!b) return
+    const idx = b.items.findIndex((i) => i.id === itemId)
+    if (idx < 0) return
+    b.items[idx] = item
   })
 }
 

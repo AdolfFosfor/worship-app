@@ -14,15 +14,21 @@ import { useKeyboardInset } from '~/composables/useKeyboardInset'
 
 const { t } = useAppLocale()
 
-const props = defineProps<{
-  open: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    open: boolean
+    /** Выделен чип — можно удалить из шапки */
+    canDelete?: boolean
+  }>(),
+  { canDelete: false },
+)
 
 const emit = defineEmits<{
   close: []
   chord: [symbol: string]
   annotation: [text: string, preset?: AnnotationPreset]
   nextBar: []
+  delete: []
 }>()
 
 const kb = useKeyboardInset()
@@ -307,8 +313,37 @@ function expandQuick() {
           @click="emit('close')"
         />
 
-        <div class="chord-kb__top">
-          <div class="chord-kb__tabs" role="tablist">
+        <div class="chord-kb__chrome">
+          <div class="chord-kb__top">
+            <button
+              type="button"
+              class="chord-kb__delete"
+              :disabled="!canDelete"
+              :aria-label="t('chartKb.deleteItem')"
+              @pointerdown.stop
+              @click="emit('delete')"
+            >
+              <AppIcon :name="icons.trash" size="1.05rem" />
+            </button>
+            <button
+              type="button"
+              class="chord-kb__next"
+              @pointerdown.stop
+              @click="emit('nextBar')"
+            >
+              {{ t('chartKb.nextBar') }}
+            </button>
+            <button
+              type="button"
+              class="chord-kb__close"
+              :aria-label="t('common.close')"
+              @pointerdown.stop
+              @click="emit('close')"
+            >
+              <AppIcon :name="icons.close" size="1.05rem" />
+            </button>
+          </div>
+          <div class="chord-kb__tabs" role="tablist" @pointerdown.stop>
             <button
               type="button"
               class="chord-kb__tab"
@@ -334,10 +369,6 @@ function expandQuick() {
               {{ t('chartKb.tabNotes') }}
             </button>
           </div>
-          <button type="button" class="chord-kb__next" @click="emit('nextBar')">{{ t('chartKb.nextBar') }}</button>
-          <button type="button" class="chord-kb__close" :aria-label="t('common.close')" @click="emit('close')">
-            <AppIcon :name="icons.close" size="1.05rem" />
-          </button>
         </div>
       </div>
 
@@ -653,16 +684,23 @@ function expandQuick() {
   transform: translate(-50%, -50%);
 }
 
-.chord-kb__top {
+.chord-kb__chrome {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: var(--app-space-2);
   flex-shrink: 0;
 }
 
+.chord-kb__top {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--app-space-2);
+}
+
 .chord-kb__tabs {
   display: flex;
-  flex: 1;
+  width: 100%;
   min-width: 0;
   padding: 0.12rem;
   border-radius: var(--app-radius-pill);
@@ -688,6 +726,7 @@ function expandQuick() {
   box-shadow: var(--app-shadow-soft);
 }
 
+.chord-kb__delete,
 .chord-kb__next,
 .chord-kb__close {
   display: inline-flex;
@@ -704,13 +743,28 @@ function expandQuick() {
   cursor: pointer;
 }
 
+.chord-kb__delete {
+  justify-self: start;
+  width: 1.7rem;
+  padding: 0;
+  color: var(--app-destructive);
+}
+
+.chord-kb__delete:disabled {
+  color: var(--app-muted);
+  opacity: 0.45;
+  cursor: default;
+}
+
 .chord-kb__next {
-  padding: 0 0.55rem;
+  justify-self: center;
+  padding: 0 0.7rem;
   color: var(--app-accent-text);
   white-space: nowrap;
 }
 
 .chord-kb__close {
+  justify-self: end;
   width: 1.7rem;
   padding: 0;
 }

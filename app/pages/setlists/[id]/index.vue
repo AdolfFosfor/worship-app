@@ -171,9 +171,12 @@ function effectiveKey(item: SetlistItemWithSong) {
   return item.key ?? item.song.key
 }
 
-function songKeyLabel(item: SetlistItemWithSong) {
-  if (item.key) return item.key
-  return soundingKey(item.song.key, item.song.capo)
+function songMetaLabel(item: SetlistItemWithSong) {
+  const key = item.key ?? soundingKey(item.song.key, item.song.capo)
+  const parts = [key]
+  if (item.song.bpm) parts.push(String(item.song.bpm))
+  if (item.song.timeSignature) parts.push(item.song.timeSignature)
+  return parts.join(' · ')
 }
 
 const DATE_LOCALE: Record<string, string> = {
@@ -672,7 +675,7 @@ const filteredPickerSongs = computed(() => {
                 <span class="setlist-item__pos">{{ index + 1 }}</span>
                 <span class="setlist-item__title">{{ item.song.title }}</span>
               </NuxtLink>
-              <span class="setlist-item__key" aria-hidden="true">{{ songKeyLabel(item) }}</span>
+              <span class="setlist-item__meta" aria-hidden="true">{{ songMetaLabel(item) }}</span>
             </div>
           </SwipeDeleteRow>
         </article>
@@ -890,21 +893,21 @@ const filteredPickerSongs = computed(() => {
   max-width: 100%;
 }
 
-.setlist-item__key {
+.setlist-item__meta {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 2.6rem;
-  min-height: 2rem;
-  padding: 0 0.7rem;
+  min-height: 1.5rem;
+  padding: 0 0.55rem;
   border-radius: var(--app-radius-pill);
   background: var(--app-accent-muted);
   color: var(--app-accent-text);
-  font-size: var(--app-text-md);
-  font-weight: 750;
-  letter-spacing: -0.02em;
+  font-size: var(--app-text-xs);
+  font-weight: 700;
+  letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .setlist-picker {

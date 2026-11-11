@@ -229,7 +229,7 @@ onBeforeUnmount(() => {
         :aria-label="t('stage.ariaFullscreen')"
         @click="setFullscreen(true)"
       >
-        <AppIcon :name="icons.share" size="1.1rem" />
+        <AppIcon :name="icons.fullscreen" size="1.1rem" />
         <span>{{ t('stage.fullscreen') }}</span>
       </button>
     </div>
@@ -351,7 +351,7 @@ onBeforeUnmount(() => {
           :aria-label="t('stage.nextSong')"
           @click.stop="goNext"
         >
-          <AppIcon :name="icons.chevronRight" size="1.15rem" />
+          <AppIcon :name="icons.arrowRight" size="1.15rem" />
         </button>
         <span v-else-if="showPlaylistNav" class="chord-stage__nav-spacer" aria-hidden="true" />
       </div>
