@@ -1,10 +1,15 @@
 <script setup lang="ts">
 const open = defineModel<boolean>('open', { default: false })
 
-defineProps<{
-  title: string
-  expanded?: boolean
-}>()
+withDefaults(
+  defineProps<{
+    title: string
+    expanded?: boolean
+  }>(),
+  {
+    expanded: false,
+  },
+)
 
 const emit = defineEmits<{
   dismiss: []
@@ -171,6 +176,14 @@ onBeforeUnmount(() => {
   line-height: 1.35;
 }
 
+.app-top-sheet__body :deep(.app-top-sheet__form) {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+  width: 100%;
+  margin: 0;
+}
+
 .app-top-sheet__body :deep(.app-top-sheet__field--area) {
   flex: 1 1 auto;
   min-height: 10rem;
@@ -179,16 +192,37 @@ onBeforeUnmount(() => {
   -webkit-overflow-scrolling: touch;
 }
 
-.app-top-sheet__body :deep(.app-top-sheet__form) {
-  width: 100%;
-  margin: 0;
-}
-
 .app-top-sheet__body :deep(.app-top-sheet__field--bpm) {
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   letter-spacing: -0.02em;
   text-align: center;
+}
+
+.app-top-sheet__body :deep(.app-top-sheet__add) {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0 0.85rem;
+  border: 0;
+  border-radius: var(--app-radius-pill);
+  background: var(--app-accent);
+  color: var(--app-accent-contrast);
+  font: inherit;
+  font-size: var(--app-text-sm);
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.app-top-sheet__body :deep(.app-top-sheet__add:disabled) {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* ПК: Enter / клик по маске — кнопка не нужна */
+@media (hover: hover) and (pointer: fine) {
+  .app-top-sheet__body :deep(.app-top-sheet__add) {
+    display: none;
+  }
 }
 
 .app-top-sheet-enter-active,

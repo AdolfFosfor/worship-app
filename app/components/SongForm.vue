@@ -344,11 +344,9 @@ function confirmSheet() {
 
 /** iOS/Android «Done» на KB обычно даёт blur — сохраняем черновик. */
 function onDraftFieldBlur() {
-  if (sheetKind.value !== 'lyrics' && sheetKind.value !== 'youtube' && sheetKind.value !== 'bpm') {
-    return
-  }
+  if (sheetKind.value !== 'lyrics' && sheetKind.value !== 'youtube') return
   window.setTimeout(() => {
-    if (sheetKind.value === 'lyrics' || sheetKind.value === 'youtube' || sheetKind.value === 'bpm') {
+    if (sheetKind.value === 'lyrics' || sheetKind.value === 'youtube') {
       confirmSheet()
     }
   }, 0)
@@ -369,6 +367,10 @@ const formRouteActive = computed(() => {
 const showFormCta = computed(
   () => shellUiActive.value && formRouteActive.value && !sheetOpen.value,
 )
+
+const bpmAddEnabled = computed(() => parseBpmDraft(sheetDraft.value) != null)
+
+const meterAddEnabled = computed(() => Boolean(normalizeTimeSignature(meterDraft.value)))
 
 onActivated(() => {
   shellUiActive.value = true
@@ -552,8 +554,14 @@ defineExpose({
           :placeholder="t('song.bpmPlaceholder')"
           autocomplete="off"
           @input="onBpmDraftInput"
-          @blur="onDraftFieldBlur"
         >
+        <button
+          type="submit"
+          class="app-top-sheet__add"
+          :disabled="!bpmAddEnabled"
+        >
+          {{ t('common.add') }}
+        </button>
       </form>
       <div v-show="sheetKind === 'types'" class="app-top-sheet__choices">
         <div class="song-form__chips song-form__chips--grid">
@@ -626,8 +634,7 @@ defineExpose({
           :value="meterDraft"
           class="app-top-sheet__field"
           type="text"
-          inputmode="numeric"
-          pattern="[0-9]*"
+          inputmode="decimal"
           maxlength="5"
           :placeholder="t('song.meterPlaceholder')"
           enterkeyhint="done"
@@ -635,6 +642,14 @@ defineExpose({
           @input="onMeterDraftInput"
           @keydown="onMeterKeydown"
         >
+        <button
+          type="button"
+          class="app-top-sheet__add"
+          :disabled="!meterAddEnabled"
+          @pointerdown.prevent="addCustomMeter"
+        >
+          {{ t('common.add') }}
+        </button>
       </div>
     </AppTopSheet>
   </form>
