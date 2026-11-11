@@ -44,8 +44,14 @@ function resolveMiniAppUrl(event: Parameters<typeof getRequestURL>[0], configure
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
-  const botToken = config.telegramBotToken as string
-  const webhookSecret = (config.telegramWebhookSecret as string | undefined)?.trim() || ''
+  // Cloudflare Pages injects secrets at runtime — prefer env over build-time default
+  const botToken =
+    (config.telegramBotToken as string) || process.env.NUXT_TELEGRAM_BOT_TOKEN || ''
+  const webhookSecret = (
+    (config.telegramWebhookSecret as string) ||
+    process.env.NUXT_TELEGRAM_WEBHOOK_SECRET ||
+    ''
+  ).trim()
 
   if (webhookSecret) {
     const header = getHeader(event, 'x-telegram-bot-api-secret-token')
@@ -73,7 +79,10 @@ export default defineEventHandler(async (event) => {
   const languageCode = message.from.language_code ?? null
   const openLabel = botMessage('open', languageCode)
   const startText = botMessage('start', languageCode)
-  const webAppUrl = resolveMiniAppUrl(event, (config.telegramMiniAppUrl as string) || '')
+  const webAppUrl = resolveMiniAppUrl(
+    event,
+    (config.telegramMiniAppUrl as string) || process.env.NUXT_TELEGRAM_MINI_APP_URL || '',
+  )
 
   try {
     await setChatMenuButtonWebApp({
