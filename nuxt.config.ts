@@ -15,6 +15,22 @@ export default defineNuxtConfig({
       deployConfig: true,
       nodeCompat: true,
     },
+    // HTML отдаёт Worker (см. _routes.json) — _headers на него не действует.
+    routeRules: {
+      '/**': {
+        headers: {
+          'Cache-Control': 'no-store',
+        },
+      },
+    },
+  },
+
+  experimental: {
+    // Telegram WebView кеширует HTML/JSON агрессивно: авто-reload по outdated
+    // build + chunkError легко превращается в «вечное обновление».
+    checkOutdatedBuildInterval: false,
+    // Один контролируемый reload при битом чанке — см. plugins/chunk-error-reload.client.ts
+    emitRouteChunkError: 'manual',
   },
 
   // Early paint fallbacks (critical boot also injected via server/plugins/html-boot-theme.ts)

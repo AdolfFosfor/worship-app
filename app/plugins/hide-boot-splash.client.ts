@@ -1,5 +1,6 @@
 /**
  * Hides the pre-Nuxt boot splash once the Vue app has mounted and painted.
+ * Failsafe: never leave the splash up forever after a botched update/reload.
  */
 function dismissBootSplash() {
   const el = document.getElementById('app-boot-splash')
@@ -19,10 +20,15 @@ function dismissBootSplash() {
 }
 
 export default defineNuxtPlugin((nuxtApp) => {
-  nuxtApp.hook('app:mounted', () => {
-    // Let the first frame of the app paint, then fade the splash out.
+  const scheduleDismiss = () => {
     requestAnimationFrame(() => {
       requestAnimationFrame(dismissBootSplash)
     })
-  })
+  }
+
+  nuxtApp.hook('app:mounted', scheduleDismiss)
+  nuxtApp.hook('app:error', scheduleDismiss)
+
+  // Если mount/error так и не пришли (битый бандл в WebView) — всё равно убрать спиннер.
+  window.setTimeout(dismissBootSplash, 12_000)
 })

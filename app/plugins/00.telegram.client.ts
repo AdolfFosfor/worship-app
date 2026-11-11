@@ -40,8 +40,13 @@ export default defineNuxtPlugin(() => {
     isMocked.value = !urlLaunch
   }
 
-  init()
-  initData.restore()
+  try {
+    init()
+    initData.restore()
+  } catch (e) {
+    // Не валим boot: UnknownEnvError / битый launchParams оставляли вечный splash в TMA.
+    console.warn('[telegram] init failed', e)
+  }
 
   const disposeTheme = applyTelegramTheme()
   const unlockOrientation = lockPortraitOrientation()
