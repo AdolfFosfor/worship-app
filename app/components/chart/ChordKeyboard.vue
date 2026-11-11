@@ -240,7 +240,10 @@ function onSwipePointerDown(e: PointerEvent) {
   if (e.pointerType === 'mouse' && e.button !== 0) return
   // Не стартуем жест с кнопок табов / next / close
   const t = e.target
-  if (t instanceof Element && t.closest('.chord-kb__tab, .chord-kb__next, .chord-kb__close')) {
+  if (
+    t instanceof Element
+    && t.closest('.chord-kb__tab, .chord-kb__next, .chord-kb__close, .chord-kb__delete')
+  ) {
     return
   }
   swipeStartY.value = e.clientY
@@ -328,10 +331,12 @@ function expandQuick() {
             <button
               type="button"
               class="chord-kb__next"
+              :aria-label="t('chart.addBar')"
               @pointerdown.stop
               @click="emit('nextBar')"
             >
-              {{ t('chartKb.nextBar') }}
+              <AppIcon :name="icons.plus" size="1rem" />
+              <span>{{ t('chart.addBarShort') }}</span>
             </button>
             <button
               type="button"
@@ -758,9 +763,18 @@ function expandQuick() {
 
 .chord-kb__next {
   justify-self: center;
-  padding: 0 0.7rem;
+  gap: 0.4rem;
+  min-width: 7.5rem;
+  min-height: 2rem;
+  padding: 0 1.25rem;
   color: var(--app-accent-text);
+  font-size: var(--app-text-xs);
+  font-weight: 750;
   white-space: nowrap;
+}
+
+.chord-kb__next :deep(.app-icon) {
+  flex-shrink: 0;
 }
 
 .chord-kb__close {
