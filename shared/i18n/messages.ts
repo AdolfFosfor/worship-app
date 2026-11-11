@@ -65,6 +65,7 @@ const ru: MessageDict = {
     'Привяжите email и Telegram к одному аккаунту — тогда браузер (Magic Link) и Mini App открывают одни и те же песни и сет-листы.',
   'settings.language': 'Язык',
   'settings.languageHint': 'Интерфейс приложения на выбранном языке',
+  'settings.languageHintTelegram': 'Как в Telegram — смените язык в настройках Telegram и заново откройте приложение',
   'settings.displayName': 'Отображаемое имя',
   'settings.displayNameLabel': 'Как вас видят в команде',
   'settings.displayNameHint': 'Это имя видят в команде и на главной',
@@ -486,6 +487,8 @@ const ro: MessageDict = {
     'Conectați emailul și Telegram la același cont — astfel browserul (Magic Link) și Mini App deschid aceleași cântece și setlist-uri.',
   'settings.language': 'Limbă',
   'settings.languageHint': 'Interfața aplicației în limba aleasă',
+  'settings.languageHintTelegram':
+    'Ca în Telegram — schimbați limba în setările Telegram și redeschideți aplicația',
   'settings.displayName': 'Nume afișat',
   'settings.displayNameLabel': 'Cum vă văd în echipă',
   'settings.displayNameHint': 'Acest nume este vizibil în echipă și pe ecranul principal',
@@ -905,6 +908,8 @@ const en: MessageDict = {
     'Link email and Telegram to one account — then the browser (Magic Link) and Mini App open the same songs and setlists.',
   'settings.language': 'Language',
   'settings.languageHint': 'App interface in the selected language',
+  'settings.languageHintTelegram':
+    'Follows Telegram — change language in Telegram settings and reopen the app',
   'settings.displayName': 'Display name',
   'settings.displayNameLabel': 'How the team sees you',
   'settings.displayNameHint': 'This name appears in the team and on the home screen',

@@ -4,7 +4,7 @@ export type AppLocale = (typeof APP_LOCALES)[number]
 
 export const APP_LOCALE_STORAGE_KEY = 'worship-locale'
 
-/** Последний language_code Telegram — если клиент сменил язык, UI тоже переключаем. */
+/** Последний language_code Telegram (зеркало; UI в TMA всегда берёт актуальный TG). */
 export const APP_LOCALE_TG_KEY = 'worship-locale-tg'
 
 /** Native labels — always shown in their own language in the picker. */

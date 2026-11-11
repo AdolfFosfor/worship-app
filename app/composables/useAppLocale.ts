@@ -7,6 +7,7 @@ import {
   type AppLocale,
 } from '~~/shared/i18n/locales'
 import { localizeSessionTitle, translate } from '~~/shared/i18n/messages'
+import { parseTelegramUserFromInitData } from '~/utils/telegram/readInitDataUser'
 
 const DEFAULT_LOCALE: AppLocale = 'en'
 
@@ -19,9 +20,17 @@ function detectFromNavigator(): AppLocale | null {
   return null
 }
 
+/** Актуальный language_code Telegram: сырой initData (URL) → сигнал SDK. */
 function readTelegramLocale(): AppLocale | null {
   try {
     const telegram = useTelegramApp()
+    if (!telegram.isTelegramEnvironment.value) return null
+
+    const fromRaw = normalizeAppLocale(
+      parseTelegramUserFromInitData(telegram.getInitDataRaw())?.language_code,
+    )
+    if (fromRaw) return fromRaw
+
     return normalizeAppLocale(telegram.user.value?.language_code)
   } catch {
     return null
@@ -30,33 +39,26 @@ function readTelegramLocale(): AppLocale | null {
 
 /**
  * Порядок:
- * 1) язык Telegram-клиента, если он сменился с прошлого захода
- * 2) сохранённый выбор (ручной / прошлый TG)
+ * 1) язык Telegram-клиента (всегда в TMA — кэш не перекрывает)
+ * 2) сохранённый выбор — только вне Telegram
  * 3) язык системы → English
- *
- * Если зашли из Telegram с другим language_code — UI переключается на него.
  */
 function detectLocale(): AppLocale {
   if (!import.meta.client) return DEFAULT_LOCALE
 
   const fromTg = readTelegramLocale()
   if (fromTg) {
-    const lastTg = localStorage.getItem(APP_LOCALE_TG_KEY)
-    if (lastTg !== fromTg) {
+    try {
       localStorage.setItem(APP_LOCALE_TG_KEY, fromTg)
       localStorage.setItem(APP_LOCALE_STORAGE_KEY, fromTg)
-      return fromTg
+    } catch {
+      // ignore
     }
+    return fromTg
   }
 
   const stored = localStorage.getItem(APP_LOCALE_STORAGE_KEY)
   if (isAppLocale(stored)) return stored
-
-  if (fromTg) {
-    localStorage.setItem(APP_LOCALE_TG_KEY, fromTg)
-    localStorage.setItem(APP_LOCALE_STORAGE_KEY, fromTg)
-    return fromTg
-  }
 
   return detectFromNavigator() ?? DEFAULT_LOCALE
 }
@@ -67,7 +69,8 @@ function applyDocumentLang(locale: AppLocale) {
 }
 
 /**
- * App UI language (ru / ro / en). Persisted in localStorage.
+ * App UI language (ru / ro / en).
+ * В Telegram всегда следует language_code клиента.
  */
 export function useAppLocale() {
   const locale = useState<AppLocale>('app-locale', () => DEFAULT_LOCALE)
@@ -77,17 +80,32 @@ export function useAppLocale() {
     if (!isAppLocale(next)) return
     locale.value = next
     if (import.meta.client) {
-      localStorage.setItem(APP_LOCALE_STORAGE_KEY, next)
+      try {
+        localStorage.setItem(APP_LOCALE_STORAGE_KEY, next)
+      } catch {
+        // ignore
+      }
       applyDocumentLang(next)
     }
   }
 
-  function initLocale() {
-    if (!import.meta.client || ready.value) return
+  /** Применить язык из Telegram / fallback. Можно вызывать повторно. */
+  function syncLocaleFromTelegram() {
+    if (!import.meta.client) return locale.value
     const next = detectLocale()
-    locale.value = next
-    applyDocumentLang(next)
+    if (next !== locale.value) {
+      locale.value = next
+      applyDocumentLang(next)
+    } else {
+      applyDocumentLang(next)
+    }
     ready.value = true
+    return next
+  }
+
+  function initLocale() {
+    if (!import.meta.client) return
+    syncLocaleFromTelegram()
   }
 
   function t(key: string, vars?: Record<string, string | number>) {
@@ -105,6 +123,7 @@ export function useAppLocale() {
     localeOptions: APP_LOCALE_OPTIONS,
     setLocale,
     initLocale,
+    syncLocaleFromTelegram,
     t,
     sessionTitle,
   }
