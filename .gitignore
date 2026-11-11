@@ -22,7 +22,9 @@ logs
 .DS_Store
 .fleet
 .idea
-.cursor
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/**
 
 # Local env files
 .env

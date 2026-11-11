@@ -7,7 +7,11 @@ import {
   type AppLocale,
 } from '~~/shared/i18n/locales'
 import { localizeSessionTitle, translate } from '~~/shared/i18n/messages'
-import { parseTelegramUserFromInitData } from '~/utils/telegram/readInitDataUser'
+import {
+  isDevMockInitData,
+  parseTelegramUserFromInitData,
+  readTelegramWebAppLanguageCode,
+} from '~/utils/telegram/readInitDataUser'
 
 const DEFAULT_LOCALE: AppLocale = 'en'
 
@@ -20,27 +24,52 @@ function detectFromNavigator(): AppLocale | null {
   return null
 }
 
-/** Актуальный language_code Telegram: сырой initData (URL) → сигнал SDK. */
+/**
+ * Актуальный язык Telegram-клиента.
+ * Не завязан только на isTelegramEnvironment — берём любой не-mock initData.
+ */
 function readTelegramLocale(): AppLocale | null {
+  if (!import.meta.client) return null
+
+  const codes: Array<string | null | undefined> = []
+
   try {
     const telegram = useTelegramApp()
-    if (!telegram.isTelegramEnvironment.value) return null
-
-    const fromRaw = normalizeAppLocale(
-      parseTelegramUserFromInitData(telegram.getInitDataRaw())?.language_code,
-    )
-    if (fromRaw) return fromRaw
-
-    return normalizeAppLocale(telegram.user.value?.language_code)
+    const raw = telegram.getInitDataRaw()
+    if (raw && !isDevMockInitData(raw)) {
+      codes.push(parseTelegramUserFromInitData(raw)?.language_code)
+    }
+    if (telegram.isTelegramEnvironment.value) {
+      codes.push(telegram.user.value?.language_code)
+    }
   } catch {
-    return null
+    // ignore
   }
+
+  codes.push(readTelegramWebAppLanguageCode())
+
+  try {
+    const auth = useAuthStore()
+    const fromAuth = auth.user?.languageCode
+    // Метаданные сессии — только как доп. источник, если есть признаки TMA
+    if (fromAuth && codes.some(Boolean)) {
+      codes.push(fromAuth)
+    }
+  } catch {
+    // pinia / auth ещё не готовы
+  }
+
+  for (const code of codes) {
+    const locale = normalizeAppLocale(code)
+    if (locale) return locale
+  }
+  return null
 }
 
 /**
  * Порядок:
- * 1) язык Telegram-клиента (всегда в TMA — кэш не перекрывает)
- * 2) сохранённый выбор — только вне Telegram
+ * 1) язык Telegram-клиента из initData (всегда перекрывает кэш)
+ * 2) сохранённый выбор — только без Telegram initData
  * 3) язык системы → English
  */
 function detectLocale(): AppLocale {
@@ -70,7 +99,7 @@ function applyDocumentLang(locale: AppLocale) {
 
 /**
  * App UI language (ru / ro / en).
- * В Telegram всегда следует language_code клиента.
+ * В Telegram всегда следует language_code из initData.
  */
 export function useAppLocale() {
   const locale = useState<AppLocale>('app-locale', () => DEFAULT_LOCALE)
@@ -93,12 +122,8 @@ export function useAppLocale() {
   function syncLocaleFromTelegram() {
     if (!import.meta.client) return locale.value
     const next = detectLocale()
-    if (next !== locale.value) {
-      locale.value = next
-      applyDocumentLang(next)
-    } else {
-      applyDocumentLang(next)
-    }
+    locale.value = next
+    applyDocumentLang(next)
     ready.value = true
     return next
   }

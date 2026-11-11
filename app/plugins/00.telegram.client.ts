@@ -5,18 +5,21 @@ import { lockPortraitOrientation } from '~/utils/telegram/lockPortraitOrientatio
 import { hasUrlLaunchParams } from '~/utils/telegram/readLaunchTheme'
 
 /**
- * Real Telegram clients expose a webview proxy (native) or open the app in an iframe (Web).
+ * Real Telegram clients expose a webview proxy (native), iframe (Web),
+ * or classic `Telegram.WebApp` injected by telegram-web-app.js / client.
  * `isTMA()` alone is not enough: leftover `tapps/launchParams` in sessionStorage makes it
  * return true in a regular browser, then `init()` throws UnknownEnvError (no postEvent transport).
  */
 function hasTelegramTransport(): boolean {
   const win = window as Window & {
     TelegramWebviewProxy?: { postEvent?: unknown }
+    Telegram?: { WebApp?: { initData?: string; postEvent?: unknown } }
   }
-  return (
-    typeof win.TelegramWebviewProxy?.postEvent === 'function' ||
-    window.parent !== window
-  )
+  if (typeof win.TelegramWebviewProxy?.postEvent === 'function') return true
+  if (window.parent !== window) return true
+  const webApp = win.Telegram?.WebApp
+  if (webApp && (webApp.initData || typeof webApp.postEvent === 'function')) return true
+  return false
 }
 
 export default defineNuxtPlugin(() => {

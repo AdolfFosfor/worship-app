@@ -1,18 +1,18 @@
 /**
- * В Mini App язык UI всегда = language_code Telegram (свежий initData).
- * Следим за сигналом user — на случай, если initData доезжает после первого тика.
+ * В Mini App язык UI = language_code из свежего initData.
+ * Синкаем при старте, после auth и при появлении user/initData.
  */
 export default defineNuxtPlugin(() => {
   const { initLocale, syncLocaleFromTelegram } = useAppLocale()
   initLocale()
 
   const telegram = useTelegramApp()
-  if (!telegram.isTelegramEnvironment.value) return
 
   watch(
     () => [
       telegram.user.value?.language_code,
-      telegram.getInitDataRaw()?.slice(0, 64),
+      telegram.getInitDataRaw()?.slice(0, 80),
+      telegram.isTelegramEnvironment.value,
     ],
     () => {
       syncLocaleFromTelegram()
@@ -20,8 +20,21 @@ export default defineNuxtPlugin(() => {
     { flush: 'post' },
   )
 
-  // Ещё раз после mount — initData/URL уже точно на месте
+  try {
+    const auth = useAuthStore()
+    watch(
+      () => auth.user?.languageCode,
+      () => {
+        syncLocaleFromTelegram()
+      },
+    )
+  } catch {
+    // auth store may be unavailable in edge cases
+  }
+
   if (typeof requestAnimationFrame === 'function') {
     requestAnimationFrame(() => syncLocaleFromTelegram())
   }
+  // Ещё один проход после auth plugin / гидрации
+  setTimeout(() => syncLocaleFromTelegram(), 0)
 })

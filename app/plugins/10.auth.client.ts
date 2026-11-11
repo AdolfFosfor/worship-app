@@ -13,22 +13,30 @@ export default defineNuxtPlugin(async () => {
 
   await auth.init()
 
+  const { syncLocaleFromTelegram } = useAppLocale()
+
   async function tryTelegramSignIn(): Promise<boolean> {
     if (!telegram.isTelegramEnvironment.value) return false
     const initDataRaw = telegram.getInitDataRaw()
     if (!initDataRaw) return false
     try {
       await auth.signInWithTelegram(initDataRaw)
+      syncLocaleFromTelegram()
       return true
     } catch {
       return false
     }
   }
 
-  // Auto Telegram sign-in only inside a real Mini App (not browser mock).
-  if (!auth.isAuthenticated) {
+  // В TMA всегда обновляем сессию из initData (language_code и профиль),
+  // даже если уже залогинены — иначе язык в JWT остаётся старым.
+  if (telegram.isTelegramEnvironment.value && telegram.getInitDataRaw()) {
+    await tryTelegramSignIn()
+  } else if (!auth.isAuthenticated) {
     await tryTelegramSignIn()
   }
+
+  syncLocaleFromTelegram()
 
   if (auth.isAuthenticated) {
     try {

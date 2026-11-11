@@ -1,0 +1,33 @@
+---
+description: Автоматически применять Supabase-миграции на прод
+alwaysApply: true
+---
+
+# Supabase migrations
+
+Когда появляются или меняются файлы в `supabase/migrations/`:
+
+1. **Сразу** накатить на remote — не ждать просьбы пользователя.
+
+2. Порядок способов (первый доступный):
+
+   **A. Supabase MCP** `user-supabase` (предпочтительно):
+   - DDL → `apply_migration` с `name` (snake_case) и полным SQL
+   - ad-hoc SQL → `execute_sql`
+   - проверка → `list_migrations`
+   - если namespace `needsAuth` → `mcp_auth`
+
+   **B. CLI через session pooler (IPv4):**
+
+   ```bash
+   npm run db:push
+   ```
+
+   Нужен в `.env`: `SUPABASE_DB_PASSWORD` или полный `SUPABASE_DB_URL`  
+   (Dashboard → Connect → Session pooler).
+
+   **C. Fallback:** SQL Editor в открытом браузере Supabase — вставить SQL миграции и Run.
+
+3. Не коммитить `supabase/.temp/*` и секреты БД.
+
+4. Не выдумывать деструктивные миграции без явного запроса; обычные `create or replace` / additive — применять автоматически.

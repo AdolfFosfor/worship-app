@@ -1,0 +1,42 @@
+---
+description: TMA fullscreen safe-area и UI-гигиена для оверлеев Worship
+alwaysApply: true
+---
+
+# TMA UI conventions (Worship)
+
+## Safe-area — помнить всегда
+
+Токены: `--app-safe-top|right|bottom|left` (device + Telegram content safe area).  
+Для тостов сверху: `--app-toast-offset-top`.
+
+Горизонтальный gutter контента: `--app-page-inline` = **16px** (как в сэмплах TMA / Design Guidelines).  
+Safe-area и page-inline — разные слои: shell/оверлей дают safe, страница и fullscreen-chrome — `var(--app-page-inline)`.
+
+`.app-shell` паддит in-flow контент, но **absolute/fixed оверлеи** (Teleport, PrimeVue `appendTo=".app-shell"`, sheets, toast, dialog mask) **игнорируют** padding shell. На каждом таком слое явно задавать `--app-safe-*`.
+
+Обязательно при добавлении/правке:
+
+- top/bottom sheets и full overlays
+- Toast / ConfirmDialog / Dialog / Popover-координаты у краёв
+- sticky CTA, fixed fab, любые `position: absolute|fixed` у краёв экрана
+
+Паттерн панели:
+
+```css
+padding-top: var(--app-safe-top); /* top-sheet */
+padding-bottom: var(--app-safe-bottom); /* bottom-sheet */
+padding-left: var(--app-safe-left);
+padding-right: var(--app-safe-right);
+```
+
+PrimeVue часто пишет инлайн `top: 20px` / `position: fixed` — перебивать через `.app-shell … !important` и safe-токены.
+
+Один раз починили safe-area на одном оверлее — **сразу проверить и применить ко всем похожим**, не ждать отдельного бага.
+
+## UI-гигиена
+
+- Не оставлять лишний chrome: handle «для свайпа», пустой header, крестик — только если реально нужны.
+- Не раздувать отступы «на всякий»; опираться на `--app-safe-*`, `--app-page-inline` (16px) и `--app-overlay-gap`.
+- Не тащить disabled-кнопки с неочевидной задержкой (PrimeVue InputNumber обновляет model на blur — слушать `@input` если от UI зависит сразу).
+- Mobile autofocus в sheet: proxy-focus в user-gesture + перенос после `after-enter`.

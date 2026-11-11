@@ -27,3 +27,35 @@ export function parseTelegramUserFromInitData(raw: string | null | undefined): {
     return null
   }
 }
+
+/** Dev-mock из `applyTelegramDevMock` — не считать языком Telegram. */
+export function isDevMockInitData(raw: string | null | undefined): boolean {
+  if (!raw?.trim()) return false
+  try {
+    return new URLSearchParams(raw).get('hash') === 'dev_mock_hash'
+  } catch {
+    return false
+  }
+}
+
+/** language_code из классического window.Telegram.WebApp (fallback). */
+export function readTelegramWebAppLanguageCode(): string | null {
+  if (!import.meta.client) return null
+  try {
+    const webApp = (
+      window as Window & {
+        Telegram?: {
+          WebApp?: {
+            initData?: string
+            initDataUnsafe?: { user?: { language_code?: string } }
+          }
+        }
+      }
+    ).Telegram?.WebApp
+    const unsafe = webApp?.initDataUnsafe?.user?.language_code
+    if (typeof unsafe === 'string' && unsafe.trim()) return unsafe.trim()
+    return parseTelegramUserFromInitData(webApp?.initData)?.language_code ?? null
+  } catch {
+    return null
+  }
+}
