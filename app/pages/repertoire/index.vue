@@ -150,6 +150,7 @@ async function onPeriod(next: RepertoirePeriodKey) {
 }
 
 const { markRepertoireSynced } = syncRepertoireOnActivate(() => load({ quiet: true }))
+useAppPullRefresh(() => load({ quiet: true }))
 
 watch(
   [pageReady, () => route.query.section],

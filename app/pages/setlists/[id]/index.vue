@@ -163,6 +163,7 @@ async function load(opts?: { quiet?: boolean }) {
 }
 
 const { markSetlistsSynced } = syncSetlistsOnActivate(() => load({ quiet: true }))
+useAppPullRefresh(() => load({ quiet: true }))
 onMounted(() => {
   void load()
 })

@@ -1,19 +1,42 @@
 /**
- * Pull-to-refresh как в мобильных браузерах — на главном скролле shell.
- * Срабатывает только при scrollTop ≈ 0; не конфликтует с edge-swipe / оверлеями / drag.
+ * Pull-to-refresh на главном скролле shell.
+ * Мягкий refetch (не reloadNuxtApp) — без лагов после обновления.
+ * Не перехватывает зажатие/свайп строк списка.
  */
 
 import { hasUiInteractionLock } from '~/utils/uiInteractionLocks'
+import { runAppPullRefresh } from '~/composables/useAppPullRefresh'
 
 const THRESHOLD = 68
 const MAX_PULL = 112
-const AXIS_LOCK = 10
+const AXIS_LOCK = 14
+/** Пока палец не ушёл вниз заметно — не трогаем scroll / preventDefault */
+const ENGAGE_DY = 22
 const EDGE_GUARD = 22
 
 function rubber(dy: number): number {
   if (dy <= 0) return 0
   if (dy <= MAX_PULL) return dy
   return MAX_PULL + (dy - MAX_PULL) * 0.22
+}
+
+function isPtrBlockedTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false
+  return Boolean(
+    target.closest(
+      [
+        '.swipe-delete',
+        '.setlist-item',
+        '[data-no-ptr]',
+        '[data-haptic-drag]',
+        '.chart-editor',
+        'input',
+        'textarea',
+        'select',
+        '[contenteditable="true"]',
+      ].join(', '),
+    ),
+  )
 }
 
 export function usePullToRefresh(scrollRef: Ref<HTMLElement | null>) {
@@ -27,6 +50,7 @@ export function usePullToRefresh(scrollRef: Ref<HTMLElement | null>) {
   let tracking = false
   let axis: 'h' | 'v' | null = null
   let activeTouch = false
+  let blockedTarget = false
 
   const progress = computed(() => Math.min(1, pull.value / THRESHOLD))
   const visible = computed(() => pull.value > 2 || refreshing.value)
@@ -49,6 +73,7 @@ export function usePullToRefresh(scrollRef: Ref<HTMLElement | null>) {
     tracking = false
     axis = null
     activeTouch = false
+    blockedTarget = false
     dragging.value = false
     armed.value = false
     if (!refreshing.value) pull.value = 0
@@ -66,23 +91,29 @@ export function usePullToRefresh(scrollRef: Ref<HTMLElement | null>) {
     armed.value = false
     useHaptics().impact('medium')
 
-    // Как «обновить» в браузере — полный reload с сохранением pinia/state где возможно
-    await nextTick()
     try {
-      await reloadNuxtApp({
-        persistState: true,
-        force: true,
-      })
-    } catch {
-      if (import.meta.client) window.location.reload()
+      await runAppPullRefresh()
+    } finally {
+      refreshing.value = false
+      armed.value = false
+      pull.value = 0
+      tracking = false
+      axis = null
+      activeTouch = false
+      blockedTarget = false
     }
   }
 
-  function begin(clientX: number, clientY: number) {
+  function begin(clientX: number, clientY: number, target: EventTarget | null) {
     const el = scrollRef.value
     if (!el || refreshing.value || hasUiInteractionLock()) return
     if (el.scrollTop > 1) return
     if (clientX < EDGE_GUARD) return
+    if (isPtrBlockedTarget(target)) {
+      blockedTarget = true
+      return
+    }
+    blockedTarget = false
     tracking = true
     axis = null
     startX = clientX
@@ -90,8 +121,7 @@ export function usePullToRefresh(scrollRef: Ref<HTMLElement | null>) {
   }
 
   function move(clientX: number, clientY: number): boolean {
-    if (!tracking || refreshing.value) return false
-    // Drag/sheet начались уже во время pull — сразу гасим refresh
+    if (blockedTarget || !tracking || refreshing.value) return false
     if (hasUiInteractionLock()) {
       resetPull()
       return false
@@ -101,14 +131,13 @@ export function usePullToRefresh(scrollRef: Ref<HTMLElement | null>) {
 
     if (!axis) {
       if (Math.abs(dx) < AXIS_LOCK && Math.abs(dy) < AXIS_LOCK) return false
-      axis = Math.abs(dy) > Math.abs(dx) * 1.15 ? 'v' : 'h'
+      axis = Math.abs(dy) > Math.abs(dx) * 1.25 ? 'v' : 'h'
       if (axis === 'h') {
         tracking = false
         return false
       }
-      // тянем вниз от верха
-      if (dy <= 0) {
-        tracking = false
+      if (dy < ENGAGE_DY) {
+        // Ещё не явный pull — отдаём жест скроллу / long-press
         return false
       }
       const el = scrollRef.value
@@ -120,8 +149,11 @@ export function usePullToRefresh(scrollRef: Ref<HTMLElement | null>) {
     }
 
     if (axis !== 'v') return false
-    const next = rubber(Math.max(0, dy))
+    if (dy < ENGAGE_DY && !dragging.value) return false
+
+    const next = rubber(Math.max(0, dy - ENGAGE_DY * 0.35))
     pull.value = next
+    dragging.value = next > 0
     if (next >= THRESHOLD) {
       if (!armed.value) {
         armed.value = true
@@ -130,7 +162,8 @@ export function usePullToRefresh(scrollRef: Ref<HTMLElement | null>) {
     } else {
       armed.value = false
     }
-    return true
+    // preventDefault только когда реально тянем refresh
+    return next > 2
   }
 
   function end() {
@@ -158,7 +191,7 @@ export function usePullToRefresh(scrollRef: Ref<HTMLElement | null>) {
     const t = e.touches[0]
     if (!t) return
     activeTouch = true
-    begin(t.clientX, t.clientY)
+    begin(t.clientX, t.clientY, e.target)
   }
 
   function onTouchMove(e: TouchEvent) {
@@ -189,7 +222,6 @@ export function usePullToRefresh(scrollRef: Ref<HTMLElement | null>) {
     resetPull()
   }
 
-  // ПК: wheel вниз у верха — тот же жест
   let wheelArmed = false
   let wheelIdle: ReturnType<typeof setTimeout> | null = null
 
@@ -208,14 +240,11 @@ export function usePullToRefresh(scrollRef: Ref<HTMLElement | null>) {
           ? 400
           : 1
     const dy = e.deltaY * scale
-    // тянем контент вниз = отрицательный deltaY на трекпаде «swipe down»… в браузерах
-    // scroll up at top often gives negative deltaY. Pull-to-refresh = overscroll at top
-    // when user scrolls "up" further (finger moves down) → deltaY < 0 in many browsers.
     if (dy >= 0 && !wheelArmed) return
 
     const pullDelta = dy < 0 ? -dy : 0
     if (!wheelArmed) {
-      if (pullDelta < 4) return
+      if (pullDelta < 8) return
       wheelArmed = true
       dragging.value = true
     }

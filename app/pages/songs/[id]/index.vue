@@ -441,6 +441,7 @@ async function load(opts?: { quiet?: boolean }) {
 }
 
 const { markSongsSynced } = syncSongsOnActivate(() => load({ quiet: true }))
+useAppPullRefresh(() => load({ quiet: true }))
 onMounted(() => {
   void load()
 })

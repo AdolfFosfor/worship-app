@@ -167,6 +167,7 @@ watch(filters, () => {
 })
 
 const { markSongsSynced } = syncSongsOnActivate(load)
+useAppPullRefresh(() => load())
 
 onMounted(() => {
   void load()

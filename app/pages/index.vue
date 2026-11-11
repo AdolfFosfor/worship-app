@@ -87,6 +87,9 @@ async function load(opts?: { quiet?: boolean }) {
 
 const { markSetlistsSynced } = syncSetlistsOnActivate(() => load({ quiet: true }))
 const { markRepertoireSynced } = syncRepertoireOnActivate(() => loadPulse({ quiet: true }))
+useAppPullRefresh(async () => {
+  await Promise.all([load({ quiet: true }), loadPulse({ quiet: true })])
+})
 onMounted(() => {
   void load()
   void loadPulse()

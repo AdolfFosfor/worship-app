@@ -476,6 +476,7 @@ defineExpose({ reset })
 <template>
   <div
     class="swipe-delete"
+    data-no-ptr
     :class="{
       'swipe-delete--disabled': disabled,
       'swipe-delete--dragging': dragging,
