@@ -1,13 +1,22 @@
 <script setup lang="ts">
+import { icons } from '~/utils/icons'
+
 const shellRef = ref<HTMLElement | null>(null)
 const scrollRef = ref<HTMLElement | null>(null)
 const { swiping, progressing } = useEdgeSwipeBack(shellRef)
 useShellScrollMemory(scrollRef)
 useTelegramBackButton()
+const ptr = usePullToRefresh(scrollRef)
 
 const route = useRoute()
 const confirm = useConfirm()
 const { t } = useAppLocale()
+
+const ptrLabel = computed(() => {
+  if (ptr.refreshing) return t('ptr.refreshing')
+  if (ptr.armed) return t('ptr.release')
+  return t('ptr.pull')
+})
 
 const hideNav = computed(() => {
   const meta = route.meta as { hideNav?: boolean }
@@ -83,9 +92,38 @@ const confirmPt = {
           </template>
         </ConfirmDialog>
 
+        <div
+          class="app-ptr"
+          :class="{
+            'app-ptr--on': ptr.visible,
+            'app-ptr--armed': ptr.armed,
+            'app-ptr--refreshing': ptr.refreshing,
+          }"
+          aria-live="polite"
+          :aria-busy="ptr.refreshing"
+        >
+          <div
+            class="app-ptr__chip"
+            :style="{
+              opacity: ptr.refreshing ? 1 : Math.min(1, ptr.progress * 1.15),
+              transform: `scale(${0.86 + ptr.progress * 0.14})`,
+            }"
+          >
+            <AppIcon
+              :name="icons.refresh"
+              class="app-ptr__icon"
+              :class="{ 'app-ptr__icon--spin': ptr.refreshing }"
+              size="1.15rem"
+            />
+            <span class="app-ptr__label">{{ ptrLabel }}</span>
+          </div>
+        </div>
+
         <main
           ref="scrollRef"
           class="app-shell__content min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-none"
+          :class="{ 'app-shell__content--ptr': ptr.dragging || ptr.refreshing }"
+          :style="ptr.contentStyle"
         >
           <slot />
         </main>
@@ -160,6 +198,88 @@ const confirmPt = {
   background: var(--app-bg);
   will-change: transform;
   backface-visibility: hidden;
+}
+
+/* Pull-to-refresh — индикатор в зазоре над скроллером */
+.app-ptr {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  padding-top: 0.55rem;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 160ms var(--app-ease, ease);
+}
+
+.app-ptr--on {
+  opacity: 1;
+}
+
+.app-ptr__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  max-width: min(92%, 18rem);
+  padding: 0.38rem 0.8rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-surface) 88%, transparent);
+  color: var(--app-muted);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--app-ink) 6%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition:
+    color 160ms var(--app-ease, ease),
+    background-color 160ms var(--app-ease, ease);
+}
+
+.app-ptr--armed .app-ptr__chip,
+.app-ptr--refreshing .app-ptr__chip {
+  color: var(--app-ink);
+  background: var(--app-surface);
+}
+
+.app-ptr__icon {
+  flex-shrink: 0;
+  transition: transform 160ms var(--app-ease, ease);
+}
+
+.app-ptr--armed:not(.app-ptr--refreshing) .app-ptr__icon {
+  transform: rotate(180deg);
+}
+
+.app-ptr__icon--spin {
+  animation: app-ptr-spin 0.75s linear infinite;
+}
+
+.app-ptr__label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-shell__content {
+  position: relative;
+  z-index: 2;
+  background: var(--app-bg);
+  will-change: transform;
+}
+
+.app-shell__content--ptr {
+  overflow-y: hidden;
+  touch-action: none;
+}
+
+@keyframes app-ptr-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .app-shell__nav {

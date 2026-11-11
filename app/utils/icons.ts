@@ -46,6 +46,7 @@ export const icons = {
   none: 'forbidden-circle-linear',
   undo: 'undo-left-linear',
   redo: 'undo-right-linear',
+  refresh: 'refresh-bold',
 } as const
 
 export type AppIconName = (typeof icons)[keyof typeof icons]

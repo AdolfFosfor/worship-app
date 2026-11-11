@@ -36,6 +36,9 @@ const ru: MessageDict = {
   'common.today': 'Сегодня',
 
   'layout.landscapeBlock': 'Поверните устройство вертикально',
+  'ptr.pull': 'Потяните для обновления',
+  'ptr.release': 'Отпустите для обновления',
+  'ptr.refreshing': 'Обновление…',
 
   'dates.todayPrefix': 'Сегодня, {date}',
 
@@ -453,6 +456,9 @@ const ro: MessageDict = {
   'common.today': 'Azi',
 
   'layout.landscapeBlock': 'Rotiți dispozitivul vertical',
+  'ptr.pull': 'Trageți pentru actualizare',
+  'ptr.release': 'Eliberați pentru actualizare',
+  'ptr.refreshing': 'Se actualizează…',
 
   'dates.todayPrefix': 'Azi, {date}',
 
@@ -869,6 +875,9 @@ const en: MessageDict = {
   'common.today': 'Today',
 
   'layout.landscapeBlock': 'Rotate your device to portrait',
+  'ptr.pull': 'Pull to refresh',
+  'ptr.release': 'Release to refresh',
+  'ptr.refreshing': 'Refreshing…',
 
   'dates.todayPrefix': 'Today, {date}',
 
