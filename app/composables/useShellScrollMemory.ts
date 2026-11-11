@@ -6,8 +6,17 @@
  * в позицию новой (главная) — поэтому restore + ignore scroll во время перехода.
  */
 
-/** Корневые вкладки: при обычном переходе (не back) всегда наверх. */
-const ROOT_TAB_PATHS = new Set(['/', '/songs', '/setlists', '/account'])
+/**
+ * Корневые вкладки: при обычном переходе (не back) всегда наверх.
+ * /songs исключён — длинный список удобнее возвращать с той же позиции.
+ */
+const ROOT_TAB_PATHS = new Set(['/', '/setlists', '/account'])
+
+/** Страницы после async-load могут дернуть повторный restore. */
+export function requestShellScrollRestore() {
+  const tick = useState('app-shell-scroll-restore-tick', () => 0)
+  tick.value += 1
+}
 
 export function useShellScrollMemory(scrollRef: Ref<HTMLElement | null>) {
   const route = useRoute()
@@ -152,6 +161,11 @@ export function useShellScrollMemory(scrollRef: Ref<HTMLElement | null>) {
 
   watch(scrollRef, () => {
     bindScroll()
+  })
+
+  const restoreTick = useState('app-shell-scroll-restore-tick', () => 0)
+  watch(restoreTick, () => {
+    restore(route.fullPath)
   })
 
   return {

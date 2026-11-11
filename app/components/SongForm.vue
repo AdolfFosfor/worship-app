@@ -783,12 +783,35 @@ defineExpose({
   font-weight: 650;
   text-align: center;
   cursor: pointer;
+  outline: 1.5px solid transparent;
+  outline-offset: var(--app-hover-outline-gap);
+  transition:
+    background-color var(--app-duration) var(--app-ease),
+    border-color var(--app-duration) var(--app-ease),
+    outline-color var(--app-duration) var(--app-ease),
+    color var(--app-duration) var(--app-ease);
 }
 
 .song-form__chips--grid .song-form__chip {
   width: 100%;
   min-height: 2.75rem;
   padding: 0.55rem 0.75rem;
+  border-radius: var(--app-radius-lg);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .song-form__chip:hover:not(.song-form__chip--on) {
+    background: var(--app-hover);
+    outline-color: var(--app-hover-outline);
+  }
+
+  .song-form__chip--on:hover {
+    outline-color: color-mix(in srgb, var(--app-accent) 45%, transparent);
+  }
+
+  :deep(.app-top-sheet__body) .song-form__chip:hover:not(.song-form__chip--on) {
+    background: color-mix(in srgb, var(--app-ink) 8%, var(--app-bg));
+  }
 }
 
 .song-form__chip--on {

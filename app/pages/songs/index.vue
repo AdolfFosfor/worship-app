@@ -146,6 +146,9 @@ async function load() {
       fetchLibraryFacets(),
     ])
     markSongsSynced()
+    // Список рисуется после fetch — догоняем сохранённый scrollTop
+    await nextTick()
+    requestShellScrollRestore()
   } catch {
     /* ошибка уже в composable */
   }

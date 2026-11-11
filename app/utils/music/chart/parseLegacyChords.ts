@@ -20,7 +20,8 @@ const SECTION_ALIASES: { pattern: RegExp; type: SectionType }[] = [
   { pattern: /^(outro|ending|конец)(?=$|[\s.:\-–—])/i, type: 'outro' },
   { pattern: /^(chorus|refrain|ref\.?|припев)(?=$|[\s.:\-–—])/i, type: 'chorus' },
   { pattern: /^(bridge|бридж)(?=$|[\s.:\-–—])/i, type: 'bridge' },
-  { pattern: /^(tag|solo|instrumental|inst\.?|проигрыш)(?=$|[\s.:\-–—])/i, type: 'tag' },
+  { pattern: /^(instrumental|inst\.?|solo|проигрыш)(?=$|[\s.:\-–—])/i, type: 'instrumental' },
+  { pattern: /^(tag)(?=$|[\s.:\-–—])/i, type: 'tag' },
   { pattern: /^(pre[-\s]?chorus|pre[-\s]?ch\.?|предприпев)(?=$|[\s.:\-–—])/i, type: 'custom' },
   { pattern: /^(verse|куплет|vers\.?)(?=$|[\s.:\-–—|\d])/i, type: 'verse' },
 ]

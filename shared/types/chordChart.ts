@@ -6,6 +6,7 @@ export type SectionType =
   | 'verse'
   | 'chorus'
   | 'bridge'
+  | 'instrumental'
   | 'tag'
   | 'outro'
   | 'custom'
@@ -60,6 +61,7 @@ export const SECTION_TYPES: SectionType[] = [
   'verse',
   'chorus',
   'bridge',
+  'instrumental',
   'tag',
   'outro',
   'custom',
@@ -70,6 +72,7 @@ export const SECTION_LABELS: Record<SectionType, string> = {
   verse: 'Verse',
   chorus: 'Chorus',
   bridge: 'Bridge',
+  instrumental: 'Inst',
   tag: 'Tag',
   outro: 'Outro',
   custom: 'Секция',
