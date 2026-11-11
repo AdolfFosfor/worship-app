@@ -124,6 +124,17 @@ export function removeBar(chart: ChordChart, sectionId: string, barId: string): 
   })
 }
 
+/** Убрать пустые такты секции (после ухода фокуса с блока). */
+export function pruneEmptyBars(chart: ChordChart, sectionId: string): ChordChart {
+  return withChart(chart, (d) => {
+    const s = findSection(d, sectionId)
+    if (!s) return
+    const next = s.bars.filter((b) => b.items.length > 0)
+    if (next.length === s.bars.length) return
+    s.bars = next
+  })
+}
+
 export function clearBar(chart: ChordChart, sectionId: string, barId: string): ChordChart {
   return withChart(chart, (d) => {
     const s = findSection(d, sectionId)

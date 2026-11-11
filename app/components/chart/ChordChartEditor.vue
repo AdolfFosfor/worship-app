@@ -34,6 +34,7 @@ import {
   removeItem,
   replaceItem,
   removeSection,
+  pruneEmptyBars,
   updateSection,
   withChart,
   insertItem,
@@ -347,6 +348,22 @@ function onAddSection(type: SectionType) {
   openKeyboard()
   void nextTick(() => revealSelection({ force: true }))
 }
+
+/** Уходя с секции — выкидываем оставшиеся пустые такты. */
+function pruneEmptyBarsFromSection(sectionId: string) {
+  if (drag.value) return
+  const base = currentChart()
+  const section = base.sections.find((s) => s.id === sectionId)
+  if (!section?.bars.some((b) => b.items.length === 0)) return
+  commit(pruneEmptyBars(base, sectionId))
+}
+
+watch(
+  () => selected.value?.sectionId ?? null,
+  (nextId, prevId) => {
+    if (prevId && prevId !== nextId) pruneEmptyBarsFromSection(prevId)
+  },
+)
 
 function onRemoveSection(sectionId: string) {
   commit(removeSection(currentChart(), sectionId))
@@ -1659,7 +1676,8 @@ onBeforeUnmount(() => {
             :aria-label="t('chart.addBar')"
             @click="onAddBar(section.id, section.bars[section.bars.length - 1]?.id)"
           >
-            {{ t('chart.addBarShort') }}
+            <AppIcon :name="icons.plus" size="1rem" />
+            <span>{{ t('chart.addBarShort') }}</span>
           </button>
         </div>
         </section>
@@ -1941,17 +1959,17 @@ onBeforeUnmount(() => {
 
 .chart-section__flow {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  column-gap: 0.15rem;
-  row-gap: 0.45rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.35rem;
 }
 
 .chart-bar-drop-start {
-  flex: 0 0 4px;
-  align-self: stretch;
-  min-height: 1.75rem;
-  margin-right: 0.1rem;
+  flex: none;
+  width: 100%;
+  height: 4px;
+  min-height: 4px;
+  margin: 0;
   border-radius: 999px;
   background: transparent;
   transition:
@@ -1966,13 +1984,14 @@ onBeforeUnmount(() => {
 
 .chart-bar {
   position: relative;
-  display: inline-flex;
+  display: flex;
   flex-wrap: nowrap;
   align-items: center;
-  gap: 0.1rem;
-  max-width: 100%;
-  padding: 0.1rem 0.15rem;
-  border-radius: var(--app-radius-sm);
+  gap: 0.2rem;
+  width: 100%;
+  min-height: 2.6rem;
+  padding: 0.2rem 0.2rem;
+  border-radius: var(--app-radius);
   cursor: pointer;
   transition: background-color var(--app-duration) var(--app-ease);
 }
@@ -2016,8 +2035,9 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.25rem;
-  height: 1.75rem;
+  width: 1.55rem;
+  height: 2.35rem;
+  flex-shrink: 0;
   padding: 0;
   user-select: none;
   -webkit-user-drag: none;
@@ -2040,9 +2060,10 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.45rem;
-  height: 1.45rem;
-  margin-left: 0.1rem;
+  width: 1.7rem;
+  height: 1.7rem;
+  flex-shrink: 0;
+  margin-left: 0.15rem;
   padding: 0;
   border: 0;
   border-radius: var(--app-radius-sm);
@@ -2057,17 +2078,20 @@ onBeforeUnmount(() => {
 }
 
 .chart-bar__pipe {
+  flex-shrink: 0;
   color: var(--app-faint);
-  font-weight: 600;
-  font-size: var(--app-text-sm);
+  font-weight: 650;
+  font-size: var(--app-text-md);
   user-select: none;
 }
 
 .chart-bar__items {
-  display: inline-flex;
+  display: flex;
+  flex: 1;
+  min-width: 0;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.15rem;
+  gap: 0.25rem;
 }
 
 /* Во время DnD плюсы не цели — приглушаем и клики сквозь к чипам */
@@ -2080,14 +2104,14 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.35rem;
-  height: 1.35rem;
+  width: 1.7rem;
+  height: 1.7rem;
   border: 0;
   border-radius: 999px;
   background: transparent;
   color: var(--app-faint);
   font: inherit;
-  font-size: 0.85rem;
+  font-size: 1rem;
   font-weight: 800;
   line-height: 1;
   cursor: pointer;
@@ -2144,13 +2168,13 @@ onBeforeUnmount(() => {
 .chart-chip {
   display: inline-flex;
   align-items: center;
-  gap: 0.15rem;
-  min-height: 1.85rem;
-  padding: 0 0.5rem;
+  gap: 0.2rem;
+  min-height: 2.35rem;
+  padding: 0 0.7rem;
   border: 0;
-  border-radius: var(--app-radius-sm);
+  border-radius: var(--app-radius);
   font: inherit;
-  font-size: var(--app-text-md);
+  font-size: var(--app-text-lg);
   font-weight: 750;
   letter-spacing: -0.02em;
   cursor: pointer;
@@ -2172,7 +2196,7 @@ onBeforeUnmount(() => {
 .chart-chip--note {
   background: var(--chart-annotation-bg);
   color: var(--chart-annotation-ink);
-  font-size: var(--app-text-sm);
+  font-size: var(--app-text-md);
 }
 
 .chart-chip--selected {
@@ -2226,17 +2250,23 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 1.7rem;
-  margin-left: 0.2rem;
-  padding: 0 0.55rem;
+  align-self: center;
+  gap: 0.35rem;
+  min-height: 2rem;
+  margin-left: 0;
+  padding: 0 0.85rem;
   border: 0;
   border-radius: var(--app-radius-pill);
   background: var(--app-hover);
   color: var(--app-accent-text);
   font: inherit;
-  font-size: var(--app-text-2xs);
+  font-size: var(--app-text-xs);
   font-weight: 750;
   cursor: pointer;
+}
+
+.chart-bar-add :deep(.app-icon) {
+  flex-shrink: 0;
 }
 
 .chart-bar-add--first {
