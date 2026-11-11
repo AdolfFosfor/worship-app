@@ -49,34 +49,6 @@ function hasBlockingOverlay(): boolean {
   )
 }
 
-function fallbackParent(path: string): string {
-  if (path.startsWith('/songs/')) {
-    return '/songs'
-  }
-  if (path.startsWith('/setlists/')) {
-    return '/setlists'
-  }
-  if (path.startsWith('/repertoire/songs/')) {
-    return '/repertoire'
-  }
-  if (path.startsWith('/repertoire')) {
-    return '/'
-  }
-  if (path.startsWith('/account/')) {
-    return '/account'
-  }
-  if (path.startsWith('/members')) {
-    return '/account'
-  }
-  if (path === '/account') {
-    return '/'
-  }
-  if (path.startsWith('/invite/')) {
-    return '/'
-  }
-  return '/'
-}
-
 /** Сопротивление: сначала почти 1:1, ближе к краю — тяжелее. */
 function resist(dx: number, width: number): number {
   const max = width * MAX_DRAG_RATIO
@@ -91,7 +63,6 @@ function preferReducedMotion(): boolean {
 
 export function useEdgeSwipeBack(shellRef: Ref<HTMLElement | null>) {
   const route = useRoute()
-  const router = useRouter()
   /** Фуллскрин аккордов — листание сет-листа, не «назад» */
   const stageFullscreen = useState('chord-stage-fullscreen', () => false)
 
@@ -106,19 +77,7 @@ export function useEdgeSwipeBack(shellRef: Ref<HTMLElement | null>) {
   )
 
   function navigateBack() {
-    const { markPopNavigation } = useNavigationDirection()
-    markPopNavigation()
-    useHaptics().impact('soft')
-
-    const before = route.fullPath
-    const fallback = fallbackParent(route.path)
-    router.back()
-    window.setTimeout(() => {
-      if (useRoute().fullPath === before) {
-        markPopNavigation()
-        void navigateTo(fallback)
-      }
-    }, 120)
+    navigateAppBack()
   }
 
   let detach: (() => void) | null = null

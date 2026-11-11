@@ -53,8 +53,12 @@
 
   --app-touch-min: 2.75rem;
   --app-page-max: 100%;
-  /** Горизонтальный gutter страницы и полноэкранных оверлеев в колонке */
-  --app-page-inline: var(--app-space-3);
+  /**
+   * Горизонтальный gutter страницы / fullscreen-оверлеев.
+   * Как в примерах Telegram Mini Apps: content margin 16px (+ safe-area отдельно).
+   * @see https://core.telegram.org/bots/webapps#design-guidelines
+   */
+  --app-page-inline: 16px;
   --app-nav-height: 3.5rem;
   --app-hairline: 0.5px;
   --app-focus-ring: 0 0 0 2px var(--app-bg),
@@ -424,18 +428,15 @@ body {
   width: 100%;
   max-width: var(--app-page-max);
   margin-inline: auto;
-  padding: var(--app-space-2) var(--app-page-inline) var(--app-space-5);
+  /* 16px как в сэмплах TMA; safe-area даёт .app-shell / оверлеи */
+  padding: 16px var(--app-page-inline) 16px;
   display: flex;
   flex-direction: column;
-  gap: var(--app-space-4);
+  gap: 16px;
   overflow-x: hidden;
 }
 
 @media (min-width: 768px) {
-  :root {
-    --app-page-inline: var(--app-space-4);
-  }
-
   .app-page {
     gap: var(--app-space-5);
   }

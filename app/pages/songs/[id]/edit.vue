@@ -48,7 +48,7 @@ function songViewTarget() {
 
 onMounted(async () => {
   if (!workspace.canEditSongs) {
-    await navigateTo(songViewTarget())
+    await navigateTo(songViewTarget(), { replace: true })
     return
   }
   try {

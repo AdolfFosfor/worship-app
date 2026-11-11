@@ -210,13 +210,17 @@ async function goSetlistNeighbor(dir: 'prev' | 'next') {
   useHaptics().selection()
   if (!neighbor.hasChart) stageFullscreen.value = false
   try {
-    await navigateTo({
-      path: `/songs/${neighbor.songId}`,
-      query: {
-        key: neighbor.key,
-        from: fromPath.value,
+    // replace: иначе Back в TMA ходит по цепочке песен вместо сет-листа
+    await navigateTo(
+      {
+        path: `/songs/${neighbor.songId}`,
+        query: {
+          key: neighbor.key,
+          from: fromPath.value,
+        },
       },
-    })
+      { replace: true },
+    )
   } finally {
     setlistNavBusy = false
   }

@@ -29,7 +29,7 @@ const extrasMenu = ref<{ toggle: (event: Event) => void; close: () => void } | n
 
 onMounted(() => {
   if (!workspace.canEditSongs) {
-    void navigateTo('/songs')
+    void navigateTo('/songs', { replace: true })
   }
 })
 
