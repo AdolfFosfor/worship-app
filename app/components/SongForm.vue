@@ -764,7 +764,7 @@ defineExpose({
 .song-form__chips--grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(6.75rem, 1fr));
-  gap: 0.35rem;
+  gap: 0.5rem;
   width: 100%;
 }
 
@@ -787,6 +787,8 @@ defineExpose({
 
 .song-form__chips--grid .song-form__chip {
   width: 100%;
+  min-height: 2.75rem;
+  padding: 0.55rem 0.75rem;
 }
 
 .song-form__chip--on {
