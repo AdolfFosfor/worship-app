@@ -6,7 +6,6 @@ import {
 import type { RepertoirePulseSummary } from '~~/shared/types'
 import { pluralForm } from '~/utils/i18n/plural'
 import { icons } from '~/utils/icons'
-import { clearPulseBarCache } from '~/utils/repertoire/pulseAnimCache'
 import { REPERTOIRE_PERIODS, periodLabelKey } from '~/utils/repertoire/period'
 
 const props = defineProps<{
@@ -102,27 +101,27 @@ function songLink(id: string) {
   return `/repertoire/songs/${id}`
 }
 
-/** KeepAlive: при каждом возврате на главную — анимация снова с нуля. */
+/**
+ * KeepAlive: каждый возврат на главную → +epoch и remount аним-блока.
+ * Ключи кэша включают epoch: иначе unmount старых чисел успевает
+ * записать финальное значение обратно и прогон с нуля не стартует.
+ */
 const animEpoch = ref(0)
-let skipActivateReplay = true
-
-function replayPulseAnim() {
-  clearSmoothNumberCache('pulse:')
-  clearSmoothNumberCache('plays:')
-  clearPulseBarCache()
-  animEpoch.value += 1
-}
+/** mounted+activated на первом показе — не крутить дважды. */
+let skipPairedActivate = false
 
 onMounted(() => {
   document.addEventListener('pointerdown', onPeriodMenuPointerDown, true)
+  animEpoch.value += 1
+  skipPairedActivate = true
 })
 
 onActivated(() => {
-  if (skipActivateReplay) {
-    skipActivateReplay = false
+  if (skipPairedActivate) {
+    skipPairedActivate = false
     return
   }
-  replayPulseAnim()
+  animEpoch.value += 1
 })
 
 onBeforeUnmount(() => {
@@ -177,7 +176,7 @@ onBeforeUnmount(() => {
       </div>
     </Teleport>
 
-    <div :key="animEpoch" class="pulse-card__anim">
+    <div v-if="animEpoch > 0" :key="animEpoch" class="pulse-card__anim">
       <div
         class="pulse-card__metrics"
         :class="{ 'pulse-card__metrics--cols-2': !showNewMetric }"
@@ -190,7 +189,10 @@ onBeforeUnmount(() => {
           :aria-label="`${summary.uniqueSongs} ${t('repertoire.metricUnique')}`"
         >
           <span class="pulse-card__value">
-            <AppAnimatedNumber cache-key="pulse:unique" :value="summary.uniqueSongs" />
+            <AppAnimatedNumber
+              :cache-key="`pulse:unique:${animEpoch}`"
+              :value="summary.uniqueSongs"
+            />
           </span>
           <span class="pulse-card__label">{{ t('repertoire.metricUnique') }}</span>
         </NuxtLink>
@@ -202,7 +204,10 @@ onBeforeUnmount(() => {
           :aria-label="`${summary.newSongs} ${t('repertoire.metricNew')}`"
         >
           <span class="pulse-card__value">
-            <AppAnimatedNumber cache-key="pulse:new" :value="summary.newSongs" />
+            <AppAnimatedNumber
+              :cache-key="`pulse:new:${animEpoch}`"
+              :value="summary.newSongs"
+            />
           </span>
           <span class="pulse-card__label">{{ t('repertoire.metricNew') }}</span>
         </NuxtLink>
@@ -213,7 +218,10 @@ onBeforeUnmount(() => {
           :aria-label="`${summary.staleCount} ${t('repertoire.metricStale')}`"
         >
           <span class="pulse-card__value">
-            <AppAnimatedNumber cache-key="pulse:stale" :value="summary.staleCount" />
+            <AppAnimatedNumber
+              :cache-key="`pulse:stale:${animEpoch}`"
+              :value="summary.staleCount"
+            />
           </span>
           <span class="pulse-card__label">{{ t('repertoire.metricStale') }}</span>
         </NuxtLink>
@@ -234,7 +242,11 @@ onBeforeUnmount(() => {
                 <div class="pulse-card__fav-row">
                   <span class="pulse-card__fav-title">{{ item.title }}</span>
                   <span class="pulse-card__fav-plays">
-                    <RepertoireAnimatedPlays :song-id="item.id" :count="item.total" />
+                    <RepertoireAnimatedPlays
+                      :song-id="item.id"
+                      :count="item.total"
+                      :epoch="animEpoch"
+                    />
                   </span>
                 </div>
                 <div
@@ -249,6 +261,7 @@ onBeforeUnmount(() => {
                     :song-id="item.id"
                     :percent="barWidth(item.total)"
                     :lead="index === 0"
+                    :epoch="animEpoch"
                   />
                 </div>
               </div>

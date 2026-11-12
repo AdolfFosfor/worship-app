@@ -109,8 +109,8 @@
       var(--tg-viewport-content-safe-area-inset-left, 0px)
   );
 
-  /* Минимум сверх content-safe Telegram (кнопки FS уже в --app-safe-*) */
-  --app-overlay-gap: 0.125rem;
+  /* Как в TMA docs: только safe + content-safe, без доп. «воздуха» */
+  --app-overlay-gap: 0px;
   --app-toast-offset-top: calc(var(--app-safe-top) + var(--app-overlay-gap));
   --app-frame-height: var(--tg-viewport-stable-height, 100svh);
 
@@ -942,6 +942,21 @@ html.app-dark .app-create-menu__item--meter {
   overscroll-behavior-x: contain;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
+  /* Мягкий уход в прозрачность по краям вместо жёсткой обрезки */
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 0.9rem,
+    #000 calc(100% - 0.9rem),
+    transparent
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 0.9rem,
+    #000 calc(100% - 0.9rem),
+    transparent
+  );
 }
 
 .app-chip-row::-webkit-scrollbar {

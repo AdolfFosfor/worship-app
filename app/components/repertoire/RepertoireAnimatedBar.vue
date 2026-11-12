@@ -7,8 +7,10 @@ const props = withDefaults(
     songId: string
     percent: number
     lead?: boolean
+    /** Смена epoch = новый прогон анимации с нуля (главная / KeepAlive). */
+    epoch?: number
   }>(),
-  { lead: false },
+  { lead: false, epoch: 0 },
 )
 
 const reduced = usePreferredReducedMotion()
@@ -18,11 +20,15 @@ function clamp(n: number) {
   return Math.max(0, Math.min(100, n))
 }
 
+function barCacheKey(songId: string, epoch: number) {
+  return `${songId}:${epoch}`
+}
+
 /** Без кэша — с 0, чтобы первая загрузка морфила полоску как при смене периода. */
-const shown = ref(clamp(pulseBarCache.get(props.songId) ?? 0))
+const shown = ref(clamp(pulseBarCache.get(barCacheKey(props.songId, props.epoch)) ?? 0))
 
 function persist(n: number) {
-  pulseBarCache.set(props.songId, n)
+  pulseBarCache.set(barCacheKey(props.songId, props.epoch), n)
 }
 
 function applyTarget(n: number) {
@@ -39,10 +45,10 @@ watch(
 )
 
 watch(
-  () => props.songId,
-  (id, prev) => {
-    if (prev) pulseBarCache.set(prev, shown.value)
-    shown.value = clamp(pulseBarCache.get(id) ?? 0)
+  () => [props.songId, props.epoch] as const,
+  ([id, epoch], prev) => {
+    if (prev) pulseBarCache.set(barCacheKey(prev[0], prev[1]), shown.value)
+    shown.value = clamp(pulseBarCache.get(barCacheKey(id, epoch)) ?? 0)
     if (ready.value) applyTarget(props.percent)
   },
 )

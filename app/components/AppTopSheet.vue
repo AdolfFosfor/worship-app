@@ -105,7 +105,7 @@ onBeforeUnmount(() => {
   */
   max-height: min(26rem, calc(var(--app-frame-height, 100lvh) * 0.52));
   padding-top: calc(
-    max(var(--app-safe-top), env(safe-area-inset-top, 0px)) + var(--app-space-2)
+    max(var(--app-safe-top), env(safe-area-inset-top, 0px)) + var(--app-overlay-gap)
   );
   padding-left: max(var(--app-safe-left), env(safe-area-inset-left, 0px));
   padding-right: max(var(--app-safe-right), env(safe-area-inset-right, 0px));
