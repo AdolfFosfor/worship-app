@@ -3,6 +3,7 @@ import { icons } from '~/utils/icons'
 
 const route = useRoute()
 const { t } = useAppLocale()
+const positions = useState<Record<string, number>>('app-shell-scroll', () => ({}))
 
 const tabs = computed(() => [
   {
@@ -34,6 +35,23 @@ const tabs = computed(() => [
     match: (path: string) => path.startsWith('/account') || path.startsWith('/members'),
   },
 ])
+
+/** Повторный тап по активной вкладке — скролл наверх (как в iOS). */
+function onTabClick(
+  tab: { to: string; match: (path: string) => boolean },
+  event: MouseEvent,
+) {
+  if (!tab.match(route.path)) return
+
+  if (route.path === tab.to) {
+    event.preventDefault()
+    scrollShellToTop(tab.to)
+    return
+  }
+
+  // Вложенный экран вкладки → корень вкладки с нуля
+  positions.value[tab.to] = 0
+}
 </script>
 
 <template>
@@ -44,6 +62,7 @@ const tabs = computed(() => [
       :to="tab.to"
       class="app-bottom-nav__item"
       :class="{ 'app-bottom-nav__item--active': tab.match(route.path) }"
+      @click="onTabClick(tab, $event)"
     >
       <span class="app-bottom-nav__icon-wrap">
         <AppIcon

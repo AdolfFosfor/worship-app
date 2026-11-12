@@ -18,6 +18,22 @@ export function requestShellScrollRestore() {
   tick.value += 1
 }
 
+/** Повторный тап по активной вкладке / принудительно наверх. */
+export function scrollShellToTop(path?: string) {
+  if (!import.meta.client) return
+  const route = useRoute()
+  const target = path ?? route.fullPath
+  const positions = useState<Record<string, number>>('app-shell-scroll', () => ({}))
+  positions.value[target] = 0
+  if (route.fullPath !== target) {
+    positions.value[route.fullPath] = 0
+  }
+  const el = document.querySelector<HTMLElement>('.app-shell__content')
+  if (!el) return
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  el.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' })
+}
+
 export function useShellScrollMemory(scrollRef: Ref<HTMLElement | null>) {
   const route = useRoute()
   const router = useRouter()
