@@ -440,8 +440,8 @@ onBeforeUnmount(() => {
 }
 
 .chord-stage--fullscreen .chord-stage__toolbar {
-  /* Как .app-page — один gutter с остальным приложением */
-  padding: var(--app-space-2) var(--app-page-inline) 0;
+  /* Safe уже на .chord-stage--fullscreen; сверху только тонкий overlay-gap */
+  padding: var(--app-overlay-gap) var(--app-page-inline) 0;
 }
 
 .chord-stage__titlebar {

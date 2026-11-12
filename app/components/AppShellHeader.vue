@@ -69,7 +69,8 @@ watchEffect(() => {
 <style scoped>
 .app-shell-header {
   flex-shrink: 0;
-  padding: 16px var(--app-page-inline) 0;
+  /* 6px снизу — место под outline-hover trailing; сверху −6 к прежним 16 */
+  padding: 10px var(--app-page-inline) 6px;
 }
 
 .app-header {
@@ -153,6 +154,7 @@ watchEffect(() => {
   gap: var(--app-space-2);
   min-height: 2.5rem;
   flex-shrink: 0;
+  overflow: visible;
 }
 
 .header-subtitle-enter-active,

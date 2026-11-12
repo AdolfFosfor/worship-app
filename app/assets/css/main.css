@@ -109,8 +109,8 @@
       var(--tg-viewport-content-safe-area-inset-left, 0px)
   );
 
-  /* Чуть плотнее: content-safe Telegram уже отодвигает от кнопок FS */
-  --app-overlay-gap: 0.4rem;
+  /* Минимум сверх content-safe Telegram (кнопки FS уже в --app-safe-*) */
+  --app-overlay-gap: 0.125rem;
   --app-toast-offset-top: calc(var(--app-safe-top) + var(--app-overlay-gap));
   --app-frame-height: var(--tg-viewport-stable-height, 100svh);
 
@@ -757,6 +757,9 @@ html.app-dark .app-fact--meter {
   align-items: center;
   justify-content: flex-end;
   gap: var(--app-space-2);
+  /* Breathing room для outline-hover; margin съедает рост, layout тот же */
+  padding: calc(var(--app-hover-outline-gap) + 2px);
+  margin: calc(-1 * (var(--app-hover-outline-gap) + 2px));
 }
 
 /*
