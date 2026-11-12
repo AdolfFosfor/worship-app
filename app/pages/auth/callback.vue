@@ -4,6 +4,8 @@ definePageMeta({
   public: true,
 })
 
+useAppHeader({ visible: false })
+
 const auth = useAuthStore()
 const workspace = useWorkspaceStore()
 const { t } = useAppLocale()

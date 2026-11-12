@@ -95,6 +95,10 @@ const historyGroups = computed((): HistoryMonthGroup[] => {
 
   return groups
 })
+useAppHeader(() => ({
+  title: detail.value?.title ?? t('repertoire.title'),
+  subtitle: detail.value ? t('repertoire.songAnalytics') : null,
+}))
 </script>
 
 <template>
@@ -103,8 +107,6 @@ const historyGroups = computed((): HistoryMonthGroup[] => {
     <AppError v-else-if="error" :message="error" @retry="load" />
 
     <template v-else-if="detail">
-      <AppHeader :title="detail.title" :subtitle="t('repertoire.songAnalytics')" />
-
       <section class="song-pulse__stats app-panel">
         <div class="song-pulse__metric">
           <span class="song-pulse__value">{{ detail.totalAll }}</span>

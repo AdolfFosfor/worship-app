@@ -106,12 +106,13 @@ function confirmSignOut() {
     },
   })
 }
+useAppHeader(() => ({
+  title: t('account.title'),
+}))
 </script>
 
 <template>
   <div class="app-page">
-    <AppHeader :title="t('account.title')" />
-
     <section class="account-hero app-panel app-panel--accent">
       <div class="account-hero__avatar" aria-hidden="true">
         <img

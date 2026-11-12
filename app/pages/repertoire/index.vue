@@ -170,15 +170,14 @@ const sortOptions = computed(() =>
     label: t(`repertoire.sort.${value}`),
   })),
 )
+useAppHeader(() => ({
+  title: t('repertoire.title'),
+  subtitle: t(periodLabelKey(period)),
+}))
 </script>
 
 <template>
   <div class="app-page">
-    <AppHeader
-      :title="t('repertoire.title')"
-      :subtitle="t(periodLabelKey(period))"
-    />
-
     <div class="pulse-periods" role="tablist" :aria-label="t('repertoire.periodAria')">
       <button
         v-for="key in REPERTOIRE_PERIODS"
@@ -194,7 +193,14 @@ const sortOptions = computed(() =>
       </button>
     </div>
 
-    <AppLoading v-if="!pageReady && (loadingSummary || loadingSongs)" />
+    <template v-if="!pageReady && (loadingSummary || loadingSongs)">
+      <AppSection :title="t('repertoire.sectionOverview')">
+        <SkeletonPulseOverview />
+      </AppSection>
+      <AppSection :title="t('repertoire.sectionFrequent')">
+        <SkeletonListRows :rows="5" />
+      </AppSection>
+    </template>
     <AppError
       v-else-if="error && !summary"
       :message="error"

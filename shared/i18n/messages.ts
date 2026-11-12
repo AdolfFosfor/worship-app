@@ -41,6 +41,12 @@ const ru: MessageDict = {
   'ptr.refreshing': 'Обновление…',
 
   'dates.todayPrefix': 'Сегодня, {date}',
+  'dates.relative.today': 'Сегодня',
+  'dates.relative.tomorrow': 'Завтра',
+  'dates.relative.dayAfterTomorrow': 'Послезавтра',
+  'dates.relative.inDays_one': 'через {count} день',
+  'dates.relative.inDays_few': 'через {count} дня',
+  'dates.relative.inDays_many': 'через {count} дней',
 
   'account.title': 'Аккаунт',
   'account.team': 'Команда',
@@ -463,6 +469,12 @@ const ro: MessageDict = {
   'ptr.refreshing': 'Se actualizează…',
 
   'dates.todayPrefix': 'Azi, {date}',
+  'dates.relative.today': 'Azi',
+  'dates.relative.tomorrow': 'Mâine',
+  'dates.relative.dayAfterTomorrow': 'Poimâine',
+  'dates.relative.inDays_one': 'peste {count} zi',
+  'dates.relative.inDays_few': 'peste {count} zile',
+  'dates.relative.inDays_many': 'peste {count} zile',
 
   'account.title': 'Cont',
   'account.team': 'Echipă',
@@ -884,6 +896,12 @@ const en: MessageDict = {
   'ptr.refreshing': 'Refreshing…',
 
   'dates.todayPrefix': 'Today, {date}',
+  'dates.relative.today': 'Today',
+  'dates.relative.tomorrow': 'Tomorrow',
+  'dates.relative.dayAfterTomorrow': 'In 2 days',
+  'dates.relative.inDays_one': 'in {count} day',
+  'dates.relative.inDays_few': 'in {count} days',
+  'dates.relative.inDays_many': 'in {count} days',
 
   'account.title': 'Account',
   'account.team': 'Team',

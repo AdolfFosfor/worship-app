@@ -66,23 +66,26 @@ async function save() {
     busy.value = false
   }
 }
+
+useAppHeader(() => ({
+  title: t('songs.newTitle'),
+}))
 </script>
 
 <template>
   <div class="app-page">
-    <AppHeader :title="t('songs.newTitle')">
-      <template #trailing>
-        <button
-          type="button"
-          class="app-header-action"
-          :aria-label="t('songs.ariaExtras')"
-          aria-haspopup="menu"
-          @click="toggleExtras"
-        >
-          <AppIcon :name="icons.extras" />
-        </button>
-      </template>
-    </AppHeader>
+    <AppHeaderTrailing>
+      <button
+        key="extras"
+        type="button"
+        class="app-header-action"
+        :aria-label="t('songs.ariaExtras')"
+        aria-haspopup="menu"
+        @click="toggleExtras"
+      >
+        <AppIcon :name="icons.extras" />
+      </button>
+    </AppHeaderTrailing>
 
     <AppAnchoredMenu
       ref="extrasMenu"

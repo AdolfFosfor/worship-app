@@ -92,41 +92,43 @@ const confirmPt = {
           </template>
         </ConfirmDialog>
 
-        <div
-          class="app-ptr"
-          :class="{
-            'app-ptr--on': ptr.visible,
-            'app-ptr--armed': ptr.armed,
-            'app-ptr--refreshing': ptr.refreshing,
-          }"
-          aria-live="polite"
-          :aria-busy="ptr.refreshing"
-        >
-          <div
-            class="app-ptr__chip"
-            :style="{
-              opacity: ptr.refreshing ? 1 : Math.min(1, ptr.progress * 1.15),
-              transform: `scale(${0.86 + ptr.progress * 0.14})`,
-            }"
-          >
-            <AppIcon
-              :name="icons.refresh"
-              class="app-ptr__icon"
-              :class="{ 'app-ptr__icon--spin': ptr.refreshing }"
-              size="1.15rem"
-            />
-            <span class="app-ptr__label">{{ ptrLabel }}</span>
-          </div>
-        </div>
+        <AppShellHeader />
 
-        <main
-          ref="scrollRef"
-          class="app-shell__content min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-none"
-          :class="{ 'app-shell__content--ptr': ptr.dragging || ptr.refreshing }"
-          :style="ptr.contentStyle"
-        >
-          <slot />
-        </main>
+        <div class="app-shell__scroll-stack min-h-0 flex-1">
+          <div
+            class="app-ptr"
+            :class="{
+              'app-ptr--on': ptr.visible,
+              'app-ptr--armed': ptr.armed,
+              'app-ptr--refreshing': ptr.refreshing,
+            }"
+            aria-live="polite"
+            :aria-busy="ptr.refreshing"
+          >
+            <div
+              class="app-ptr__chip"
+              :style="{
+                opacity: ptr.refreshing ? 1 : Math.min(1, ptr.progress * 1.15),
+                transform: `scale(${0.86 + ptr.progress * 0.14})`,
+              }"
+            >
+              <AppIcon
+                :name="icons.refresh"
+                class="app-ptr__icon"
+                :class="{ 'app-ptr__icon--spin': ptr.refreshing }"
+                size="1.15rem"
+              />
+              <span class="app-ptr__label">{{ ptrLabel }}</span>
+            </div>
+          </div>
+
+          <main
+            ref="scrollRef"
+            class="app-shell__content min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-none"
+          >
+            <slot />
+          </main>
+        </div>
       </div>
 
       <AppBottomNav v-if="!hideNav" class="app-shell__nav" />
@@ -200,7 +202,15 @@ const confirmPt = {
   backface-visibility: hidden;
 }
 
-/* Pull-to-refresh — индикатор в зазоре над скроллером */
+/* Стек: хедер → PTR-чип в зазоре под хедером → скролл */
+.app-shell__scroll-stack {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Pull-to-refresh — под хедером, в щели когда main уезжает вниз */
 .app-ptr {
   position: absolute;
   top: 0;
@@ -209,7 +219,7 @@ const confirmPt = {
   z-index: 1;
   display: flex;
   justify-content: center;
-  padding-top: 0.55rem;
+  padding-top: 0.45rem;
   pointer-events: none;
   opacity: 0;
   transition: opacity 160ms var(--app-ease, ease);
@@ -268,12 +278,13 @@ const confirmPt = {
   position: relative;
   z-index: 2;
   background: var(--app-bg);
-  will-change: transform;
+  backface-visibility: hidden;
 }
 
 .app-shell__content--ptr {
   overflow-y: hidden;
   touch-action: none;
+  will-change: transform;
 }
 
 @keyframes app-ptr-spin {

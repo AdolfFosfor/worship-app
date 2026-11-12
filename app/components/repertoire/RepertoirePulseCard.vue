@@ -200,7 +200,7 @@ onBeforeUnmount(() => {
 
     <div v-if="frequent.length" class="pulse-card__favorites">
       <span class="pulse-card__block-title">{{ t('repertoire.sectionFavorites') }}</span>
-      <TransitionGroup name="pulse-fav" tag="ul" class="pulse-card__list">
+      <TransitionGroup name="pulse-fav" appear tag="ul" class="pulse-card__list">
         <li
           v-for="(item, index) in frequent"
           :key="item.id"

@@ -577,6 +577,14 @@ const filteredPickerSongs = computed(() => {
       s.key.toLocaleLowerCase().includes(q),
   )
 })
+const { revealEditable } = useHeaderEditableTitle({
+  title: () => (setlist.value ? sessionTitle(setlist.value.title) : ''),
+  canEdit: canEditMeta,
+  entityKey: () => setlist.value?.id,
+  extra: () => ({
+    customSubtitle: Boolean(setlist.value),
+  }),
+})
 </script>
 
 <template>
@@ -584,62 +592,61 @@ const filteredPickerSongs = computed(() => {
     <AppLoading v-if="loading" />
     <AppError v-else-if="error" :message="error" @retry="load" />
     <template v-else-if="setlist">
-      <AppHeader>
-        <template #title>
-          <h1
+      <AppHeaderPortal
+        v-if="revealEditable"
+        to="[data-app-header-title]"
+      >
+        <h1
+          ref="titleEl"
+          class="setlist-header__title setlist-header__title--editable"
+          :class="{ 'is-editing': titleFocused }"
+          contenteditable="true"
+          spellcheck="false"
+          :aria-label="t('setlist.editTitleAria')"
+          @pointerdown="onTitlePointerDown"
+          @focus="onTitleFocus"
+          @blur="commitTitle"
+          @keydown="onTitleKeydown"
+          @beforeinput="onTitleBeforeInput"
+          @paste="onTitlePaste"
+        />
+      </AppHeaderPortal>
+      <AppHeaderPortal to="[data-app-header-subtitle]">
+        <div
+          class="setlist-header__date-wrap"
+          :class="{
+            'is-editable': canEditMeta,
+            'is-open': dateOpen,
+          }"
+        >
+          <button
             v-if="canEditMeta"
-            ref="titleEl"
-            class="setlist-header__title setlist-header__title--editable"
-            :class="{ 'is-editing': titleFocused }"
-            contenteditable="true"
-            spellcheck="false"
-            :aria-label="t('setlist.editTitleAria')"
-            @pointerdown="onTitlePointerDown"
-            @focus="onTitleFocus"
-            @blur="commitTitle"
-            @keydown="onTitleKeydown"
-            @beforeinput="onTitleBeforeInput"
-            @paste="onTitlePaste"
-          />
-          <h1 v-else class="setlist-header__title">{{ sessionTitle(setlist.title) }}</h1>
-        </template>
-        <template #subtitle>
-          <div
-            class="setlist-header__date-wrap"
-            :class="{
-              'is-editable': canEditMeta,
-              'is-open': dateOpen,
-            }"
+            type="button"
+            class="setlist-header__subtitle"
+            :aria-label="t('setlist.editDateAria')"
+            :aria-expanded="dateOpen"
+            @click="openDatePanel"
           >
-            <button
-              v-if="canEditMeta"
-              type="button"
-              class="setlist-header__subtitle"
-              :aria-label="t('setlist.editDateAria')"
-              :aria-expanded="dateOpen"
-              @click="openDatePanel"
-            >
-              {{ formatDate(setlist.serviceDate) }}
-            </button>
-            <p v-else class="setlist-header__subtitle">{{ formatDate(setlist.serviceDate) }}</p>
-            <DatePicker
-              v-if="canEditMeta"
-              ref="datePicker"
-              v-model="dateDraft"
-              date-format="dd.mm.yy"
-              class="setlist-header__date-ghost"
-              :manual-input="false"
-              append-to=".app-shell"
-              panel-class="setlist-header-datepicker"
-              tabindex="-1"
-              aria-hidden="true"
-              @show="onDateShow"
-              @hide="onDateHide"
-              @date-select="commitDate"
-            />
-          </div>
-        </template>
-      </AppHeader>
+            {{ formatDate(setlist.serviceDate) }}
+          </button>
+          <p v-else class="setlist-header__subtitle">{{ formatDate(setlist.serviceDate) }}</p>
+          <DatePicker
+            v-if="canEditMeta"
+            ref="datePicker"
+            v-model="dateDraft"
+            date-format="dd.mm.yy"
+            class="setlist-header__date-ghost"
+            :manual-input="false"
+            append-to=".app-shell"
+            panel-class="setlist-header-datepicker"
+            tabindex="-1"
+            aria-hidden="true"
+            @show="onDateShow"
+            @hide="onDateHide"
+            @date-select="commitDate"
+          />
+        </div>
+      </AppHeaderPortal>
 
       <AppEmptyState
         v-if="!setlist.items.length"

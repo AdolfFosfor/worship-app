@@ -71,12 +71,44 @@ const monthGroups = computed((): SetlistMonthGroup[] => {
   return groups
 })
 
+const {
+  limit: setlistsRevealLimit,
+  hasMore: setlistsHasMore,
+  sentinel: setlistsRevealSentinel,
+} = useShellRevealWindow(() => setlists.value.length, {
+  initial: 20,
+  step: 20,
+  estimateRowPx: 60,
+})
+
+/** Показываем месяцы/строки порциями — панель месяца остаётся целой. */
+const visibleMonthGroups = computed((): SetlistMonthGroup[] => {
+  let left = setlistsRevealLimit.value
+  const out: SetlistMonthGroup[] = []
+  for (const group of monthGroups.value) {
+    if (left <= 0) break
+    const items = group.items.slice(0, left)
+    left -= items.length
+    if (items.length) {
+      out.push({
+        key: group.key,
+        label: group.label,
+        items,
+      })
+    }
+  }
+  return out
+})
+
 async function load(opts?: { quiet?: boolean }) {
   if (!opts?.quiet && !setlists.value.length) {
     pageReady.value = false
   }
   try {
-    await Promise.all([fetchSetlists(), getUpcoming()])
+    await Promise.all([
+      fetchSetlists({ quiet: opts?.quiet }),
+      getUpcoming(),
+    ])
     markSetlistsSynced()
   } catch {
     /* ошибка уже в composable */
@@ -144,26 +176,35 @@ function confirmDeleteSetlist(item: Setlist) {
     },
   })
 }
+
+useAppHeader(() => ({
+  title: t('setlists.title'),
+}))
 </script>
 
 <template>
   <div class="app-page">
-    <AppHeader :title="t('setlists.title')">
-      <template v-if="workspace.canEditSetlists" #trailing>
-        <button
-          type="button"
-          class="app-header-action"
-          :aria-label="t('setlists.ariaCreate')"
-          @click="openCreate"
-        >
-          <AppIcon :name="icons.add" />
-        </button>
-      </template>
-    </AppHeader>
+    <AppHeaderTrailing>
+      <button
+        v-if="workspace.canEditSetlists"
+        key="create"
+        type="button"
+        class="app-header-action"
+        :aria-label="t('setlists.ariaCreate')"
+        @click="openCreate"
+      >
+        <AppIcon :name="icons.add" />
+      </button>
+    </AppHeaderTrailing>
 
     <CreateSetlistSheet ref="createSheet" v-model:open="createOpen" />
 
-    <AppLoading v-if="!pageReady || (loading && !setlists.length)" />
+    <template v-if="!pageReady || (loading && !setlists.length)">
+      <section class="app-section setlists-group">
+        <AppSkeleton variant="line" width="5.5rem" height="0.7rem" class="setlists-sk-label" />
+        <SkeletonListRows :rows="5" with-date />
+      </section>
+    </template>
     <AppError v-else-if="error" :message="error" @retry="load" />
     <AppEmptyState
       v-else-if="!setlists.length"
@@ -180,7 +221,7 @@ function confirmDeleteSetlist(item: Setlist) {
 
     <template v-else>
       <section
-        v-for="group in monthGroups"
+        v-for="group in visibleMonthGroups"
         :key="group.key"
         class="app-section setlists-group"
       >
@@ -221,6 +262,12 @@ function confirmDeleteSetlist(item: Setlist) {
           </SwipeDeleteRow>
         </div>
       </section>
+      <div
+        v-if="setlistsHasMore"
+        ref="setlistsRevealSentinel"
+        class="app-reveal-sentinel"
+        aria-hidden="true"
+      />
     </template>
   </div>
 </template>
@@ -234,6 +281,10 @@ function confirmDeleteSetlist(item: Setlist) {
   letter-spacing: -0.015em;
   line-height: 1.25;
   color: var(--app-section-header);
+}
+
+.setlists-sk-label {
+  margin-inline: var(--app-space-1);
 }
 
 .setlists-month {

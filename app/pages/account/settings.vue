@@ -149,12 +149,13 @@ async function submitTelegram() {
     busyTelegram.value = false
   }
 }
+useAppHeader(() => ({
+  title: t('settings.title'),
+}))
 </script>
 
 <template>
   <div class="app-page">
-    <AppHeader :title="t('settings.title')" />
-
     <p class="settings-lead">
       {{ t('settings.lead') }}
     </p>
@@ -219,7 +220,7 @@ async function submitTelegram() {
           {{ t('settings.emailHint') }}
         </p>
       </form>
-      <p v-if="lastError" class="settings-block__error">{{ lastError }}</p>
+      <p v-if="lastError" class="settings-block__error app-select-text">{{ lastError }}</p>
     </section>
 
     <section class="settings-block app-panel">
@@ -326,7 +327,6 @@ async function submitTelegram() {
   font-size: var(--app-text-sm);
   line-height: 1.4;
   word-break: break-word;
-  user-select: text;
 }
 
 .settings-form {

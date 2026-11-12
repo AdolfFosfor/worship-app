@@ -511,6 +511,11 @@ async function addToSetlist(setlist: Setlist) {
   }
 }
 
+const { revealEditable } = useHeaderEditableTitle({
+  title: () => song.value?.title ?? '',
+  canEdit: canEditTitle,
+  entityKey: () => song.value?.id ?? id.value,
+})
 </script>
 
 <template>
@@ -518,37 +523,38 @@ async function addToSetlist(setlist: Setlist) {
     <AppLoading v-if="loading" />
     <AppError v-else-if="error" :message="error" @retry="load" />
     <template v-else-if="song">
-      <AppHeader>
-        <template #title>
-          <h1
-            v-if="canEditTitle"
-            ref="titleEl"
-            class="song-view__title song-view__title--editable"
-            :class="{ 'is-editing': titleFocused }"
-            contenteditable="true"
-            spellcheck="false"
-            :aria-label="t('song.editTitleAria')"
-            @pointerdown="onTitlePointerDown"
-            @focus="onTitleFocus"
-            @blur="commitTitle"
-            @keydown="onTitleKeydown"
-            @beforeinput="onTitleBeforeInput"
-            @paste="onTitlePaste"
-          />
-          <h1 v-else class="song-view__title">{{ song.title }}</h1>
-        </template>
-        <template v-if="showAddToSetlist" #trailing>
-          <button
-            type="button"
-            class="app-header-action app-header-action--chip"
-            :aria-label="t('songs.ariaAddToSetlist')"
-            @click="openSetlistPicker"
-          >
-            <AppIcon :name="icons.playlist" />
-            <span>{{ t('songs.addToSetShort') }}</span>
-          </button>
-        </template>
-      </AppHeader>
+      <AppHeaderPortal
+        v-if="revealEditable"
+        to="[data-app-header-title]"
+      >
+        <h1
+          ref="titleEl"
+          class="song-view__title song-view__title--editable"
+          :class="{ 'is-editing': titleFocused }"
+          contenteditable="true"
+          spellcheck="false"
+          :aria-label="t('song.editTitleAria')"
+          @pointerdown="onTitlePointerDown"
+          @focus="onTitleFocus"
+          @blur="commitTitle"
+          @keydown="onTitleKeydown"
+          @beforeinput="onTitleBeforeInput"
+          @paste="onTitlePaste"
+        />
+      </AppHeaderPortal>
+      <AppHeaderTrailing>
+        <button
+          v-if="showAddToSetlist"
+          key="add-to-setlist"
+          type="button"
+          class="app-header-action app-header-action--chip"
+          :aria-label="t('songs.ariaAddToSetlist')"
+          @click="openSetlistPicker"
+        >
+          <AppIcon :name="icons.playlist" />
+          <span>{{ t('songs.addToSetShort') }}</span>
+        </button>
+      </AppHeaderTrailing>
 
       <nav
         v-if="setlistNav"

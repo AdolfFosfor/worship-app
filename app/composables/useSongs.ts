@@ -145,7 +145,10 @@ export function useSongs() {
     bumpSetlistsRevision()
   }
 
-  async function fetchSongs(query?: string | SongFetchOptions) {
+  async function fetchSongs(
+    query?: string | SongFetchOptions,
+    opts?: { quiet?: boolean },
+  ) {
     const workspace = useWorkspaceStore()
     const gen = ++fetchSeq
     if (!workspace.workspace) {
@@ -155,7 +158,8 @@ export function useSongs() {
     }
 
     const { search, filters } = resolveFetchOptions(query)
-    loading.value = true
+    const showLoading = !opts?.quiet
+    if (showLoading) loading.value = true
     error.value = null
     try {
       const supabase = getSupabaseBrowserClient()
@@ -214,7 +218,7 @@ export function useSongs() {
       error.value = e instanceof Error ? e.message : 'Не удалось загрузить песни'
       throw e
     } finally {
-      if (gen === fetchSeq) loading.value = false
+      if (showLoading && gen === fetchSeq) loading.value = false
     }
   }
 

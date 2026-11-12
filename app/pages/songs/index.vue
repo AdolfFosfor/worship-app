@@ -139,16 +139,26 @@ function resetFilters() {
   filters.value = emptySongLibraryFilters()
 }
 
-async function load() {
+async function load(opts?: { quiet?: boolean }) {
   try {
-    await Promise.all([
-      fetchSongs({ search: query.value, filters: filters.value }),
-      fetchLibraryFacets(),
-    ])
+    if (opts?.quiet) {
+      await fetchSongs(
+        { search: query.value, filters: filters.value },
+        { quiet: true },
+      )
+      void fetchLibraryFacets()
+    } else {
+      await Promise.all([
+        fetchSongs({ search: query.value, filters: filters.value }),
+        fetchLibraryFacets(),
+      ])
+    }
     markSongsSynced()
     // Список рисуется после fetch — догоняем сохранённый scrollTop
-    await nextTick()
-    requestShellScrollRestore()
+    if (!opts?.quiet) {
+      await nextTick()
+      requestShellScrollRestore()
+    }
   } catch {
     /* ошибка уже в composable */
   }
@@ -166,12 +176,8 @@ watch(filters, () => {
   void load()
 })
 
-const { markSongsSynced } = syncSongsOnActivate(load)
-useAppPullRefresh(() => load())
-
-onMounted(() => {
-  void load()
-})
+const { markSongsSynced } = syncSongsOnActivate(() => load({ quiet: true }))
+useAppPullRefresh(() => load({ quiet: true }))
 
 const pickerVisible = ref(false)
 const pickerLoading = ref(false)
@@ -286,13 +292,45 @@ async function addPendingToSetlist(setlist: Setlist) {
 
 const canSwipeDelete = computed(() => workspace.canEditSongs)
 const canSwipeAdd = computed(() => workspace.canEditSetlists)
+
+/** В пустой библиотеке без поиска/фильтров кнопку не показываем. */
+const filterActionAvailable = computed(
+  () => songs.value.length > 0 || filtersActive.value || searchActive.value,
+)
+
+const {
+  limit: songsRevealLimit,
+  hasMore: songsHasMore,
+  sentinel: songsRevealSentinel,
+  reset: resetSongsReveal,
+} = useShellRevealWindow(() => songs.value.length, {
+  initial: 20,
+  step: 20,
+  estimateRowPx: 58,
+})
+
+const visibleSongs = computed(() => songs.value.slice(0, songsRevealLimit.value))
+
+watch([query, filters], () => {
+  resetSongsReveal()
+}, { deep: true })
+
+useAppHeader(() => ({
+  title: t('songs.title'),
+}))
+
+onMounted(() => {
+  void load()
+})
 </script>
 
 <template>
   <div class="app-page">
-    <AppHeader :title="t('songs.title')">
-      <template #trailing>
+    <AppHeaderTrailing>
+      <Transition name="header-action">
         <button
+          v-if="filterActionAvailable"
+          key="songs-filter"
           type="button"
           class="app-header-action songs-filter-action"
           :class="{ 'songs-filter-action--on': filtersActive }"
@@ -302,18 +340,24 @@ const canSwipeAdd = computed(() => workspace.canEditSetlists)
           @click="filtersOpen = true"
         >
           <AppIcon :name="icons.filter" />
-          <span v-if="filterCount" class="songs-filter-action__count">{{ filterCount }}</span>
+          <Transition name="header-action-badge">
+            <span
+              v-if="filterCount"
+              :key="filterCount"
+              class="songs-filter-action__count"
+            >{{ filterCount }}</span>
+          </Transition>
         </button>
-        <NuxtLink
-          v-if="workspace.canEditSongs"
-          to="/songs/new"
-          class="app-header-action"
-          :aria-label="t('songs.ariaAdd')"
-        >
-          <AppIcon :name="icons.add" />
-        </NuxtLink>
-      </template>
-    </AppHeader>
+      </Transition>
+      <NuxtLink
+        v-if="workspace.canEditSongs"
+        to="/songs/new"
+        class="app-header-action"
+        :aria-label="t('songs.ariaAdd')"
+      >
+        <AppIcon :name="icons.add" />
+      </NuxtLink>
+    </AppHeaderTrailing>
 
     <div class="songs-toolbar">
       <div class="songs-search">
@@ -353,7 +397,7 @@ const canSwipeAdd = computed(() => workspace.canEditSetlists)
       </div>
     </div>
 
-    <AppLoading v-if="loading && !songs.length" />
+    <SkeletonListRows v-if="loading && !songs.length" :rows="8" />
     <AppError v-else-if="error" :message="error" @retry="load" />
     <AppEmptyState
       v-else-if="!songs.length && !filtersActive && !searchActive"
@@ -375,26 +419,34 @@ const canSwipeAdd = computed(() => workspace.canEditSetlists)
         </button>
       </template>
     </AppEmptyState>
-    <AppSurfaceList v-else>
-      <SwipeDeleteRow
-        v-for="song in songs"
-        :key="song.id"
-        class="songs-swipe"
-        :disabled="!canSwipeDelete && !canSwipeAdd"
-        :end-enabled="canSwipeDelete"
-        :start-enabled="canSwipeAdd"
-        @end="confirmDeleteSong(song)"
-        @start="openAddToSetlist(song)"
-      >
-        <AppListRow
-          :to="`/songs/${song.id}`"
-          :title="song.title"
-          :subtitle="song.artist || undefined"
-          :meta="songMeta(song)"
-          chevron
-        />
-      </SwipeDeleteRow>
-    </AppSurfaceList>
+    <template v-else>
+      <AppSurfaceList>
+        <SwipeDeleteRow
+          v-for="song in visibleSongs"
+          :key="song.id"
+          class="songs-swipe"
+          :disabled="!canSwipeDelete && !canSwipeAdd"
+          :end-enabled="canSwipeDelete"
+          :start-enabled="canSwipeAdd"
+          @end="confirmDeleteSong(song)"
+          @start="openAddToSetlist(song)"
+        >
+          <AppListRow
+            :to="`/songs/${song.id}`"
+            :title="song.title"
+            :subtitle="song.artist || undefined"
+            :meta="songMeta(song)"
+            chevron
+          />
+        </SwipeDeleteRow>
+      </AppSurfaceList>
+      <div
+        v-if="songsHasMore"
+        ref="songsRevealSentinel"
+        class="app-reveal-sentinel"
+        aria-hidden="true"
+      />
+    </template>
 
     <Dialog
       v-model:visible="pickerVisible"
@@ -467,6 +519,7 @@ const canSwipeAdd = computed(() => workspace.canEditSetlists)
 
 .songs-filter-action {
   position: relative;
+  transform-origin: center;
 }
 
 .songs-filter-action :deep(.app-icon) {

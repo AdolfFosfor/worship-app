@@ -216,6 +216,28 @@ body,
   height: var(--app-frame-height);
   overflow: hidden;
   overscroll-behavior-y: none;
+  /* TMA: выделение UI-текста даёт баги жестов / long-press — по умолчанию запрещено */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/*
+  Исключения: поля ввода, contenteditable и явный opt-in `.app-select-text`.
+*/
+.app-select-text,
+input,
+textarea,
+[contenteditable]:not([contenteditable='false']),
+.p-inputtext,
+.p-textarea,
+.p-datepicker-input,
+.p-inputnumber-input,
+.p-select-overlay .p-select-filter,
+.p-multiselect-overlay .p-multiselect-filter {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
 }
 
 /*
@@ -434,6 +456,17 @@ body {
   flex-direction: column;
   gap: 16px;
   overflow-x: hidden;
+}
+
+/* Sentinel для useShellRevealWindow — невидимая точка догрузки у низа списка */
+.app-reveal-sentinel {
+  width: 100%;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  pointer-events: none;
+  visibility: hidden;
 }
 
 @media (min-width: 768px) {
@@ -716,6 +749,49 @@ html.app-dark .app-fact--meter {
 .app-header-action--chip .app-icon {
   width: 1.15rem !important;
   height: 1.15rem !important;
+}
+
+.app-header__trailing-inner {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--app-space-2);
+}
+
+/* Плавное появление / уход trailing-кнопок (Teleport → shell header) */
+.header-action-enter-active,
+.header-action-leave-active {
+  transition:
+    opacity 220ms var(--app-ease, ease),
+    transform 220ms var(--app-ease, ease);
+}
+
+.header-action-enter-from,
+.header-action-leave-to {
+  opacity: 0;
+  transform: scale(0.72);
+}
+
+.header-action-badge-enter-active,
+.header-action-badge-leave-active {
+  transition:
+    opacity 180ms var(--app-ease, ease),
+    transform 180ms var(--app-ease, ease);
+}
+
+.header-action-badge-enter-from,
+.header-action-badge-leave-to {
+  opacity: 0;
+  transform: scale(0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header-action-enter-active,
+  .header-action-leave-active,
+  .header-action-badge-enter-active,
+  .header-action-badge-leave-active {
+    transition: none;
+  }
 }
 
 /* Меню «Создать» / extras — оболочка в AppAnchoredMenu */

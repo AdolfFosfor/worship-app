@@ -73,12 +73,13 @@ async function join() {
     busy.value = false
   }
 }
+useAppHeader(() => ({
+  title: t('onboarding.title'),
+}))
 </script>
 
 <template>
   <div class="app-page">
-    <AppHeader :title="t('onboarding.title')" />
-
     <input
       ref="focusProxy"
       class="onboarding__focus-proxy"

@@ -1,7 +1,7 @@
 /**
  * Pull-to-refresh на главном скролле shell.
- * Мягкий refetch (не reloadNuxtApp) — без лагов после обновления.
- * Не перехватывает зажатие/свайп строк списка.
+ * Мягкий refetch (не reloadNuxtApp).
+ * Transform пишем в DOM напрямую — без Vue-реактивности на каждый touchmove (длинные списки).
  */
 
 import { hasUiInteractionLock } from '~/utils/uiInteractionLocks'
@@ -9,9 +9,9 @@ import { runAppPullRefresh } from '~/composables/useAppPullRefresh'
 
 const THRESHOLD = 68
 const MAX_PULL = 112
-const AXIS_LOCK = 14
+const AXIS_LOCK = 12
 /** Пока палец не ушёл вниз заметно — не трогаем scroll / preventDefault */
-const ENGAGE_DY = 22
+const ENGAGE_DY = 28
 const EDGE_GUARD = 22
 
 function rubber(dy: number): number {
@@ -25,8 +25,8 @@ function isPtrBlockedTarget(target: EventTarget | null): boolean {
   return Boolean(
     target.closest(
       [
-        '.swipe-delete',
-        '.setlist-item',
+        /* Не .swipe-delete: вертикальный PTR с карточки должен работать;
+           горизонталь отдаём свайпу через axis-lock + swipe-delete--dragging */
         '[data-no-ptr]',
         '[data-haptic-drag]',
         '.chart-editor',
@@ -51,42 +51,80 @@ export function usePullToRefresh(scrollRef: Ref<HTMLElement | null>) {
   let axis: 'h' | 'v' | null = null
   let activeTouch = false
   let blockedTarget = false
+  let pullPx = 0
+  let rafVisual = 0
+  let pendingVisual = false
 
   const progress = computed(() => Math.min(1, pull.value / THRESHOLD))
   const visible = computed(() => pull.value > 2 || refreshing.value)
 
-  const contentStyle = computed(() => {
-    const y = refreshing.value ? Math.min(pull.value, THRESHOLD) : pull.value
-    if (!y) {
-      return {
-        transform: 'translate3d(0, 0, 0)',
-        transition: dragging.value ? 'none' : 'transform 220ms var(--app-ease, ease)',
-      }
-    }
-    return {
-      transform: `translate3d(0, ${y}px, 0)`,
-      transition: dragging.value ? 'none' : 'transform 220ms var(--app-ease, ease)',
-    }
-  })
+  function scrollEl() {
+    return scrollRef.value
+  }
 
-  function resetPull() {
+  function writeTransform(y: number, withTransition: boolean) {
+    const el = scrollEl()
+    if (!el) return
+    if (y > 0.5) {
+      el.style.transform = `translate3d(0, ${y}px, 0)`
+    } else {
+      el.style.transform = 'translate3d(0, 0, 0)'
+    }
+    el.style.transition = withTransition
+      ? 'transform 220ms var(--app-ease, ease)'
+      : 'none'
+  }
+
+  function scheduleVisual() {
+    if (pendingVisual) return
+    pendingVisual = true
+    rafVisual = requestAnimationFrame(() => {
+      pendingVisual = false
+      rafVisual = 0
+      pull.value = pullPx
+      writeTransform(
+        refreshing.value ? Math.min(pullPx, THRESHOLD) : pullPx,
+        false,
+      )
+    })
+  }
+
+  function setPull(next: number, opts?: { immediate?: boolean; transition?: boolean }) {
+    pullPx = Math.max(0, next)
+    if (opts?.immediate) {
+      if (rafVisual) cancelAnimationFrame(rafVisual)
+      pendingVisual = false
+      rafVisual = 0
+      pull.value = pullPx
+      writeTransform(
+        refreshing.value ? Math.min(pullPx, THRESHOLD) : pullPx,
+        Boolean(opts.transition),
+      )
+      return
+    }
+    scheduleVisual()
+  }
+
+  function resetPull(opts?: { transition?: boolean }) {
     tracking = false
     axis = null
     activeTouch = false
     blockedTarget = false
     dragging.value = false
     armed.value = false
-    if (!refreshing.value) pull.value = 0
+    if (!refreshing.value) {
+      setPull(0, { immediate: true, transition: opts?.transition ?? true })
+    }
   }
 
   async function commitRefresh() {
     if (refreshing.value) return
     if (hasUiInteractionLock()) {
-      resetPull()
+      resetPull({ transition: true })
       return
     }
     refreshing.value = true
-    pull.value = THRESHOLD
+    setPull(THRESHOLD, { immediate: true, transition: true })
     dragging.value = false
     armed.value = false
     useHaptics().impact('medium')
@@ -96,16 +134,17 @@ export function usePullToRefresh(scrollRef: Ref<HTMLElement | null>) {
     } finally {
       refreshing.value = false
       armed.value = false
-      pull.value = 0
       tracking = false
       axis = null
       activeTouch = false
       blockedTarget = false
+      dragging.value = false
+      setPull(0, { immediate: true, transition: true })
     }
   }
 
   function begin(clientX: number, clientY: number, target: EventTarget | null) {
-    const el = scrollRef.value
+    const el = scrollEl()
     if (!el || refreshing.value || hasUiInteractionLock()) return
     if (el.scrollTop > 1) return
     if (clientX < EDGE_GUARD) return
@@ -123,7 +162,7 @@ export function usePullToRefresh(scrollRef: Ref<HTMLElement | null>) {
   function move(clientX: number, clientY: number): boolean {
     if (blockedTarget || !tracking || refreshing.value) return false
     if (hasUiInteractionLock()) {
-      resetPull()
+      resetPull({ transition: true })
       return false
     }
     const dx = clientX - startX
@@ -131,28 +170,33 @@ export function usePullToRefresh(scrollRef: Ref<HTMLElement | null>) {
 
     if (!axis) {
       if (Math.abs(dx) < AXIS_LOCK && Math.abs(dy) < AXIS_LOCK) return false
-      axis = Math.abs(dy) > Math.abs(dx) * 1.25 ? 'v' : 'h'
-      if (axis === 'h') {
+      // Горизонталь → свайп карточки / edge-back; PTR не претендует
+      if (Math.abs(dx) >= Math.abs(dy) * 0.85) {
         tracking = false
+        axis = 'h'
         return false
       }
-      if (dy < ENGAGE_DY) {
-        // Ещё не явный pull — отдаём жест скроллу / long-press
-        return false
-      }
-      const el = scrollRef.value
+      if (dy < ENGAGE_DY) return false
+      const el = scrollEl()
       if (!el || el.scrollTop > 1 || hasUiInteractionLock()) {
         tracking = false
         return false
       }
+      axis = 'v'
       dragging.value = true
+      el.classList.add('app-shell__content--ptr')
     }
 
     if (axis !== 'v') return false
-    if (dy < ENGAGE_DY && !dragging.value) return false
+
+    // Во время PTR горизонтальный увод — отдаём жест (открытый свайп и т.п.)
+    if (Math.abs(dx) > Math.abs(dy) * 0.9 && pullPx < THRESHOLD * 0.45) {
+      resetPull({ transition: true })
+      return false
+    }
 
     const next = rubber(Math.max(0, dy - ENGAGE_DY * 0.35))
-    pull.value = next
+    setPull(next)
     dragging.value = next > 0
     if (next >= THRESHOLD) {
       if (!armed.value) {
@@ -162,7 +206,6 @@ export function usePullToRefresh(scrollRef: Ref<HTMLElement | null>) {
     } else {
       armed.value = false
     }
-    // preventDefault только когда реально тянем refresh
     return next > 2
   }
 
@@ -170,20 +213,22 @@ export function usePullToRefresh(scrollRef: Ref<HTMLElement | null>) {
     if (!tracking && !dragging.value) return
     tracking = false
     axis = null
+    const el = scrollEl()
+    el?.classList.remove('app-shell__content--ptr')
     if (hasUiInteractionLock()) {
       dragging.value = false
       armed.value = false
-      pull.value = 0
+      setPull(0, { immediate: true, transition: true })
       return
     }
-    const shouldRefresh = pull.value >= THRESHOLD && !refreshing.value
+    const shouldRefresh = pullPx >= THRESHOLD && !refreshing.value
     dragging.value = false
     if (shouldRefresh) {
       void commitRefresh()
       return
     }
     armed.value = false
-    pull.value = 0
+    setPull(0, { immediate: true, transition: true })
   }
 
   function onTouchStart(e: TouchEvent) {
@@ -196,7 +241,7 @@ export function usePullToRefresh(scrollRef: Ref<HTMLElement | null>) {
 
   function onTouchMove(e: TouchEvent) {
     if (!activeTouch || e.touches.length !== 1) {
-      resetPull()
+      resetPull({ transition: true })
       return
     }
     const t = e.touches[0]
@@ -216,10 +261,10 @@ export function usePullToRefresh(scrollRef: Ref<HTMLElement | null>) {
     activeTouch = false
     if (refreshing.value) {
       dragging.value = false
-      pull.value = THRESHOLD
+      setPull(THRESHOLD, { immediate: true, transition: false })
       return
     }
-    resetPull()
+    resetPull({ transition: true })
   }
 
   let wheelArmed = false
@@ -227,9 +272,9 @@ export function usePullToRefresh(scrollRef: Ref<HTMLElement | null>) {
 
   function onWheel(e: WheelEvent) {
     if (refreshing.value || e.ctrlKey || activeTouch) return
-    const el = scrollRef.value
+    const el = scrollEl()
     if (!el || el.scrollTop > 1 || hasUiInteractionLock()) {
-      if (wheelArmed || dragging.value) resetPull()
+      if (wheelArmed || dragging.value) resetPull({ transition: true })
       return
     }
 
@@ -247,11 +292,12 @@ export function usePullToRefresh(scrollRef: Ref<HTMLElement | null>) {
       if (pullDelta < 8) return
       wheelArmed = true
       dragging.value = true
+      el.classList.add('app-shell__content--ptr')
     }
 
     e.preventDefault()
-    pull.value = rubber(pull.value + pullDelta * 0.55)
-    if (pull.value >= THRESHOLD) {
+    setPull(rubber(pullPx + pullDelta * 0.55), { immediate: true })
+    if (pullPx >= THRESHOLD) {
       if (!armed.value) {
         armed.value = true
         useHaptics().tick()
@@ -282,6 +328,9 @@ export function usePullToRefresh(scrollRef: Ref<HTMLElement | null>) {
     el.removeEventListener('touchend', onTouchEnd)
     el.removeEventListener('touchcancel', onTouchCancel)
     el.removeEventListener('wheel', onWheel)
+    el.classList.remove('app-shell__content--ptr')
+    el.style.transform = ''
+    el.style.transition = ''
   }
 
   watch(
@@ -295,7 +344,8 @@ export function usePullToRefresh(scrollRef: Ref<HTMLElement | null>) {
 
   onBeforeUnmount(() => {
     if (wheelIdle) clearTimeout(wheelIdle)
-    const el = scrollRef.value
+    if (rafVisual) cancelAnimationFrame(rafVisual)
+    const el = scrollEl()
     if (el) unbind(el)
   })
 
@@ -306,6 +356,5 @@ export function usePullToRefresh(scrollRef: Ref<HTMLElement | null>) {
     dragging,
     refreshing,
     armed,
-    contentStyle,
   })
 }

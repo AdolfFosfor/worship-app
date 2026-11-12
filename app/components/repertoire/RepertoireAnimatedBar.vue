@@ -18,7 +18,8 @@ function clamp(n: number) {
   return Math.max(0, Math.min(100, n))
 }
 
-const shown = ref(clamp(pulseBarCache.get(props.songId) ?? props.percent))
+/** Без кэша — с 0, чтобы первая загрузка морфила полоску как при смене периода. */
+const shown = ref(clamp(pulseBarCache.get(props.songId) ?? 0))
 
 function persist(n: number) {
   pulseBarCache.set(props.songId, n)

@@ -10,6 +10,10 @@ function canUseStorage(): boolean {
   return import.meta.client && typeof sessionStorage !== 'undefined'
 }
 
+function pathOnly(fullPath: string): string {
+  return fullPath.split('?')[0] || fullPath
+}
+
 function readStack(): string[] {
   if (!canUseStorage()) return []
   try {
@@ -28,10 +32,21 @@ function readStack(): string[] {
 function writeStack(stack: string[]) {
   if (!canUseStorage()) return
   try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(stack.slice(-MAX_DEPTH)))
+    // Убираем подряд идущие дубликаты (частый источник A↔B лупов)
+    const deduped: string[] = []
+    for (const item of stack) {
+      if (deduped[deduped.length - 1] === item) continue
+      deduped.push(item)
+    }
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(deduped.slice(-MAX_DEPTH)))
   } catch {
     /* private mode / quota */
   }
+}
+
+/** Жёстко задать стек (fallback / корень / анти-луп). */
+export function resetAppNavStack(fullPath: string) {
+  writeStack([fullPath])
 }
 
 /** После cold start / PTR: текущий URL должен быть вершиной, история до него сохраняется. */
@@ -44,11 +59,25 @@ export function ensureAppNavStack(fullPath: string) {
   const top = stack[stack.length - 1]
   if (top === fullPath) return
 
+  // Тот же path без query — обновляем вершину, не пушим
+  if (top && pathOnly(top) === pathOnly(fullPath)) {
+    writeStack([...stack.slice(0, -1), fullPath])
+    return
+  }
+
   const idx = stack.lastIndexOf(fullPath)
   if (idx >= 0) {
     writeStack(stack.slice(0, idx + 1))
     return
   }
+
+  // fullPath как path без query уже был в стеке — обрезаем до него и обновляем query
+  const pathIdx = stack.map(pathOnly).lastIndexOf(pathOnly(fullPath))
+  if (pathIdx >= 0) {
+    writeStack([...stack.slice(0, pathIdx), fullPath])
+    return
+  }
+
   writeStack([...stack, fullPath])
 }
 
@@ -57,8 +86,8 @@ export function ensureAppNavStack(fullPath: string) {
  * Корневые вкладки сбрасывают стек; иначе пушим / обновляем вершину.
  */
 export function trackAppNavForward(toFullPath: string, fromFullPath: string, isRoot: (path: string) => boolean) {
-  const toPath = toFullPath.split('?')[0] || toFullPath
-  const fromPath = fromFullPath.split('?')[0] || fromFullPath
+  const toPath = pathOnly(toFullPath)
+  const fromPath = pathOnly(fromFullPath)
   const stack = readStack()
 
   if (isRoot(toPath)) {
@@ -74,13 +103,20 @@ export function trackAppNavForward(toFullPath: string, fromFullPath: string, isR
   const top = stack[stack.length - 1]
   if (top === toFullPath) return
 
-  if (top === fromFullPath || (top?.split('?')[0] === fromPath && fromFullPath)) {
+  // Не пушим A→B→A: если цель уже ниже вершины — обрезаем до неё
+  const existingIdx = stack.map(pathOnly).lastIndexOf(toPath)
+  if (existingIdx >= 0 && existingIdx < stack.length - 1) {
+    writeStack([...stack.slice(0, existingIdx), toFullPath])
+    return
+  }
+
+  if (top === fromFullPath || (top && pathOnly(top) === fromPath && fromFullPath)) {
     writeStack([...stack, toFullPath])
     return
   }
 
   // replace-навигация / рассинхрон после reload — держим историю, меняем вершину
-  if (top?.split('?')[0] === toPath) {
+  if (top && pathOnly(top) === toPath) {
     writeStack([...stack.slice(0, -1), toFullPath])
     return
   }

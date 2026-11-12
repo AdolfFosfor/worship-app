@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { formatServiceDatePill } from '~/utils/dates'
+import { daysFromLocalToday, formatServiceDatePill } from '~/utils/dates'
+import { pluralForm } from '~/utils/i18n/plural'
 import { icons, type AppIconName } from '~/utils/icons'
 
 const workspace = useWorkspaceStore()
@@ -96,28 +97,47 @@ onMounted(() => {
 })
 
 function formatDatePill(iso: string) {
+  // Дата всегда с днём недели; «сегодня» выносим в соседний relative-pill
   return formatServiceDatePill(iso, {
     locale: locale.value,
-    todayPrefix: (date) => t('dates.todayPrefix', { date }),
+    preferWeekday: true,
   })
 }
+
+function relativeServiceLabel(iso: string): string | null {
+  const days = daysFromLocalToday(iso)
+  if (days == null || days < 0) return null
+  if (days === 0) return t('dates.relative.today')
+  if (days === 1) return t('dates.relative.tomorrow')
+  if (days === 2) return t('dates.relative.dayAfterTomorrow')
+  const form = pluralForm(days, locale.value)
+  return t(`dates.relative.inDays_${form}`, { count: days })
+}
+
+const upcomingRelative = computed(() =>
+  upcoming.value ? relativeServiceLabel(upcoming.value.serviceDate) : null,
+)
+
+useAppHeader(() => ({
+  title: workspace.workspace?.name ?? 'Worship',
+}))
 </script>
 
 <template>
   <div class="app-page">
-    <AppHeader :title="workspace.workspace?.name ?? 'Worship'">
-      <template v-if="canCreate" #trailing>
-        <button
-          type="button"
-          class="app-header-action"
-          :aria-label="t('common.create')"
-          aria-haspopup="menu"
-          @click="toggleCreateMenu"
-        >
-          <AppIcon :name="icons.add" />
-        </button>
-      </template>
-    </AppHeader>
+    <AppHeaderTrailing>
+      <button
+        v-if="canCreate"
+        key="create"
+        type="button"
+        class="app-header-action"
+        :aria-label="t('common.create')"
+        aria-haspopup="menu"
+        @click="toggleCreateMenu"
+      >
+        <AppIcon :name="icons.add" />
+      </button>
+    </AppHeaderTrailing>
 
     <AppAnchoredMenu
       ref="createMenu"
@@ -144,60 +164,60 @@ function formatDatePill(iso: string) {
 
     <CreateSetlistSheet ref="createSetlistSheet" v-model:open="createSetlistOpen" />
 
-    <AppLoading v-if="loading" />
-    <AppError v-else-if="error" :message="error" @retry="load" />
-
-    <template v-else>
-      <AppSection :title="t('home.sectionUpcoming')">
-        <div class="home-hero app-panel app-panel--accent">
-          <template v-if="upcoming">
-            <NuxtLink :to="`/setlists/${upcoming.id}`" class="home-hero__link app-press">
+    <AppSection :title="t('home.sectionUpcoming')">
+      <SkeletonHomeHero v-if="loading && !upcoming && !error" />
+      <AppError v-else-if="error" :message="error" @retry="load" />
+      <div v-else class="home-hero app-panel app-panel--accent">
+        <template v-if="upcoming">
+          <NuxtLink :to="`/setlists/${upcoming.id}`" class="home-hero__link app-press">
+            <div class="home-hero__when">
               <AppPill>{{ formatDatePill(upcoming.serviceDate) }}</AppPill>
-              <h3 class="home-hero__title">{{ sessionTitle(upcoming.title) }}</h3>
-              <AppIcon :name="icons.chevronRight" class="home-hero__chevron" size="1.05rem" />
-            </NuxtLink>
-            <div
-              v-if="upcoming.items.length"
-              class="home-hero__songs app-chip-row"
-              :aria-label="t('home.ariaSetlistSongs')"
-            >
-              <NuxtLink
-                v-for="item in upcoming.items"
-                :key="item.id"
-                :to="{
-                  path: `/songs/${item.songId}`,
-                  query: {
-                    key: item.key ?? item.song.key,
-                    from: `/setlists/${upcoming.id}`,
-                  },
-                }"
-                class="home-hero__song-link"
-              >
-                <AppPill tone="soft">{{ item.song.title }}</AppPill>
-              </NuxtLink>
+              <AppPill v-if="upcomingRelative" tone="soft">{{ upcomingRelative }}</AppPill>
             </div>
-          </template>
-          <div v-else class="home-hero__empty">
-            <AppEmptyState
-              :title="t('home.emptyUpcomingTitle')"
-              :description="t('home.emptyUpcomingDesc')"
+            <h3 class="home-hero__title">{{ sessionTitle(upcoming.title) }}</h3>
+            <AppIcon :name="icons.chevronRight" class="home-hero__chevron" size="1.05rem" />
+          </NuxtLink>
+          <div
+            v-if="upcoming.items.length"
+            class="home-hero__songs app-chip-row"
+            :aria-label="t('home.ariaSetlistSongs')"
+          >
+            <NuxtLink
+              v-for="item in upcoming.items"
+              :key="item.id"
+              :to="{
+                path: `/songs/${item.songId}`,
+                query: {
+                  key: item.key ?? item.song.key,
+                  from: `/setlists/${upcoming.id}`,
+                },
+              }"
+              class="home-hero__song-link"
             >
-              <template v-if="workspace.canEditSetlists" #action>
-                <button type="button" class="app-cta" @click="createSetlistSheet?.open()">
-                  <AppIcon :name="icons.add" size="1.1rem" />
-                  {{ t('common.create') }}
-                </button>
-              </template>
-            </AppEmptyState>
+              <AppPill tone="soft">{{ item.song.title }}</AppPill>
+            </NuxtLink>
           </div>
+        </template>
+        <div v-else class="home-hero__empty">
+          <AppEmptyState
+            :title="t('home.emptyUpcomingTitle')"
+            :description="t('home.emptyUpcomingDesc')"
+          >
+            <template v-if="workspace.canEditSetlists" #action>
+              <button type="button" class="app-cta" @click="createSetlistSheet?.open()">
+                <AppIcon :name="icons.add" size="1.1rem" />
+                {{ t('common.create') }}
+              </button>
+            </template>
+          </AppEmptyState>
         </div>
-      </AppSection>
+      </div>
+    </AppSection>
 
-      <AppSection v-if="pulseSummary || pulseLoading">
-        <div v-if="pulseLoading && !pulseSummary" class="home-pulse-skeleton app-panel" />
-        <RepertoirePulseCard v-else-if="pulseSummary" :summary="pulseSummary" />
-      </AppSection>
-    </template>
+    <AppSection v-if="pulseSummary || pulseLoading">
+      <SkeletonPulseCard v-if="pulseLoading && !pulseSummary" />
+      <RepertoirePulseCard v-else-if="pulseSummary" :summary="pulseSummary" />
+    </AppSection>
   </div>
 </template>
 
@@ -217,6 +237,14 @@ function formatDatePill(iso: string) {
   padding-right: 2.5rem;
   text-decoration: none;
   color: inherit;
+}
+
+.home-hero__when {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  max-width: 100%;
 }
 
 .home-hero__title {
@@ -263,10 +291,5 @@ function formatDatePill(iso: string) {
 
 .home-hero__empty {
   padding: var(--app-space-2) 0;
-}
-
-.home-pulse-skeleton {
-  min-height: 14rem;
-  background: color-mix(in srgb, var(--app-surface) 70%, var(--app-hover));
 }
 </style>

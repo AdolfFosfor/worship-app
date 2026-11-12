@@ -103,12 +103,14 @@ function showConfirm() {
     },
   })
 }
+useAppHeader({
+  title: 'UI Lab',
+  subtitle: 'Оверлеи и уведомления',
+})
 </script>
 
 <template>
   <div class="app-page">
-    <AppHeader title="UI Lab" subtitle="Оверлеи и уведомления" />
-
     <p class="ui-lab__lead">
       Песочница для переработки всплывающих окон. Сейчас — тосты и confirm.
       Шорткат: Option/Alt + T.

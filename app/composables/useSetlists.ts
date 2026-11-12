@@ -66,14 +66,15 @@ export function useSetlists() {
   /** Общий кэш ближайшего сета с песнями — без второй «вспышки» пиллов на главной/списке. */
   const upcoming = useState<SetlistWithItems | null>('setlists-upcoming-cache', () => null)
 
-  async function fetchSetlists() {
+  async function fetchSetlists(opts?: { quiet?: boolean }) {
     const workspace = useWorkspaceStore()
     if (!workspace.workspace) {
       setlists.value = []
       return []
     }
 
-    loading.value = true
+    const showLoading = !opts?.quiet
+    if (showLoading) loading.value = true
     error.value = null
     try {
       const supabase = getSupabaseBrowserClient()
@@ -89,7 +90,7 @@ export function useSetlists() {
       error.value = e instanceof Error ? e.message : 'Не удалось загрузить сет-листы'
       throw e
     } finally {
-      loading.value = false
+      if (showLoading) loading.value = false
     }
   }
 

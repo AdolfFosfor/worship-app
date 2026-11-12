@@ -143,12 +143,14 @@ function initials(name: string) {
 function isOwn(member: WorkspaceMember) {
   return member.userId === auth.user?.id
 }
+useAppHeader(() => ({
+  title: t('members.title'),
+  subtitle: workspace.workspace?.name ?? null,
+}))
 </script>
 
 <template>
   <div class="app-page">
-    <AppHeader :title="t('members.title')" :subtitle="workspace.workspace?.name" />
-
     <AppSection v-if="workspace.canEditMembers" :title="t('members.inviteSection')">
       <div class="invite-hero app-panel app-panel--accent">
         <AppPill>{{ t('members.code') }}</AppPill>
@@ -171,7 +173,9 @@ function isOwn(member: WorkspaceMember) {
       </div>
     </AppSection>
 
-    <AppLoading v-if="loading && !members.length" />
+    <AppSection v-if="loading && !members.length" :title="t('members.sectionList')">
+      <SkeletonListRows :rows="5" />
+    </AppSection>
     <AppError v-else-if="error" :message="error" @retry="fetchMembers" />
     <AppEmptyState v-else-if="!members.length" :title="t('members.empty')" />
 

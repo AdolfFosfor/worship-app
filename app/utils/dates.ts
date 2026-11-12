@@ -19,6 +19,20 @@ export function isSameLocalDay(isoDate: string, now = new Date()): boolean {
   }
 }
 
+/** Разница календарных дней: 0 = сегодня, 1 = завтра, 2 = послезавтра. */
+export function daysFromLocalToday(isoDate: string, now = new Date()): number | null {
+  try {
+    const target = new Date(`${isoDate}T12:00:00`)
+    if (Number.isNaN(target.getTime())) return null
+    const today = new Date(now)
+    today.setHours(12, 0, 0, 0)
+    target.setHours(12, 0, 0, 0)
+    return Math.round((target.getTime() - today.getTime()) / 86_400_000)
+  } catch {
+    return null
+  }
+}
+
 const LOCALE_TAG: Record<string, string> = {
   ru: 'ru-RU',
   ro: 'ro-RO',
@@ -28,13 +42,19 @@ const LOCALE_TAG: Record<string, string> = {
 /** Short pill for setlist service dates; marks today explicitly. */
 export function formatServiceDatePill(
   iso: string,
-  opts?: { locale?: string; todayPrefix?: (date: string) => string; now?: Date },
+  opts?: {
+    locale?: string
+    todayPrefix?: (date: string) => string
+    now?: Date
+    /** Всегда weekday + date (когда «сегодня» показывают отдельным relative-label). */
+    preferWeekday?: boolean
+  },
 ): string {
   const now = opts?.now ?? new Date()
   const tag = LOCALE_TAG[opts?.locale ?? 'en'] ?? opts?.locale ?? 'en-GB'
   try {
     const date = new Date(`${iso}T12:00:00`)
-    if (isSameLocalDay(iso, now)) {
+    if (!opts?.preferWeekday && isSameLocalDay(iso, now)) {
       const dayMonth = new Intl.DateTimeFormat(tag, {
         day: 'numeric',
         month: 'short',

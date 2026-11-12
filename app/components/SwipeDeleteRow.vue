@@ -63,6 +63,8 @@ const haptics = useHaptics()
 const offset = ref(0)
 const dragging = ref(false)
 const open = ref(false)
+/** Пока жест горизонтальный/ещё определяется — PTR и edge-swipe на паузе */
+const trackingUi = ref(false)
 const contentEl = ref<HTMLElement | null>(null)
 
 let startX = 0
@@ -133,6 +135,7 @@ function clearWheelIdle() {
 
 function reset() {
   tracking = false
+  trackingUi.value = false
   axis = null
   armed = null
   moved = false
@@ -146,6 +149,7 @@ function reset() {
 
 function snapOpen() {
   tracking = false
+  trackingUi.value = false
   axis = null
   armed = null
   activePointerId = null
@@ -202,6 +206,7 @@ function commitIfArmed() {
   dragging.value = false
   wheelTracking = false
   tracking = false
+  trackingUi.value = false
   axis = null
   activePointerId = null
   armed = null
@@ -238,6 +243,7 @@ function commitIfArmed() {
 
 function beginTrack(clientX: number, clientY: number) {
   tracking = true
+  trackingUi.value = true
   axis = null
   armed = null
   moved = false
@@ -256,14 +262,17 @@ function moveTrack(clientX: number, clientY: number): boolean {
     axis = Math.abs(dx) > Math.abs(dy) * 1.1 ? 'h' : 'v'
     if (axis === 'v') {
       tracking = false
+      trackingUi.value = false
       return false
     }
     if (dx < 0 && !endSideEnabled.value && !open.value) {
       tracking = false
+      trackingUi.value = false
       return false
     }
     if (dx > 0 && !props.startEnabled && !open.value) {
       tracking = false
+      trackingUi.value = false
       return false
     }
     dragging.value = true
@@ -279,6 +288,7 @@ function endTrack() {
   if (!tracking && !dragging.value) return
   if (wheelTracking) return
   tracking = false
+  trackingUi.value = false
   axis = null
   commitIfArmed()
 }
@@ -356,6 +366,7 @@ function onTouchCancel() {
   if (dragging.value || tracking) {
     if (open.value) {
       tracking = false
+      trackingUi.value = false
       axis = null
       dragging.value = false
       offset.value = revealWidth.value
@@ -476,9 +487,9 @@ defineExpose({ reset })
 <template>
   <div
     class="swipe-delete"
-    data-no-ptr
     :class="{
       'swipe-delete--disabled': disabled,
+      'swipe-delete--tracking': trackingUi,
       'swipe-delete--dragging': dragging,
       'swipe-delete--open': open,
       'swipe-delete--reveal': revealMode,

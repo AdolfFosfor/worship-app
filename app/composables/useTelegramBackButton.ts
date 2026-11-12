@@ -1,5 +1,5 @@
 import { backButton } from '@tma.js/sdk-vue'
-import { popAppNavStack } from '~/composables/useAppNavStack'
+import { popAppNavStack, resetAppNavStack } from '~/composables/useAppNavStack'
 import { safeInternalPath } from '~/utils/safeInternalPath'
 
 /** Корневые вкладки и публичные экраны — без Telegram BackButton. */
@@ -20,6 +20,9 @@ function isRootPath(path: string): boolean {
 
 function fallbackParent(path: string): string {
   if (path === '/songs/new' || path.startsWith('/songs/new/')) return '/songs'
+  if (path.match(/^\/songs\/[^/]+\/edit\/?$/)) {
+    return path.replace(/\/edit\/?$/, '')
+  }
   if (path.startsWith('/songs/')) return '/songs'
   if (path.startsWith('/setlists/')) return '/setlists'
   if (path.startsWith('/repertoire/songs/')) return '/repertoire'
@@ -31,6 +34,21 @@ function fallbackParent(path: string): string {
   return '/'
 }
 
+function pathOnly(fullPath: string): string {
+  return fullPath.split('?')[0] || fullPath
+}
+
+let backInFlight = false
+let clickBound = false
+
+function goReplace(target: string) {
+  // Сбрасываем стек на цель — иначе leftover deep-entry даёт луп A↔parent
+  resetAppNavStack(target)
+  void navigateTo(target, { replace: true }).finally(() => {
+    backInFlight = false
+  })
+}
+
 /**
  * Единый «назад» для TMA BackButton и edge-swipe.
  *
@@ -38,7 +56,16 @@ function fallbackParent(path: string): string {
  * Всегда `replace`, чтобы не плодить history в WebView.
  */
 export function navigateAppBack() {
+  if (!import.meta.client) return
+  if (backInFlight) return
+
   const route = useRoute()
+  if (isRootPath(route.path)) {
+    backInFlight = false
+    return
+  }
+
+  backInFlight = true
   const { markPopNavigation } = useNavigationDirection()
   markPopNavigation()
   useHaptics().impact('soft')
@@ -51,34 +78,48 @@ export function navigateAppBack() {
   const editMatch = route.path.match(/^\/songs\/([^/]+)\/edit\/?$/)
   if (editMatch) {
     const songPrefix = `/songs/${editMatch[1]}`
-    if (stacked && stacked.startsWith(songPrefix) && !stacked.includes('/edit')) {
-      void navigateTo(stacked, { replace: true })
+    if (stacked && pathOnly(stacked).startsWith(songPrefix) && !pathOnly(stacked).includes('/edit')) {
+      void navigateTo(stacked, { replace: true }).finally(() => {
+        backInFlight = false
+      })
       return
     }
-    void navigateTo(
-      {
-        path: songPrefix,
-        query: {
-          ...(from ? { from } : {}),
-          ...(key ? { key } : {}),
-        },
-      },
-      { replace: true },
-    )
+    const query = {
+      ...(from ? { from } : {}),
+      ...(key ? { key } : {}),
+    }
+    const qs = new URLSearchParams(query).toString()
+    const targetFull = qs ? `${songPrefix}?${qs}` : songPrefix
+    // Стек мог содержать только /edit — чистим, иначе луп edit↔song
+    resetAppNavStack(targetFull)
+    void navigateTo({ path: songPrefix, query }, { replace: true }).finally(() => {
+      backInFlight = false
+    })
     return
   }
 
-  if (stacked && stacked !== route.fullPath) {
-    void navigateTo(stacked, { replace: true })
+  if (stacked && pathOnly(stacked) !== route.path) {
+    // stacked уже вершина после pop — не reset в один элемент, сохраняем хвост истории
+    void navigateTo(stacked, { replace: true }).finally(() => {
+      backInFlight = false
+    })
     return
   }
 
-  if (from) {
-    void navigateTo(from, { replace: true })
+  // Стек пуст / рассинхрон / тот же path — идём на from или родителя и ЧИСТИМ стек
+  // (иначе leftover `/songs/1` + navigate `/songs` → снова Back на `/songs/1`)
+  if (from && pathOnly(from) !== route.path) {
+    goReplace(from)
     return
   }
 
-  void navigateTo(fallbackParent(route.path), { replace: true })
+  const parent = fallbackParent(route.path)
+  if (parent === route.path) {
+    resetAppNavStack(parent)
+    backInFlight = false
+    return
+  }
+  goReplace(parent)
 }
 
 /**
@@ -110,7 +151,10 @@ export function useTelegramBackButton() {
     try {
       if (backButton.isSupported()) {
         if (!backButton.isMounted()) backButton.mount()
-        backButton.onClick(navigateAppBack)
+        if (!clickBound) {
+          backButton.onClick(navigateAppBack)
+          clickBound = true
+        }
       }
     } catch {
       // ignore
@@ -120,9 +164,10 @@ export function useTelegramBackButton() {
   watch(() => route.fullPath, sync)
 
   onBeforeUnmount(() => {
+    // Layout обычно живёт весь сеанс — не снимаем onClick при HMR-ремоунте родителя
+    // с другим инстансом. Скрытие кнопки на корне делает sync().
     try {
-      if (backButton.isSupported()) {
-        backButton.offClick(navigateAppBack)
+      if (backButton.isSupported() && isRootPath(route.path)) {
         backButton.hide()
       }
     } catch {

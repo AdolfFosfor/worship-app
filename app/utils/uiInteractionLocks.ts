@@ -9,7 +9,9 @@ const BLOCKING_SELECTOR = [
   '.member-sheet-mask',
   '.p-dialog-mask',
   '.chord-stage--fullscreen',
+  /* Горизонтальный свайп уже захвачен / панель открыта */
   '.swipe-delete--dragging',
+  '.swipe-delete--open',
   '.app-shell--swiping',
   '.app-shell--keyboard-open',
   '.app-shell--chord-kb-open',

@@ -67,11 +67,13 @@ watch(
     if (ok && !done.value && !busy.value) void accept()
   },
 )
+useAppHeader(() => ({
+  title: t('invite.title'),
+}))
 </script>
 
 <template>
   <div class="app-page">
-    <AppHeader :title="t('invite.title')" />
     <p class="invite__code">{{ t('invite.codeLabel') }} {{ code }}</p>
     <Button
       :label="t('invite.join')"

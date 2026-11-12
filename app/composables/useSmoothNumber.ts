@@ -9,7 +9,8 @@ const displayCache = new Map<string, number>()
 
 /**
  * Плавно ведёт display к target всегда от текущего кадра (не от пропса).
- * cacheKey — чтобы после remount продолжить с последнего показанного значения.
+ * cacheKey — после remount продолжить с последнего показанного значения.
+ * Без кэша стартуем с 0, чтобы первая загрузка тоже анимировалась «из нуля».
  */
 export function useSmoothNumber(
   target: MaybeRefOrGetter<number>,
@@ -21,9 +22,11 @@ export function useSmoothNumber(
   const reduced = usePreferredReducedMotion()
   const keyOf = () => toValue(options?.cacheKey)
 
-  const initialTarget = toValue(target)
-  const cached = keyOf() ? displayCache.get(keyOf()!) : undefined
-  const display = ref(cached ?? initialTarget)
+  const cached = (() => {
+    const key = keyOf()
+    return key ? displayCache.get(key) : undefined
+  })()
+  const display = ref(cached ?? 0)
 
   let raf = 0
   let from = display.value
@@ -94,7 +97,7 @@ export function useSmoothNumber(
   )
 
   onMounted(() => {
-    if (Math.abs(display.value - toValue(target)) > 0.001) go(toValue(target))
+    go(toValue(target))
   })
 
   onBeforeUnmount(() => {

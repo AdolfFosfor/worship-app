@@ -6,6 +6,8 @@ definePageMeta({
   public: true,
 })
 
+useAppHeader({ visible: false })
+
 const auth = useAuthStore()
 const telegram = useTelegramApp()
 const toast = useToast()

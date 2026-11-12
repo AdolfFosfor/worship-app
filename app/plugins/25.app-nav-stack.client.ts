@@ -19,6 +19,9 @@ function isRootPath(path: string): boolean {
   return false
 }
 
+let popGuardInstalled = false
+let popHandling = false
+
 /**
  * Синхронизирует sessionStorage-стек с роутером и подстраховывает history,
  * чтобы системный Back в Telegram не закрывал Mini App после reload.
@@ -46,6 +49,9 @@ export default defineNuxtPlugin({
 })
 
 function installTelegramHistoryGuard() {
+  if (popGuardInstalled) return
+  popGuardInstalled = true
+
   const state = history.state
   if (!state || state.worshipNavGuard !== 2) {
     try {
@@ -67,8 +73,19 @@ function installTelegramHistoryGuard() {
       /* ignore */
     }
 
+    if (popHandling) return
     const path = useRoute().path
     if (isRootPath(path)) return
-    navigateAppBack()
+
+    popHandling = true
+    try {
+      navigateAppBack()
+    } finally {
+      // navigateAppBack сам держит backInFlight до конца navigateTo;
+      // этот флаг только против двойного popstate подряд
+      queueMicrotask(() => {
+        popHandling = false
+      })
+    }
   })
 }
