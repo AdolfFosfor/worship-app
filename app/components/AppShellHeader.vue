@@ -32,15 +32,18 @@ watchEffect(() => {
     <div class="app-header">
       <div class="app-header__text">
         <div data-app-header-title class="app-header__title-slot">
+          <!--
+            Typed прячется через :has(), только когда в слоте есть Teleport.
+            Так не бывает пустого хедера при залипшем customTitle после KeepAlive.
+          -->
           <h1
-            v-show="!customTitle"
             class="app-header__title"
             :class="{ 'app-header__title--display': titleSize === 'display' }"
             :aria-label="title"
           >
             <span aria-hidden="true">{{ typedTitle }}</span>
             <span
-              v-show="isTyping"
+              v-show="isTyping && !customTitle"
               class="app-header__title-caret"
               aria-hidden="true"
             />
@@ -71,7 +74,7 @@ watchEffect(() => {
 
 .app-header {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--app-space-2);
   min-height: 2.75rem;
@@ -79,17 +82,25 @@ watchEffect(() => {
 
 .app-header__text {
   min-width: 0;
+  overflow: hidden;
 }
 
 .app-header__title-slot,
 .app-header__subtitle-slot {
   min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.app-header__title-slot:has(> :not(.app-header__title)) .app-header__title {
+  display: none;
 }
 
 .app-header__title {
   margin: 0;
-  display: inline-flex;
+  display: flex;
   align-items: center;
+  width: fit-content;
   max-width: 100%;
   font-size: var(--app-text-2xl);
   font-weight: 700;
@@ -98,14 +109,19 @@ watchEffect(() => {
   color: var(--app-ink);
   white-space: nowrap;
   overflow: hidden;
+}
+
+.app-header__title > span:first-child {
+  min-width: 0;
+  overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* Как song-view__title / setlist-header__title — без скачка после печати */
+/* legacy: titleSize=display больше не используем для песен/сетов */
 .app-header__title--display {
-  font-size: 2.125rem;
-  letter-spacing: -0.035em;
-  line-height: 1.12;
+  font-size: var(--app-text-2xl);
+  letter-spacing: -0.03em;
+  line-height: 1.15;
 }
 
 .app-header__title-caret {
@@ -136,7 +152,7 @@ watchEffect(() => {
   justify-content: flex-end;
   gap: var(--app-space-2);
   min-height: 2.5rem;
-  min-width: 0;
+  flex-shrink: 0;
 }
 
 .header-subtitle-enter-active,

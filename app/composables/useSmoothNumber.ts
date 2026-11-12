@@ -111,3 +111,15 @@ export function useSmoothNumber(
 export function peekSmoothNumber(cacheKey: string) {
   return displayCache.get(cacheKey)
 }
+
+/** Сброс кэша (префикс `pulse:` / `plays:` — для анимации карточки при каждом заходе). */
+export function clearSmoothNumberCache(prefix?: string) {
+  if (!prefix) {
+    displayCache.clear()
+    return
+  }
+  for (const key of [...displayCache.keys()]) {
+    if (key.startsWith(prefix)) displayCache.delete(key)
+  }
+}
+

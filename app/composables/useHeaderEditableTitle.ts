@@ -15,6 +15,15 @@ export function useHeaderEditableTitle(options: {
   const typed = useAppHeaderTyped()
   const revealEditable = ref(false)
 
+  useAppHeader(() => ({
+    title: toValue(options.title),
+    typeMs: 11,
+    eraseMs: 7,
+    customTitle:
+      revealEditable.value && toValue(options.canEdit) && Boolean(toValue(options.title)),
+    ...(toValue(options.extra) ?? {}),
+  }))
+
   function tryReveal() {
     const title = toValue(options.title)
     const canEdit = toValue(options.canEdit)
@@ -49,6 +58,9 @@ export function useHeaderEditableTitle(options: {
   )
 
   onActivated(resetReveal)
+  onDeactivated(() => {
+    revealEditable.value = false
+  })
 
   watch(
     () => ({
@@ -62,16 +74,6 @@ export function useHeaderEditableTitle(options: {
     },
     { immediate: true },
   )
-
-  useAppHeader(() => ({
-    title: toValue(options.title),
-    titleSize: 'display',
-    typeMs: 11,
-    eraseMs: 7,
-    customTitle:
-      revealEditable.value && toValue(options.canEdit) && Boolean(toValue(options.title)),
-    ...(toValue(options.extra) ?? {}),
-  }))
 
   return {
     revealEditable: computed(

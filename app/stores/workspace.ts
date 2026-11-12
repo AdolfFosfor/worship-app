@@ -26,6 +26,8 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   const canEditSongs = computed(() => canManageSongs(role.value))
   const canEditSetlists = computed(() => canManageSetlists(role.value))
   const canEditMembers = computed(() => canManageMembers(role.value))
+  /** Переименование команды — только администратор (RLS workspaces_update_admin). */
+  const canEditWorkspace = computed(() => canManageMembers(role.value))
   const hasWorkspace = computed(() => Boolean(workspace.value && membership.value))
 
   function applyWorkspace(ws: Workspace, member: WorkspaceMember) {
@@ -182,6 +184,27 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     }
   }
 
+  async function updateWorkspaceName(name: string) {
+    if (!workspace.value) throw new Error('No workspace')
+    if (!canEditWorkspace.value) throw new Error('Forbidden')
+
+    const next = name.replace(/\s+/g, ' ').trim()
+    if (!next) throw new Error('Empty name')
+    if (next === workspace.value.name) return workspace.value
+
+    const supabase = getSupabaseBrowserClient()
+    const { data, error: qError } = await supabase
+      .from('workspaces')
+      .update({ name: next })
+      .eq('id', workspace.value.id)
+      .select('*')
+      .single()
+    if (qError) throw qError
+
+    workspace.value = mapWorkspace(data as DbWorkspace)
+    return workspace.value
+  }
+
   async function leaveWorkspace() {
     const auth = useAuthStore()
     if (!auth.user || !workspace.value || !membership.value) {
@@ -246,9 +269,11 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     canEditSongs,
     canEditSetlists,
     canEditMembers,
+    canEditWorkspace,
     loadCurrent,
     createWorkspace,
     joinByInviteCode,
+    updateWorkspaceName,
     leaveWorkspace,
     clear,
   }

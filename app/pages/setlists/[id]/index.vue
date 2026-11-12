@@ -598,7 +598,7 @@ const { revealEditable } = useHeaderEditableTitle({
       >
         <h1
           ref="titleEl"
-          class="setlist-header__title setlist-header__title--editable"
+          class="app-header-editable-title app-header-editable-title--editable"
           :class="{ 'is-editing': titleFocused }"
           contenteditable="true"
           spellcheck="false"
@@ -1007,47 +1007,6 @@ const { revealEditable } = useHeaderEditableTitle({
   margin-top: 0.15rem;
   width: fit-content;
   max-width: 100%;
-}
-
-/*
-  contenteditable h1 — не input, поэтому глобальный input{font-size:16px}
-  из main.css не давит размер. Ширина = текст → черта совпадает.
-*/
-.setlist-header__title {
-  display: block;
-  width: fit-content;
-  max-width: 100%;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  /* Крупнее стандартного header (2xl = 1.625rem) — contenteditable, не input */
-  font-size: 2.125rem !important;
-  font-weight: 700;
-  letter-spacing: -0.035em;
-  line-height: 1.12;
-  color: var(--app-ink);
-  text-align: left;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.setlist-header__title--editable {
-  cursor: pointer;
-  outline: none;
-  caret-color: var(--app-accent-text);
-  box-shadow: inset 0 -1.5px 0 transparent;
-  transition: box-shadow 160ms var(--app-ease);
-}
-
-.setlist-header__title--editable.is-editing {
-  text-overflow: clip;
-  box-shadow: inset 0 -1.5px 0 var(--app-accent);
-}
-
-.setlist-header__title--editable::selection {
-  background: color-mix(in srgb, var(--app-accent) 22%, transparent);
 }
 
 .setlist-header__subtitle {

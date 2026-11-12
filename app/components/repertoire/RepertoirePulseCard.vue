@@ -6,6 +6,7 @@ import {
 import type { RepertoirePulseSummary } from '~~/shared/types'
 import { pluralForm } from '~/utils/i18n/plural'
 import { icons } from '~/utils/icons'
+import { clearPulseBarCache } from '~/utils/repertoire/pulseAnimCache'
 import { REPERTOIRE_PERIODS, periodLabelKey } from '~/utils/repertoire/period'
 
 const props = defineProps<{
@@ -101,8 +102,27 @@ function songLink(id: string) {
   return `/repertoire/songs/${id}`
 }
 
+/** KeepAlive: при каждом возврате на главную — анимация снова с нуля. */
+const animEpoch = ref(0)
+let skipActivateReplay = true
+
+function replayPulseAnim() {
+  clearSmoothNumberCache('pulse:')
+  clearSmoothNumberCache('plays:')
+  clearPulseBarCache()
+  animEpoch.value += 1
+}
+
 onMounted(() => {
   document.addEventListener('pointerdown', onPeriodMenuPointerDown, true)
+})
+
+onActivated(() => {
+  if (skipActivateReplay) {
+    skipActivateReplay = false
+    return
+  }
+  replayPulseAnim()
 })
 
 onBeforeUnmount(() => {
@@ -157,92 +177,100 @@ onBeforeUnmount(() => {
       </div>
     </Teleport>
 
-    <div
-      class="pulse-card__metrics"
-      :class="{ 'pulse-card__metrics--cols-2': !showNewMetric }"
-      role="group"
-      :aria-label="t('repertoire.sectionOverview')"
-    >
-      <NuxtLink
-        to="/repertoire?section=all"
-        class="pulse-card__metric pulse-card__metric--all app-press"
-        :aria-label="`${summary.uniqueSongs} ${t('repertoire.metricUnique')}`"
+    <div :key="animEpoch" class="pulse-card__anim">
+      <div
+        class="pulse-card__metrics"
+        :class="{ 'pulse-card__metrics--cols-2': !showNewMetric }"
+        role="group"
+        :aria-label="t('repertoire.sectionOverview')"
       >
-        <span class="pulse-card__value">
-          <AppAnimatedNumber cache-key="pulse:unique" :value="summary.uniqueSongs" />
-        </span>
-        <span class="pulse-card__label">{{ t('repertoire.metricUnique') }}</span>
-      </NuxtLink>
-
-      <NuxtLink
-        v-if="showNewMetric"
-        to="/repertoire?section=new"
-        class="pulse-card__metric pulse-card__metric--new app-press"
-        :aria-label="`${summary.newSongs} ${t('repertoire.metricNew')}`"
-      >
-        <span class="pulse-card__value">
-          <AppAnimatedNumber cache-key="pulse:new" :value="summary.newSongs" />
-        </span>
-        <span class="pulse-card__label">{{ t('repertoire.metricNew') }}</span>
-      </NuxtLink>
-
-      <NuxtLink
-        to="/repertoire?section=stale"
-        class="pulse-card__metric pulse-card__metric--stale app-press"
-        :aria-label="`${summary.staleCount} ${t('repertoire.metricStale')}`"
-      >
-        <span class="pulse-card__value">
-          <AppAnimatedNumber cache-key="pulse:stale" :value="summary.staleCount" />
-        </span>
-        <span class="pulse-card__label">{{ t('repertoire.metricStale') }}</span>
-      </NuxtLink>
-    </div>
-
-    <div v-if="frequent.length" class="pulse-card__favorites">
-      <span class="pulse-card__block-title">{{ t('repertoire.sectionFavorites') }}</span>
-      <TransitionGroup name="pulse-fav" appear tag="ul" class="pulse-card__list">
-        <li
-          v-for="(item, index) in frequent"
-          :key="item.id"
-          class="pulse-card__fav"
-          :class="{ 'pulse-card__fav--lead': index === 0 }"
+        <NuxtLink
+          to="/repertoire?section=all"
+          class="pulse-card__metric pulse-card__metric--all app-press"
+          :aria-label="`${summary.uniqueSongs} ${t('repertoire.metricUnique')}`"
         >
-          <NuxtLink :to="songLink(item.id)" class="pulse-card__fav-link app-press">
-            <span class="pulse-card__rank" aria-hidden="true">{{ index + 1 }}</span>
-            <div class="pulse-card__fav-body">
-              <div class="pulse-card__fav-row">
-                <span class="pulse-card__fav-title">{{ item.title }}</span>
-                <span class="pulse-card__fav-plays">
-                  <RepertoireAnimatedPlays :song-id="item.id" :count="item.total" />
-                </span>
-              </div>
-              <div
-                class="pulse-card__bar"
-                role="meter"
-                :aria-valuenow="barWidth(item.total)"
-                aria-valuemin="0"
-                aria-valuemax="100"
-                :aria-label="playsLabel(item.total)"
-              >
-                <RepertoireAnimatedBar
-                  :song-id="item.id"
-                  :percent="barWidth(item.total)"
-                  :lead="index === 0"
-                />
-              </div>
-            </div>
-          </NuxtLink>
-        </li>
-      </TransitionGroup>
-    </div>
+          <span class="pulse-card__value">
+            <AppAnimatedNumber cache-key="pulse:unique" :value="summary.uniqueSongs" />
+          </span>
+          <span class="pulse-card__label">{{ t('repertoire.metricUnique') }}</span>
+        </NuxtLink>
 
-    <p v-else-if="summary.executionCount === 0" class="pulse-card__hint">
-      {{ t('repertoire.homeEmptyHint') }}
-    </p>
+        <NuxtLink
+          v-if="showNewMetric"
+          to="/repertoire?section=new"
+          class="pulse-card__metric pulse-card__metric--new app-press"
+          :aria-label="`${summary.newSongs} ${t('repertoire.metricNew')}`"
+        >
+          <span class="pulse-card__value">
+            <AppAnimatedNumber cache-key="pulse:new" :value="summary.newSongs" />
+          </span>
+          <span class="pulse-card__label">{{ t('repertoire.metricNew') }}</span>
+        </NuxtLink>
+
+        <NuxtLink
+          to="/repertoire?section=stale"
+          class="pulse-card__metric pulse-card__metric--stale app-press"
+          :aria-label="`${summary.staleCount} ${t('repertoire.metricStale')}`"
+        >
+          <span class="pulse-card__value">
+            <AppAnimatedNumber cache-key="pulse:stale" :value="summary.staleCount" />
+          </span>
+          <span class="pulse-card__label">{{ t('repertoire.metricStale') }}</span>
+        </NuxtLink>
+      </div>
+
+      <div v-if="frequent.length" class="pulse-card__favorites">
+        <span class="pulse-card__block-title">{{ t('repertoire.sectionFavorites') }}</span>
+        <TransitionGroup name="pulse-fav" appear tag="ul" class="pulse-card__list">
+          <li
+            v-for="(item, index) in frequent"
+            :key="item.id"
+            class="pulse-card__fav"
+            :class="{ 'pulse-card__fav--lead': index === 0 }"
+          >
+            <NuxtLink :to="songLink(item.id)" class="pulse-card__fav-link app-press">
+              <span class="pulse-card__rank" aria-hidden="true">{{ index + 1 }}</span>
+              <div class="pulse-card__fav-body">
+                <div class="pulse-card__fav-row">
+                  <span class="pulse-card__fav-title">{{ item.title }}</span>
+                  <span class="pulse-card__fav-plays">
+                    <RepertoireAnimatedPlays :song-id="item.id" :count="item.total" />
+                  </span>
+                </div>
+                <div
+                  class="pulse-card__bar"
+                  role="meter"
+                  :aria-valuenow="barWidth(item.total)"
+                  aria-valuemin="0"
+                  aria-valuemax="100"
+                  :aria-label="playsLabel(item.total)"
+                >
+                  <RepertoireAnimatedBar
+                    :song-id="item.id"
+                    :percent="barWidth(item.total)"
+                    :lead="index === 0"
+                  />
+                </div>
+              </div>
+            </NuxtLink>
+          </li>
+        </TransitionGroup>
+      </div>
+
+      <p v-else-if="summary.executionCount === 0" class="pulse-card__hint">
+        {{ t('repertoire.homeEmptyHint') }}
+      </p>
+    </div>
   </div>
 </template>
 
 <style scoped>
+.pulse-card__anim {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-4);
+}
+
 .pulse-card {
   position: relative;
   display: flex;

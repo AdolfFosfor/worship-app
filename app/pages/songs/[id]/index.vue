@@ -529,7 +529,7 @@ const { revealEditable } = useHeaderEditableTitle({
       >
         <h1
           ref="titleEl"
-          class="song-view__title song-view__title--editable"
+          class="app-header-editable-title app-header-editable-title--editable"
           :class="{ 'is-editing': titleFocused }"
           contenteditable="true"
           spellcheck="false"
@@ -745,42 +745,6 @@ const { revealEditable } = useHeaderEditableTitle({
 </template>
 
 <style scoped>
-.song-view__title {
-  display: block;
-  width: fit-content;
-  max-width: 100%;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  font-size: 2.125rem !important;
-  font-weight: 700;
-  letter-spacing: -0.035em;
-  line-height: 1.12;
-  color: var(--app-ink);
-  text-align: left;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.song-view__title--editable {
-  cursor: pointer;
-  outline: none;
-  caret-color: var(--app-accent-text);
-  box-shadow: inset 0 -1.5px 0 transparent;
-  transition: box-shadow 160ms var(--app-ease);
-}
-
-.song-view__title--editable.is-editing {
-  text-overflow: clip;
-  box-shadow: inset 0 -1.5px 0 var(--app-accent);
-}
-
-.song-view__title--editable::selection {
-  background: color-mix(in srgb, var(--app-accent) 22%, transparent);
-}
-
 .song-view__setlist-nav {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);

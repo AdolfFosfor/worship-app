@@ -107,6 +107,7 @@ const ru: MessageDict = {
 
   'home.createSong': 'Песня',
   'home.createSetlist': 'Сет-лист',
+  'home.editWorkspaceNameAria': 'Изменить название команды',
   'home.loadError': 'Ошибка загрузки',
   'home.sectionUpcoming': 'Ближайшее служение',
   'home.ariaSetlistSongs': 'Песни в сет-листе',
@@ -535,6 +536,7 @@ const ro: MessageDict = {
 
   'home.createSong': 'Cântec',
   'home.createSetlist': 'Setlist',
+  'home.editWorkspaceNameAria': 'Editează numele echipei',
   'home.loadError': 'Eroare la încărcare',
   'home.sectionUpcoming': 'Următorul serviciu',
   'home.ariaSetlistSongs': 'Cântece în setlist',
@@ -962,6 +964,7 @@ const en: MessageDict = {
 
   'home.createSong': 'Song',
   'home.createSetlist': 'Setlist',
+  'home.editWorkspaceNameAria': 'Edit team name',
   'home.loadError': 'Failed to load',
   'home.sectionUpcoming': 'Upcoming service',
   'home.ariaSetlistSongs': 'Songs in setlist',

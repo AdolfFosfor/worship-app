@@ -42,7 +42,7 @@ watch(
   () => props.songId,
   (id, prev) => {
     if (prev) pulseBarCache.set(prev, shown.value)
-    shown.value = clamp(pulseBarCache.get(id) ?? props.percent)
+    shown.value = clamp(pulseBarCache.get(id) ?? 0)
     if (ready.value) applyTarget(props.percent)
   },
 )

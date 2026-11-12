@@ -118,13 +118,167 @@ const upcomingRelative = computed(() =>
   upcoming.value ? relativeServiceLabel(upcoming.value.serviceDate) : null,
 )
 
-useAppHeader(() => ({
-  title: workspace.workspace?.name ?? 'Worship',
-}))
+const workspaceTitle = computed(() => workspace.workspace?.name ?? 'Worship')
+const canEditWorkspaceName = computed(() => workspace.canEditWorkspace)
+const TITLE_MAX_LEN = 48
+const titleEl = ref<HTMLElement | null>(null)
+const titleFocused = ref(false)
+const titleBusy = ref(false)
+const toast = useToast()
+const haptics = useHaptics()
+
+const { revealEditable } = useHeaderEditableTitle({
+  title: workspaceTitle,
+  canEdit: canEditWorkspaceName,
+  entityKey: () => workspace.workspace?.id ?? null,
+})
+
+async function syncTitleEl(raw?: string | null) {
+  await nextTick()
+  if (!titleEl.value || titleFocused.value) return
+  const value = raw ?? workspace.workspace?.name
+  if (value == null) return
+  if (titleEl.value.textContent !== value) {
+    titleEl.value.textContent = value
+  }
+}
+
+watch(
+  () => workspace.workspace?.name,
+  (next) => {
+    void syncTitleEl(next)
+  },
+)
+
+watch(titleEl, () => {
+  void syncTitleEl()
+})
+
+function readTitleText() {
+  return (titleEl.value?.innerText ?? '').replace(/\s+/g, ' ').trim()
+}
+
+function placeTitleCaretAtEnd() {
+  const el = titleEl.value
+  if (!el) return
+  const range = document.createRange()
+  range.selectNodeContents(el)
+  range.collapse(false)
+  const sel = window.getSelection()
+  sel?.removeAllRanges()
+  sel?.addRange(range)
+}
+
+function onTitlePointerDown(event: PointerEvent) {
+  event.preventDefault()
+  const el = titleEl.value
+  if (!el || !workspace.workspace) return
+  if (!titleFocused.value) {
+    titleFocused.value = true
+    haptics.tap()
+  }
+  el.focus({ preventScroll: true })
+  placeTitleCaretAtEnd()
+}
+
+function onTitleFocus() {
+  if (!workspace.workspace) return
+  titleFocused.value = true
+  placeTitleCaretAtEnd()
+}
+
+function onTitleKeydown(event: KeyboardEvent) {
+  if (event.key === 'Enter') {
+    event.preventDefault()
+    titleEl.value?.blur()
+    return
+  }
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    if (workspace.workspace && titleEl.value) {
+      titleEl.value.textContent = workspace.workspace.name
+    }
+    titleEl.value?.blur()
+  }
+}
+
+function onTitleBeforeInput(event: Event) {
+  const e = event as InputEvent
+  if (!e.inputType.startsWith('insert')) return
+  const el = titleEl.value
+  if (!el) return
+  const sel = window.getSelection()
+  const selected = sel?.toString().length ?? 0
+  const len = (el.innerText || '').length - selected
+  const incoming = e.data?.length ?? 1
+  if (len + incoming > TITLE_MAX_LEN) {
+    e.preventDefault()
+  }
+}
+
+function onTitlePaste(event: ClipboardEvent) {
+  event.preventDefault()
+  const el = titleEl.value
+  if (!el) return
+  const paste = event.clipboardData?.getData('text/plain') ?? ''
+  const sel = window.getSelection()
+  const selected = sel?.toString().length ?? 0
+  const current = el.innerText || ''
+  const room = TITLE_MAX_LEN - (current.length - selected)
+  if (room <= 0) return
+  document.execCommand('insertText', false, paste.slice(0, room))
+}
+
+async function commitTitle() {
+  titleFocused.value = false
+  if (!workspace.workspace || titleBusy.value) return
+  const next = readTitleText().slice(0, TITLE_MAX_LEN)
+  if (!next) {
+    if (titleEl.value) titleEl.value.textContent = workspace.workspace.name
+    return
+  }
+  if (titleEl.value) titleEl.value.textContent = next
+  if (next === workspace.workspace.name) return
+
+  titleBusy.value = true
+  const prev = workspace.workspace.name
+  try {
+    await workspace.updateWorkspaceName(next)
+  } catch (e) {
+    if (titleEl.value) titleEl.value.textContent = prev
+    toast.add({
+      severity: 'error',
+      summary: t('common.error'),
+      detail: e instanceof Error ? e.message : t('common.saveFailed'),
+      life: 4000,
+    })
+  } finally {
+    titleBusy.value = false
+  }
+}
 </script>
 
 <template>
   <div class="app-page">
+    <AppHeaderPortal
+      v-if="revealEditable"
+      to="[data-app-header-title]"
+    >
+      <h1
+        ref="titleEl"
+        class="app-header-editable-title app-header-editable-title--editable"
+        :class="{ 'is-editing': titleFocused }"
+        contenteditable="true"
+        spellcheck="false"
+        :aria-label="t('home.editWorkspaceNameAria')"
+        @pointerdown="onTitlePointerDown"
+        @focus="onTitleFocus"
+        @blur="commitTitle"
+        @keydown="onTitleKeydown"
+        @beforeinput="onTitleBeforeInput"
+        @paste="onTitlePaste"
+      />
+    </AppHeaderPortal>
     <AppHeaderTrailing>
       <button
         v-if="canCreate"

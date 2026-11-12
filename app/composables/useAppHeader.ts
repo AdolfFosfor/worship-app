@@ -37,6 +37,13 @@ type HeaderTypedState = {
 const DEFAULT_TYPE_MS = 22
 const DEFAULT_ERASE_MS = 14
 
+/** Кто последний синкнул хедер — deactivated страница не перетирает новую. */
+function headerOwner() {
+  return useState<number>('app-shell-header-owner', () => 0)
+}
+
+let ownerSeq = 0
+
 function headerState() {
   return useState<HeaderState>('app-shell-header', () => ({
     title: '',
@@ -60,13 +67,12 @@ export function useAppHeaderTyped() {
 
 /**
  * Единый хедер в layout: страницы задают title/subtitle и Teleport trailing.
- * Сам DOM хедера не пересоздаётся при смене вкладки.
- *
- * KeepAlive: watch на деактивированной странице на паузе и при возврате
- * не срабатывает, если конфиг не изменился — поэтому sync ещё и в onActivated.
+ * KeepAlive: только активный owner пишет title; уход снимает custom* флаги.
  */
 export function useAppHeader(config?: MaybeRefOrGetter<AppHeaderConfig>) {
   const state = headerState()
+  const owner = headerOwner()
+  const myId = ++ownerSeq
 
   function apply(next: AppHeaderConfig) {
     if (next.title !== undefined) state.value.title = next.title
@@ -79,8 +85,15 @@ export function useAppHeader(config?: MaybeRefOrGetter<AppHeaderConfig>) {
     if (next.eraseMs !== undefined) state.value.eraseMs = next.eraseMs
   }
 
+  /** Сброс custom-слотов — можно с любой страницы (portal disable). */
+  function clearCustomSlots(opts?: { title?: boolean; subtitle?: boolean }) {
+    if (opts?.title !== false) state.value.customTitle = false
+    if (opts?.subtitle !== false) state.value.customSubtitle = false
+  }
+
   function sync() {
     if (!config) return
+    owner.value = myId
     apply({
       visible: true,
       customTitle: false,
@@ -94,8 +107,20 @@ export function useAppHeader(config?: MaybeRefOrGetter<AppHeaderConfig>) {
   }
 
   if (config) {
-    watch(() => toValue(config), sync, { immediate: true, deep: true })
+    watch(
+      () => toValue(config),
+      () => {
+        // Не перетираем хедер, если уже владеет другая (активная) страница
+        if (owner.value !== 0 && owner.value !== myId) return
+        sync()
+      },
+      { immediate: true, deep: true },
+    )
     onActivated(sync)
+    onDeactivated(() => {
+      if (owner.value !== myId) return
+      clearCustomSlots()
+    })
   }
 
   const typed = useAppHeaderTyped()
@@ -112,5 +137,7 @@ export function useAppHeader(config?: MaybeRefOrGetter<AppHeaderConfig>) {
     typedText: computed(() => typed.value.text),
     isTyping: computed(() => typed.value.typing),
     apply,
+    clearCustomSlots,
+    sync,
   }
 }
