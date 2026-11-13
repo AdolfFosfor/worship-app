@@ -6,17 +6,15 @@ const props = withDefaults(
     songId: string
     count: number
     duration?: number
-    /** Смена epoch = новый прогон анимации с нуля (главная / KeepAlive). */
-    epoch?: number
   }>(),
-  { duration: 1100, epoch: 0 },
+  { duration: 1100 },
 )
 
 const { t, locale } = useAppLocale()
 
+/** Без cacheKey — каждый remount (pulse epoch) стартует с 0. */
 const animated = useSmoothNumber(() => props.count, {
   duration: () => props.duration,
-  cacheKey: () => `plays:${props.songId}:${props.epoch}`,
 })
 
 const label = computed(() => {

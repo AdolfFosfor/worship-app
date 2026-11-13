@@ -1,16 +1,13 @@
 <script setup lang="ts">
 import { usePreferredReducedMotion } from '@vueuse/core'
-import { pulseBarCache } from '~/utils/repertoire/pulseAnimCache'
 
 const props = withDefaults(
   defineProps<{
     songId: string
     percent: number
     lead?: boolean
-    /** Смена epoch = новый прогон анимации с нуля (главная / KeepAlive). */
-    epoch?: number
   }>(),
-  { lead: false, epoch: 0 },
+  { lead: false },
 )
 
 const reduced = usePreferredReducedMotion()
@@ -20,20 +17,11 @@ function clamp(n: number) {
   return Math.max(0, Math.min(100, n))
 }
 
-function barCacheKey(songId: string, epoch: number) {
-  return `${songId}:${epoch}`
-}
-
-/** Без кэша — с 0, чтобы первая загрузка морфила полоску как при смене периода. */
-const shown = ref(clamp(pulseBarCache.get(barCacheKey(props.songId, props.epoch)) ?? 0))
-
-function persist(n: number) {
-  pulseBarCache.set(barCacheKey(props.songId, props.epoch), n)
-}
+/** Всегда с 0 на mount — remount через pulse epoch даёт повтор анимации. */
+const shown = ref(0)
 
 function applyTarget(n: number) {
   shown.value = clamp(n)
-  persist(shown.value)
 }
 
 watch(
@@ -45,10 +33,9 @@ watch(
 )
 
 watch(
-  () => [props.songId, props.epoch] as const,
-  ([id, epoch], prev) => {
-    if (prev) pulseBarCache.set(barCacheKey(prev[0], prev[1]), shown.value)
-    shown.value = clamp(pulseBarCache.get(barCacheKey(id, epoch)) ?? 0)
+  () => props.songId,
+  () => {
+    shown.value = 0
     if (ready.value) applyTarget(props.percent)
   },
 )
@@ -60,22 +47,18 @@ onMounted(() => {
     return
   }
 
-  const needsMorph = Math.abs(shown.value - props.percent) > 0.05
-  if (!needsMorph) {
+  const target = clamp(props.percent)
+  if (target < 0.05) {
     ready.value = true
-    persist(shown.value)
+    applyTarget(target)
     return
   }
 
-  // Двойной rAF: сначала кадр без transition, потом цель — плавный morph с кэша.
+  // Кадр без transition на 0, затем цель — плавный morph.
   requestAnimationFrame(() => {
     ready.value = true
     requestAnimationFrame(() => applyTarget(props.percent))
   })
-})
-
-onBeforeUnmount(() => {
-  persist(shown.value)
 })
 
 const scale = computed(() => shown.value / 100)

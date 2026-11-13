@@ -102,26 +102,23 @@ function songLink(id: string) {
 }
 
 /**
- * KeepAlive: каждый возврат на главную → +epoch и remount аним-блока.
- * Ключи кэша включают epoch: иначе unmount старых чисел успевает
- * записать финальное значение обратно и прогон с нуля не стартует.
+ * Каждый заход на активную главную → +epoch и remount аним-блока с нуля.
+ * immediate: первый показ тоже (не ждём парный activated).
+ * Без cache-key у чисел — иначе remount читал финальное значение.
  */
 const animEpoch = ref(0)
-/** mounted+activated на первом показе — не крутить дважды. */
-let skipPairedActivate = false
+const pageActive = usePageActive()
+
+watch(
+  pageActive,
+  (active) => {
+    if (active) animEpoch.value += 1
+  },
+  { immediate: true },
+)
 
 onMounted(() => {
   document.addEventListener('pointerdown', onPeriodMenuPointerDown, true)
-  animEpoch.value += 1
-  skipPairedActivate = true
-})
-
-onActivated(() => {
-  if (skipPairedActivate) {
-    skipPairedActivate = false
-    return
-  }
-  animEpoch.value += 1
 })
 
 onBeforeUnmount(() => {
@@ -189,10 +186,7 @@ onBeforeUnmount(() => {
           :aria-label="`${summary.uniqueSongs} ${t('repertoire.metricUnique')}`"
         >
           <span class="pulse-card__value">
-            <AppAnimatedNumber
-              :cache-key="`pulse:unique:${animEpoch}`"
-              :value="summary.uniqueSongs"
-            />
+            <AppAnimatedNumber :value="summary.uniqueSongs" />
           </span>
           <span class="pulse-card__label">{{ t('repertoire.metricUnique') }}</span>
         </NuxtLink>
@@ -204,10 +198,7 @@ onBeforeUnmount(() => {
           :aria-label="`${summary.newSongs} ${t('repertoire.metricNew')}`"
         >
           <span class="pulse-card__value">
-            <AppAnimatedNumber
-              :cache-key="`pulse:new:${animEpoch}`"
-              :value="summary.newSongs"
-            />
+            <AppAnimatedNumber :value="summary.newSongs" />
           </span>
           <span class="pulse-card__label">{{ t('repertoire.metricNew') }}</span>
         </NuxtLink>
@@ -218,10 +209,7 @@ onBeforeUnmount(() => {
           :aria-label="`${summary.staleCount} ${t('repertoire.metricStale')}`"
         >
           <span class="pulse-card__value">
-            <AppAnimatedNumber
-              :cache-key="`pulse:stale:${animEpoch}`"
-              :value="summary.staleCount"
-            />
+            <AppAnimatedNumber :value="summary.staleCount" />
           </span>
           <span class="pulse-card__label">{{ t('repertoire.metricStale') }}</span>
         </NuxtLink>
@@ -242,11 +230,7 @@ onBeforeUnmount(() => {
                 <div class="pulse-card__fav-row">
                   <span class="pulse-card__fav-title">{{ item.title }}</span>
                   <span class="pulse-card__fav-plays">
-                    <RepertoireAnimatedPlays
-                      :song-id="item.id"
-                      :count="item.total"
-                      :epoch="animEpoch"
-                    />
+                    <RepertoireAnimatedPlays :song-id="item.id" :count="item.total" />
                   </span>
                 </div>
                 <div
@@ -261,7 +245,6 @@ onBeforeUnmount(() => {
                     :song-id="item.id"
                     :percent="barWidth(item.total)"
                     :lead="index === 0"
-                    :epoch="animEpoch"
                   />
                 </div>
               </div>
