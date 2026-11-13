@@ -182,8 +182,15 @@ function setViewMode(mode: SongViewMode) {
 
 const showViewModes = computed(() => hasChartView.value && hasLyricsView.value)
 
-function startPlacementEdit() {
-  if (!lyricsDoc.value || !showSongManage.value) return
+async function startPlacementEdit() {
+  if (!showSongManage.value) return
+  try {
+    // Force fresh lyrics_doc — cache may still hold a pre-split long line
+    song.value = await getSong(id.value, { force: true })
+  } catch {
+    /* keep current song */
+  }
+  if (!lyricsDoc.value) return
   placementDraft.value = JSON.parse(JSON.stringify(lyricsDoc.value)) as SongLyricsDoc
   placementEditing.value = true
   setViewMode('lyricsChords')

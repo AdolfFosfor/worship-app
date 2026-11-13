@@ -32,12 +32,17 @@ const emit = defineEmits<{
   'update:doc': [doc: SongLyricsDoc]
 }>()
 
-const { t } = useAppLocale()
 const rootEl = ref<HTMLElement | null>(null)
 
 const resolved = computed(() => resolveLyricsDoc(props.doc, props.chart))
 
 const selectedItemId = ref<string | null>(null)
+
+/**
+ * Click after pointerdown on an anchor still bubbles to the line.
+ * Without this, a tap on G places the next unused chord (e.g. Bm) on top.
+ */
+let suppressLineClick = false
 
 /**
  * During drag we keep the source chord in the DOM (hidden) so pointer capture
@@ -55,17 +60,13 @@ const drag = ref<{
   symbol: string
   pointerId: number
   offset: number
+  startOffset: number
+  startX: number
+  startY: number
+  moved: boolean
   rowClientY: number
   ghostX: number
   ghostY: number
-} | null>(null)
-
-const longPress = ref<{
-  blockId: string
-  lineId: string
-  anchorId: string
-  timer: number
-  moved: boolean
 } | null>(null)
 
 function blockTitle(blockId: string) {
@@ -77,33 +78,40 @@ function paletteFor(blockId: string) {
   return sectionChordPalette(props.chart, block?.chartSectionId ?? null)
 }
 
-function ensureSelected(blockId: string) {
+/** Next chart chord for this line: unused in section order, else last selected / first. */
+function itemIdForTap(blockId: string, lineId: string): string | null {
   const palette = paletteFor(blockId)
-  if (!palette.length) {
-    selectedItemId.value = null
-    return
+  if (!palette.length) return null
+  const block = props.doc.blocks.find((b) => b.id === blockId)
+  const rawLine = block?.lines.find((l) => l.id === lineId)
+  const used = new Set((rawLine?.anchors ?? []).map((a) => a.itemId))
+  const unused = palette.find((p) => !used.has(p.id))
+  if (unused) return unused.id
+  if (selectedItemId.value && palette.some((p) => p.id === selectedItemId.value)) {
+    return selectedItemId.value
   }
-  if (!selectedItemId.value || !palette.some((p) => p.id === selectedItemId.value)) {
-    selectedItemId.value = palette[0]!.id
-  }
+  return palette[0]!.id
 }
 
 function onLineClick(blockId: string, line: ResolvedLyricLine, offset: number) {
   if (!props.editable || !props.showChords) return
   if (drag.value) return
-  ensureSelected(blockId)
-  if (!selectedItemId.value) return
+  if (suppressLineClick) {
+    suppressLineClick = false
+    return
+  }
   const block = props.doc.blocks.find((b) => b.id === blockId)
   const rawLine = block?.lines.find((l) => l.id === line.id)
   if (!rawLine) return
-  const nextLine = upsertAnchor(rawLine, selectedItemId.value, offset)
-  emit('update:doc', updateLineInDoc(props.doc, blockId, line.id, nextLine))
-}
+  // Don't invent a new chord on top of / next to an existing one
+  const near = rawLine.anchors.some((a) => Math.abs(a.offset - offset) <= 1)
+  if (near) return
 
-function clearLongPress() {
-  if (!longPress.value) return
-  window.clearTimeout(longPress.value.timer)
-  longPress.value = null
+  const itemId = itemIdForTap(blockId, line.id)
+  if (!itemId) return
+  selectedItemId.value = itemId
+  const nextLine = upsertAnchor(rawLine, itemId, offset)
+  emit('update:doc', updateLineInDoc(props.doc, blockId, line.id, nextLine))
 }
 
 function lineElsInBlock(blockId: string): HTMLElement[] {
@@ -146,7 +154,6 @@ function detachWindowDrag() {
 }
 
 function endDrag() {
-  clearLongPress()
   detachWindowDrag()
   drag.value = null
   rootEl.value?.classList.remove('lyric-chord--dragging')
@@ -154,7 +161,22 @@ function endDrag() {
 
 function commitDrag() {
   const d = drag.value
-  if (!d) return
+  if (!d) {
+    endDrag()
+    return
+  }
+  suppressLineClick = true
+
+  const moved =
+    d.moved ||
+    d.targetLineId !== d.sourceLineId ||
+    d.offset !== d.startOffset
+
+  if (!moved) {
+    endDrag()
+    return
+  }
+
   const block = props.doc.blocks.find((b) => b.id === d.blockId)
   if (!block) {
     endDrag()
@@ -189,23 +211,33 @@ function onWindowPointerMove(event: PointerEvent) {
   const d = drag.value
   if (!d || event.pointerId !== d.pointerId) return
   event.preventDefault()
-  if (longPress.value) longPress.value.moved = true
 
   const hit = hitTestLine(d.blockId, event.clientX, event.clientY)
   if (!hit) {
-    drag.value = { ...d, ghostX: event.clientX, ghostY: event.clientY }
+    drag.value = {
+      ...d,
+      moved: true,
+      ghostX: event.clientX,
+      ghostY: event.clientY,
+    }
     return
   }
 
   const sameAsSource = hit.lineId === d.sourceLineId
   const y = sameAsSource ? d.rowClientY : event.clientY
   const offset = offsetAtClientPoint(hit.textEl, event.clientX, y)
+  const moved =
+    d.moved ||
+    hit.lineId !== d.sourceLineId ||
+    offset !== d.startOffset ||
+    Math.hypot(event.clientX - d.startX, event.clientY - d.startY) > 8
 
   const textRect = hit.textEl.getBoundingClientRect()
   drag.value = {
     ...d,
     targetLineId: hit.lineId,
     offset,
+    moved,
     // When previewing another line, unlock Y to that line's ink for next small moves
     rowClientY: sameAsSource
       ? d.rowClientY
@@ -217,6 +249,7 @@ function onWindowPointerMove(event: PointerEvent) {
 
 function onWindowPointerUp(event: PointerEvent) {
   if (!drag.value || event.pointerId !== drag.value.pointerId) return
+  suppressLineClick = true
   commitDrag()
 }
 
@@ -237,6 +270,7 @@ function onAnchorDown(
   if (!props.editable || !props.showChords) return
   event.preventDefault()
   event.stopPropagation()
+  suppressLineClick = true
   selectedItemId.value = anchor.itemId
 
   const hit = hitTestLine(blockId, event.clientX, event.clientY)
@@ -248,6 +282,7 @@ function onAnchorDown(
   }
 
   endDrag()
+  suppressLineClick = true
 
   drag.value = {
     blockId,
@@ -258,25 +293,15 @@ function onAnchorDown(
     symbol: anchor.symbol,
     pointerId: event.pointerId,
     offset: anchor.offset,
+    startOffset: anchor.offset,
+    startX: event.clientX,
+    startY: event.clientY,
+    moved: false,
     rowClientY,
     ghostX: event.clientX,
     ghostY: event.clientY,
   }
   rootEl.value?.classList.add('lyric-chord--dragging')
-
-  clearLongPress()
-  longPress.value = {
-    blockId,
-    lineId: line.id,
-    anchorId: anchor.id,
-    moved: false,
-    timer: window.setTimeout(() => {
-      if (!longPress.value || longPress.value.moved) return
-      const target = longPress.value
-      endDrag()
-      onAnchorRemove(target.blockId, target.lineId, target.anchorId, event)
-    }, 550),
-  }
 
   // Capture on the original button — it stays mounted until pointerup
   try {
@@ -294,10 +319,14 @@ onBeforeUnmount(() => {
   endDrag()
 })
 
+/** Desktop right-click only — touch long-press must not delete (conflicts with drag). */
 function onAnchorRemove(blockId: string, lineId: string, anchorId: string, event: Event) {
   if (!props.editable) return
   event.preventDefault()
   event.stopPropagation()
+  const pe = event as PointerEvent
+  if (pe.pointerType === 'touch') return
+  if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return
   const block = props.doc.blocks.find((b) => b.id === blockId)
   const rawLine = block?.lines.find((l) => l.id === lineId)
   if (!rawLine) return
@@ -337,24 +366,6 @@ const dropPreview = computed(() => {
       }"
     >
       <header class="lyric-chord__head">{{ blockTitle(block.id) }}</header>
-
-      <div
-        v-if="editable && showChords && paletteFor(block.id).length"
-        class="lyric-chord__palette"
-        role="group"
-        :aria-label="t('lyrics.paletteAria')"
-      >
-        <button
-          v-for="chip in paletteFor(block.id)"
-          :key="`${block.id}-${chip.id}`"
-          type="button"
-          class="lyric-chord__chip"
-          :class="{ 'lyric-chord__chip--active': selectedItemId === chip.id }"
-          @click="selectedItemId = chip.id"
-        >
-          {{ chip.symbol }}
-        </button>
-      </div>
 
       <LyricChordLine
         v-for="line in block.lines"
@@ -412,32 +423,6 @@ const dropPreview = computed(() => {
   margin-bottom: 0.45rem;
 }
 
-.lyric-chord__palette {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  margin-bottom: 0.55rem;
-}
-
-.lyric-chord__chip {
-  appearance: none;
-  border: 1px solid color-mix(in srgb, var(--section-accent) 35%, transparent);
-  background: color-mix(in srgb, var(--p-surface-0) 70%, transparent);
-  color: var(--p-text-color);
-  border-radius: 999px;
-  padding: 0.2rem 0.55rem;
-  font-size: 0.8rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  cursor: pointer;
-}
-
-.lyric-chord__chip--active {
-  background: var(--section-accent);
-  color: var(--p-primary-contrast-color, #fff);
-  border-color: transparent;
-}
-
 .lyric-chord--editable :deep(.lyric-chord__line) {
   cursor: text;
 }
@@ -462,6 +447,11 @@ const dropPreview = computed(() => {
   padding-top: 1.15rem;
 }
 
+.lyric-chord--editable :deep(.lyric-chord__line--chords) {
+  /* Extra room for invisible hit pads above the lyric */
+  padding-top: 1.55rem;
+}
+
 :deep(.lyric-chord__line--empty) {
   opacity: 0.35;
 }
@@ -470,38 +460,55 @@ const dropPreview = computed(() => {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  z-index: 1;
 }
 
 :deep(.lyric-chord__anchor) {
   position: absolute;
-  transform: none;
   appearance: none;
   border: 0;
-  background: transparent;
-  padding: 0;
   margin: 0;
+  padding: 0;
+  background: transparent;
   color: var(--section-accent);
   font-size: 0.78rem;
   font-weight: 700;
   line-height: 1.1;
-  pointer-events: auto;
+  pointer-events: none;
   white-space: nowrap;
-  touch-action: none;
-  cursor: grab;
+  transform: none;
 }
 
-:deep(.lyric-chord__anchor:active),
-:deep(.lyric-chord__anchor--dragging) {
+.lyric-chord--editable :deep(.lyric-chord__anchor) {
+  pointer-events: auto;
+  touch-action: none;
+  cursor: grab;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Invisible hit pad — same look as view mode, easier to grab */
+.lyric-chord--editable :deep(.lyric-chord__anchor)::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: max(100% + 1.5rem, 2.75rem);
+  height: max(100% + 1.35rem, 2.75rem);
+  transform: translate(-50%, -50%);
+}
+
+.lyric-chord--editable :deep(.lyric-chord__anchor:active),
+.lyric-chord--editable :deep(.lyric-chord__anchor--dragging) {
   cursor: grabbing;
 }
 
-:deep(.lyric-chord__anchor--active) {
+.lyric-chord--editable :deep(.lyric-chord__anchor--active) {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
-:deep(.lyric-chord__anchor--dragging) {
-  opacity: 0.2;
+.lyric-chord--editable :deep(.lyric-chord__anchor--dragging) {
+  opacity: 0.25;
 }
 
 :deep(.lyric-chord__drop) {
@@ -527,6 +534,10 @@ const dropPreview = computed(() => {
 
 :deep(.lyric-chord__line--chords .lyric-chord__text) {
   line-height: 2.35;
+}
+
+.lyric-chord--editable :deep(.lyric-chord__line--chords .lyric-chord__text) {
+  line-height: 2.45;
 }
 </style>
 
