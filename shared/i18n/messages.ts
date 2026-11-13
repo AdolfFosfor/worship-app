@@ -269,8 +269,8 @@ const ru: MessageDict = {
   'lyrics.paletteAria': 'Аккорды секции',
   'lyrics.placeHint': 'Тап — поставить, перетащить по строке или на другую, долгий тап — убрать',
   'lyrics.autoPlace': 'Разложить по строкам',
-  'lyrics.editPlacement': 'Раскладка аккордов',
-  'lyrics.savePlacement': 'Сохранить раскладку',
+  'lyrics.editPlacement': 'Редактировать аккорды',
+  'lyrics.savePlacement': 'Сохранить',
 
   'capo.ariaDown': 'Капо ниже',
   'capo.ariaUp': 'Капо выше',
@@ -708,8 +708,8 @@ const ro: MessageDict = {
   'lyrics.paletteAria': 'Acordurile secțiunii',
   'lyrics.placeHint': 'Tap — pune, trage pe rând sau pe altul, long-press — șterge',
   'lyrics.autoPlace': 'Distribuie pe rânduri',
-  'lyrics.editPlacement': 'Plasare acorduri',
-  'lyrics.savePlacement': 'Salvează plasarea',
+  'lyrics.editPlacement': 'Editează acordurile',
+  'lyrics.savePlacement': 'Salvează',
 
   'capo.ariaDown': 'Capo mai jos',
   'capo.ariaUp': 'Capo mai sus',
@@ -1146,8 +1146,8 @@ const en: MessageDict = {
   'lyrics.paletteAria': 'Section chords',
   'lyrics.placeHint': 'Tap to place, drag along or onto another line, long-press to remove',
   'lyrics.autoPlace': 'Spread across lines',
-  'lyrics.editPlacement': 'Chord placement',
-  'lyrics.savePlacement': 'Save placement',
+  'lyrics.editPlacement': 'Edit chords',
+  'lyrics.savePlacement': 'Save',
 
   'capo.ariaDown': 'Capo down',
   'capo.ariaUp': 'Capo up',

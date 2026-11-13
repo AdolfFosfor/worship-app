@@ -629,7 +629,10 @@ const { revealEditable } = useHeaderEditableTitle({
 </script>
 
 <template>
-  <div class="app-page">
+  <div
+    class="app-page"
+    :class="{ 'song-view--placing': placementEditing && viewMode === 'lyricsChords' }"
+  >
     <AppLoading v-if="loading" />
     <AppError v-else-if="error" :message="error" @retry="load" />
     <template v-else-if="song">
@@ -795,35 +798,15 @@ const { revealEditable } = useHeaderEditableTitle({
         v-else-if="(viewMode === 'lyrics' || viewMode === 'lyricsChords') && activeLyricsDoc"
         :title="viewMode === 'lyricsChords' ? t('song.viewLyricsChords') : t('song.extraLyrics')"
       >
-        <div
-          v-if="showSongManage && viewMode === 'lyricsChords'"
-          class="song-view__lyrics-tools"
+        <button
+          v-if="showSongManage && viewMode === 'lyricsChords' && !placementEditing"
+          type="button"
+          class="song-view__edit-chords"
+          @click="startPlacementEdit"
         >
-          <button
-            v-if="!placementEditing"
-            type="button"
-            class="song-view__lyrics-btn"
-            @click="startPlacementEdit"
-          >
-            {{ t('lyrics.editPlacement') }}
-          </button>
-          <template v-else>
-            <button type="button" class="song-view__lyrics-btn" @click="autoPlaceAll">
-              {{ t('lyrics.autoPlace') }}
-            </button>
-            <button
-              type="button"
-              class="song-view__lyrics-btn song-view__lyrics-btn--primary"
-              :disabled="placementBusy"
-              @click="savePlacement"
-            >
-              {{ t('lyrics.savePlacement') }}
-            </button>
-            <button type="button" class="song-view__lyrics-btn" @click="cancelPlacementEdit">
-              {{ t('common.cancel') }}
-            </button>
-          </template>
-        </div>
+          <AppIcon :name="icons.edit" size="1.05rem" />
+          {{ t('lyrics.editPlacement') }}
+        </button>
         <p v-if="placementEditing && viewMode === 'lyricsChords'" class="song-view__lyrics-hint">
           {{ t('lyrics.placeHint') }}
         </p>
@@ -863,7 +846,7 @@ const { revealEditable } = useHeaderEditableTitle({
         <AppIcon :name="icons.chevronRight" class="song-view__yt-chevron" size="1.05rem" />
       </a>
 
-      <div v-if="showSongManage" class="song-view__footer">
+      <div v-if="showSongManage && !placementEditing" class="song-view__footer">
         <NuxtLink
           :to="{
             path: `/songs/${song.id}/edit`,
@@ -878,6 +861,30 @@ const { revealEditable } = useHeaderEditableTitle({
           {{ t('common.edit') }}
         </NuxtLink>
       </div>
+
+      <Teleport v-if="placementEditing && viewMode === 'lyricsChords'" to=".app-shell">
+        <div class="song-view__place-cta">
+          <div class="song-view__place-cta-inner">
+            <button type="button" class="song-view__place-auto" @click="autoPlaceAll">
+              {{ t('lyrics.autoPlace') }}
+            </button>
+            <div class="song-view__place-actions">
+              <button type="button" class="song-view__place-cancel" @click="cancelPlacementEdit">
+                {{ t('common.cancel') }}
+              </button>
+              <button
+                type="button"
+                class="song-view__place-save"
+                :disabled="placementBusy"
+                @click="savePlacement"
+              >
+                <AppIcon :name="icons.save" size="1.1rem" />
+                {{ t('lyrics.savePlacement') }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Teleport>
 
       <Dialog
         v-model:visible="pickerVisible"
@@ -961,40 +968,142 @@ const { revealEditable } = useHeaderEditableTitle({
   box-shadow: var(--app-shadow-soft);
 }
 
-.song-view__lyrics-tools {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  margin-bottom: 0.55rem;
+.song-view--placing {
+  /* Место под sticky CTA: auto + cancel/save */
+  padding-bottom: calc(7.25rem + var(--app-space-5));
 }
 
-.song-view__lyrics-btn {
-  appearance: none;
-  border: 1px solid color-mix(in srgb, var(--p-text-muted-color) 28%, transparent);
-  background: transparent;
-  color: var(--p-text-color);
-  border-radius: 999px;
-  padding: 0.3rem 0.65rem;
-  font-size: 0.78rem;
-  font-weight: 600;
+.song-view__edit-chords {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--app-space-2);
+  width: 100%;
+  min-height: var(--app-touch-min);
+  margin-bottom: var(--app-space-3);
+  border: 0;
+  border-radius: var(--app-radius-lg);
+  background: var(--app-surface);
+  color: var(--app-accent-text);
+  font: inherit;
+  font-weight: 650;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color var(--app-duration) var(--app-ease),
+    transform var(--app-duration) var(--app-ease);
 }
 
-.song-view__lyrics-btn--primary {
-  border-color: color-mix(in srgb, var(--p-primary-color) 40%, transparent);
-  background: color-mix(in srgb, var(--p-primary-color) 14%, transparent);
-}
-
-.song-view__lyrics-btn:disabled {
-  opacity: 0.5;
-  cursor: default;
+.song-view__edit-chords:active {
+  background: var(--app-press);
+  transform: scale(0.98);
 }
 
 .song-view__lyrics-hint {
   margin: 0 0 0.65rem;
-  font-size: 0.78rem;
-  color: var(--p-text-muted-color);
+  font-size: var(--app-text-sm);
+  color: var(--app-muted);
   line-height: 1.35;
+}
+
+.song-view__place-cta {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(
+    var(--app-tabbar-clearance, 3.75rem) + var(--app-keyboard-inset, 0px)
+  );
+  z-index: 6;
+  padding: var(--app-space-2)
+    calc(var(--app-safe-right) + var(--app-page-inline))
+    var(--app-space-3)
+    calc(var(--app-safe-left) + var(--app-page-inline));
+  background: linear-gradient(
+    to top,
+    var(--app-bg) 70%,
+    color-mix(in srgb, var(--app-bg) 0%, transparent)
+  );
+  pointer-events: none;
+}
+
+.song-view__place-cta-inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+  max-width: var(--app-page-max);
+  margin-inline: auto;
+  pointer-events: auto;
+}
+
+.song-view__place-auto {
+  appearance: none;
+  align-self: center;
+  border: 0;
+  background: transparent;
+  color: var(--app-muted);
+  font: inherit;
+  font-size: var(--app-text-sm);
+  font-weight: 600;
+  padding: 0.35rem 0.75rem;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color var(--app-duration) var(--app-ease);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .song-view__place-auto:hover {
+    color: var(--app-accent-text);
+  }
+}
+
+.song-view__place-auto:active {
+  color: var(--app-accent-text);
+}
+
+.song-view__place-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--app-space-2);
+}
+
+.song-view__place-cancel,
+.song-view__place-save {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 2.875rem;
+  border: 0;
+  border-radius: var(--app-radius-lg);
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color var(--app-duration) var(--app-ease),
+    transform var(--app-duration) var(--app-ease),
+    opacity var(--app-duration) var(--app-ease);
+}
+
+.song-view__place-cancel {
+  background: var(--app-surface);
+  color: var(--app-accent-text);
+}
+
+.song-view__place-save {
+  background: var(--app-accent);
+  color: var(--app-accent-contrast);
+}
+
+.song-view__place-cancel:active,
+.song-view__place-save:active {
+  transform: scale(0.98);
+}
+
+.song-view__place-save:disabled {
+  opacity: 0.55;
+  cursor: default;
+  transform: none;
 }
 
 .song-view__setlist-nav {
