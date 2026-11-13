@@ -584,10 +584,12 @@ onBeforeUnmount(() => {
   color: var(--app-section-header);
 }
 
+/* Один такт = одна строка, ширина по чипам */
 .chord-stage__bars {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--app-space-2);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
 }
 
 .chord-stage__bar {
@@ -595,11 +597,14 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.35rem;
-  padding: 0.35rem 0.5rem;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 2rem;
+  padding: 0.3rem 0.45rem;
   border-radius: var(--app-radius-sm);
   border: var(--app-hairline) solid var(--app-border);
   background: color-mix(in srgb, var(--app-surface) 70%, transparent);
-  min-height: 2rem;
+  box-sizing: border-box;
 }
 
 .chord-stage__chip {

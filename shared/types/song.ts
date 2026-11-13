@@ -1,6 +1,7 @@
 import type { SongActivity, SongTempo, SongType } from '../songs/library'
 import type { ChordChart } from './chordChart'
 import type { EntityId, Timestamps } from './common'
+import type { SongLyricsDoc } from './songLyrics'
 
 /** Musical key label, e.g. "C", "Am", "F#". */
 export type SongKey = string
@@ -27,6 +28,8 @@ export interface Song extends Timestamps {
   /** Structured chord chart (preferred when present). */
   chordChart: ChordChart | null
   lyrics: string | null
+  /** Structured lyrics + chord anchors (preferred when present). */
+  lyricsDoc: SongLyricsDoc | null
   youtubeUrl: string | null
   createdBy: EntityId | null
 }
@@ -43,6 +46,7 @@ export interface SongInput {
   chords?: string | null
   chordChart?: ChordChart | null
   lyrics?: string | null
+  lyricsDoc?: SongLyricsDoc | null
   youtubeUrl?: string | null
 }
 

@@ -11,6 +11,7 @@ import {
 import { mapSong } from '~/utils/mappers'
 import { soundingKey } from '~/utils/music/capo'
 import { serializeChart } from '~/utils/music/chart'
+import { normalizeLyricsDoc, parsePlainLyrics, serializeLyricsDoc } from '~/utils/music/lyrics'
 import { localTodayKey } from '~/utils/dates'
 import { getSupabaseBrowserClient } from '~/utils/supabase/client'
 import { useAuthStore } from '~/stores/auth'
@@ -65,6 +66,13 @@ function songWritePayload(input: SongInput) {
       ? null
       : Math.max(30, Math.min(300, Math.round(bpmRaw)))
 
+  const lyricsDoc =
+    normalizeLyricsDoc(input.lyricsDoc) ??
+    parsePlainLyrics(input.lyrics ?? '', input.chordChart ?? null, null)
+  const lyricsPlain =
+    (lyricsDoc ? serializeLyricsDoc(lyricsDoc) : null) ||
+    (input.lyrics?.trim() || null)
+
   return {
     title: input.title.trim(),
     artist: normalizeArtist(input.artist),
@@ -76,7 +84,8 @@ function songWritePayload(input: SongInput) {
     time_signature: normalizeTimeSignature(input.timeSignature),
     chords: chordsFromChart ?? (input.chords?.trim() || null),
     chord_chart: plainChart,
-    lyrics: input.lyrics?.trim() || null,
+    lyrics: lyricsPlain,
+    lyrics_doc: lyricsDoc ? (JSON.parse(JSON.stringify(lyricsDoc)) as Json) : null,
     youtube_url: input.youtubeUrl?.trim() || null,
   }
 }

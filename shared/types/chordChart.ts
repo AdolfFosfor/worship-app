@@ -75,7 +75,7 @@ export const SECTION_LABELS: Record<SectionType, string> = {
   instrumental: 'Inst',
   tag: 'Tag',
   outro: 'Outro',
-  custom: 'Секция',
+  custom: 'Section',
 }
 
 export const ANNOTATION_PRESETS: { preset: AnnotationPreset; text: string }[] = [

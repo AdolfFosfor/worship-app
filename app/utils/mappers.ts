@@ -18,6 +18,7 @@ import {
   normalizeTypes,
 } from '~~/shared/songs/library'
 import { normalizeChordChart } from '~/utils/music/chart'
+import { normalizeLyricsDoc } from '~/utils/music/lyrics'
 
 export function mapWorkspace(row: DbWorkspace): Workspace {
   return {
@@ -65,6 +66,7 @@ export function mapSong(row: DbSong): Song {
     chords: row.chords,
     chordChart: normalizeChordChart(row.chord_chart),
     lyrics: row.lyrics,
+    lyricsDoc: normalizeLyricsDoc(row.lyrics_doc),
     youtubeUrl: row.youtube_url,
     createdBy: row.created_by,
     createdAt: row.created_at,
@@ -85,6 +87,7 @@ export function songToInput(song: Song): SongInput {
     chords: song.chords,
     chordChart: song.chordChart,
     lyrics: song.lyrics,
+    lyricsDoc: song.lyricsDoc,
     youtubeUrl: song.youtubeUrl,
   }
 }

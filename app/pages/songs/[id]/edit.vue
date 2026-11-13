@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { SongInput } from '~~/shared/types'
 import type { SongExtraKind } from '~/components/SongForm.vue'
+import { navigateAppBack } from '~/composables/useTelegramBackButton'
 import { songToInput } from '~/utils/mappers'
 import { icons } from '~/utils/icons'
 import { safeInternalPath } from '~/utils/safeInternalPath'
@@ -24,14 +25,24 @@ const form = ref<SongInput>({
   chords: null,
   chordChart: null,
   lyrics: '',
+  lyricsDoc: null,
   youtubeUrl: '',
 })
 const loading = ref(true)
 const busy = ref(false)
 const error = ref<string | null>(null)
+const baseline = ref<string | null>(null)
 const songForm = ref<{ openExtra: (kind: SongExtraKind) => void } | null>(null)
 const extrasMenuOpen = ref(false)
 const extrasMenu = ref<{ toggle: (event: Event) => void; close: () => void } | null>(null)
+
+function fingerprint(input: SongInput): string {
+  return JSON.stringify(input)
+}
+
+const dirty = computed(
+  () => baseline.value != null && fingerprint(form.value) !== baseline.value,
+)
 
 /** Сохраняем контекст сет-листа (from/key) при выходе из редактора. */
 function songViewTarget() {
@@ -53,7 +64,9 @@ onMounted(async () => {
   }
   try {
     const song = await getSong(id.value)
-    form.value = songToInput(song)
+    const input = songToInput(song)
+    form.value = input
+    baseline.value = fingerprint(input)
   } catch (e) {
     error.value = e instanceof Error ? e.message : t('common.notFound')
   } finally {
@@ -96,6 +109,10 @@ async function save() {
   } finally {
     busy.value = false
   }
+}
+
+function goToSong() {
+  navigateAppBack()
 }
 
 useAppHeader(() => ({
@@ -200,7 +217,44 @@ useAppHeader(() => ({
       ref="songForm"
       v-model="form"
       :busy="busy"
+      :show-save="dirty"
       @submit="save"
-    />
+    >
+      <template #secondary>
+        <button type="button" class="song-edit__open" @click="goToSong">
+          <AppIcon :name="icons.music" size="1.05rem" />
+          {{ t('songs.openSong') }}
+        </button>
+      </template>
+    </SongForm>
   </div>
 </template>
+
+<style scoped>
+.song-edit__open {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--app-space-2);
+  width: 100%;
+  min-height: 2.875rem;
+  padding: 0 0.95rem;
+  border: 0;
+  border-radius: var(--app-radius-lg);
+  background: var(--app-surface);
+  color: var(--app-accent-text);
+  font: inherit;
+  font-weight: 650;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color var(--app-duration) var(--app-ease),
+    transform var(--app-duration) var(--app-ease);
+}
+
+.song-edit__open:active {
+  background: var(--app-press);
+  transform: scale(0.98);
+}
+</style>

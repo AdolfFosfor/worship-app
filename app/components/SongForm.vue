@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ChordChart, SongInput } from '~~/shared/types'
+import { parsePlainLyrics, serializeLyricsDoc } from '~/utils/music/lyrics'
 import {
   SONG_METERS,
   SONG_THEME_MAX,
@@ -20,11 +21,20 @@ import { icons } from '~/utils/icons'
 
 const { t } = useAppLocale()
 
-const props = defineProps<{
-  modelValue: SongInput
-  submitLabel?: string
-  busy?: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    modelValue: SongInput
+    submitLabel?: string
+    busy?: boolean
+    /** false — скрыть CTA сохранения (например, нет изменений на edit). */
+    showSave?: boolean
+  }>(),
+  {
+    submitLabel: undefined,
+    busy: false,
+    showSave: true,
+  },
+)
 
 const emit = defineEmits<{
   'update:modelValue': [value: SongInput]
@@ -324,7 +334,24 @@ function confirmSheet() {
   const kind = sheetKind.value
   const value = sheetDraft.value.trim()
   if (kind === 'lyrics') {
-    patch('lyrics', value || null)
+    if (!value) {
+      emit('update:modelValue', {
+        ...props.modelValue,
+        lyrics: null,
+        lyricsDoc: null,
+      })
+    } else {
+      const lyricsDoc = parsePlainLyrics(
+        value,
+        props.modelValue.chordChart ?? null,
+        props.modelValue.lyricsDoc ?? null,
+      )
+      emit('update:modelValue', {
+        ...props.modelValue,
+        lyrics: lyricsDoc ? serializeLyricsDoc(lyricsDoc) : value,
+        lyricsDoc,
+      })
+    }
   } else if (kind === 'youtube') {
     patch('youtubeUrl', value || null)
   } else if (kind === 'bpm') {
@@ -390,7 +417,10 @@ defineExpose({
 </script>
 
 <template>
-  <form class="song-form" @submit.prevent="canSubmit && !$props.busy && emit('submit')">
+  <form
+    class="song-form"
+    @submit.prevent="showSave && canSubmit && !$props.busy && emit('submit')"
+  >
     <label class="song-form__field">
       <span>{{ t('song.fieldTitle') }}</span>
       <InputText
@@ -490,18 +520,39 @@ defineExpose({
 
     <Teleport v-if="showFormCta" to=".app-shell">
       <div class="song-form-cta">
-        <Button
-          type="button"
-          class="w-full"
-          :label="submitLabel ?? t('common.save')"
-          :disabled="!canSubmit || busy"
-          :loading="busy"
-          @click="canSubmit && !$props.busy && emit('submit')"
+        <div
+          class="song-form-cta__inner"
+          :class="{
+            'song-form-cta__inner--with-secondary': Boolean($slots.secondary),
+            'song-form-cta__inner--dirty': showSave && Boolean($slots.secondary),
+          }"
         >
-          <template #icon>
-            <AppIcon :name="icons.save" size="1.15rem" />
-          </template>
-        </Button>
+          <div v-if="$slots.secondary" class="song-form-cta__secondary">
+            <slot name="secondary" />
+          </div>
+          <div
+            v-if="showSave || $slots.secondary"
+            class="song-form-cta__save"
+            :class="{ 'song-form-cta__save--on': showSave }"
+            :inert="!showSave"
+          >
+            <div class="song-form-cta__save-clip">
+              <Button
+                type="button"
+                class="w-full"
+                :label="submitLabel ?? t('common.save')"
+                :disabled="!showSave || !canSubmit || busy"
+                :loading="busy"
+                :tabindex="showSave ? 0 : -1"
+                @click="showSave && canSubmit && !$props.busy && emit('submit')"
+              >
+                <template #icon>
+                  <AppIcon :name="icons.save" size="1.15rem" />
+                </template>
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
     </Teleport>
 
@@ -849,11 +900,63 @@ defineExpose({
   pointer-events: none;
 }
 
-.song-form-cta :deep(.p-button) {
-  pointer-events: auto;
+.song-form-cta__inner {
   max-width: var(--app-page-max);
   margin-inline: auto;
+  pointer-events: auto;
+}
+
+.song-form-cta__inner:not(.song-form-cta__inner--with-secondary) {
+  display: block;
+}
+
+.song-form-cta__inner--with-secondary {
+  display: grid;
+  align-items: stretch;
+  grid-template-columns: minmax(0, 1fr) 0fr;
+  transition: grid-template-columns 300ms var(--app-ease);
+}
+
+.song-form-cta__inner--with-secondary.song-form-cta__inner--dirty {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.song-form-cta__secondary {
   display: flex;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.song-form-cta__save {
+  min-width: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 220ms var(--app-ease);
+}
+
+.song-form-cta__save--on {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.song-form-cta__save-clip {
+  overflow: hidden;
+  min-width: 0;
+  padding-left: 0;
+  transition: padding-left 300ms var(--app-ease);
+}
+
+.song-form-cta__inner--dirty .song-form-cta__save-clip {
+  padding-left: var(--app-space-2);
+}
+
+.song-form-cta__inner:not(.song-form-cta__inner--with-secondary) .song-form-cta__save-clip {
+  padding-left: 0;
+}
+
+.song-form-cta :deep(.p-button) {
+  display: flex;
+  width: 100%;
   min-height: 2.875rem;
   gap: 0.4rem;
 }

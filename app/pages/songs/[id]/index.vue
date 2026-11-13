@@ -1,11 +1,20 @@
 <script setup lang="ts">
-import type { Setlist, SetlistWithItems, Song } from '~~/shared/types'
+import type { Setlist, SetlistWithItems, Song, SongLyricsDoc } from '~~/shared/types'
 import type { StagePlaylistInfo } from '~/components/chart/ChordStageView.vue'
 import { icons } from '~/utils/icons'
 import { clampCapo, soundingKey } from '~/utils/music/capo'
 import { normalizeLegacyChordsText, transposeChart } from '~/utils/music/chart'
 import { keyDistance, transposeKeyLabel } from '~/utils/music/keys'
 import { transposeText } from '~/utils/music/transpose'
+import {
+  autoPlaceBlock,
+  parsePlainLyrics,
+  readSongViewMode,
+  resolveSongViewMode,
+  serializeLyricsDoc,
+  writeSongViewMode,
+  type SongViewMode,
+} from '~/utils/music/lyrics'
 import { localTodayKey } from '~/utils/dates'
 import { songThemeMessageKey, songTypeMessageKey } from '~~/shared/songs/library'
 import { songToInput } from '~/utils/mappers'
@@ -119,6 +128,107 @@ const displayChart = computed(() => {
   if (!chart) return null
   return transposeChart(chart, semitones.value)
 })
+
+const lyricsDoc = computed(() => {
+  if (!song.value) return null
+  return (
+    song.value.lyricsDoc ??
+    parsePlainLyrics(song.value.lyrics ?? '', song.value.chordChart, null)
+  )
+})
+
+const hasLyricsView = computed(() => Boolean(lyricsDoc.value?.blocks.length || song.value?.lyrics))
+const hasChartView = computed(() => Boolean(displayChart.value || displayChords.value))
+
+const viewMode = ref<SongViewMode>(readSongViewMode())
+const placementDraft = ref<SongLyricsDoc | null>(null)
+const placementEditing = ref(false)
+const placementBusy = ref(false)
+
+const activeLyricsDoc = computed(() => placementDraft.value ?? lyricsDoc.value)
+
+const viewModeOptions = computed(() => [
+  { value: 'chart' as const, label: t('song.viewChart') },
+  { value: 'lyrics' as const, label: t('song.viewLyrics') },
+  { value: 'lyricsChords' as const, label: t('song.viewLyricsChords') },
+])
+
+watch(
+  [hasChartView, hasLyricsView, () => song.value?.id],
+  () => {
+    viewMode.value = resolveSongViewMode(
+      readSongViewMode(),
+      hasChartView.value,
+      hasLyricsView.value,
+    )
+    placementEditing.value = false
+    placementDraft.value = null
+  },
+  { immediate: true },
+)
+
+watch(viewMode, (mode) => {
+  if (mode !== 'lyricsChords' && placementEditing.value) {
+    placementEditing.value = false
+    placementDraft.value = null
+  }
+  if (!hasChartView.value || !hasLyricsView.value) return
+  writeSongViewMode(mode)
+})
+
+function setViewMode(mode: SongViewMode) {
+  viewMode.value = resolveSongViewMode(mode, hasChartView.value, hasLyricsView.value)
+}
+
+const showViewModes = computed(() => hasChartView.value && hasLyricsView.value)
+
+function startPlacementEdit() {
+  if (!lyricsDoc.value || !showSongManage.value) return
+  placementDraft.value = JSON.parse(JSON.stringify(lyricsDoc.value)) as SongLyricsDoc
+  placementEditing.value = true
+  setViewMode('lyricsChords')
+}
+
+function cancelPlacementEdit() {
+  placementEditing.value = false
+  placementDraft.value = null
+}
+
+function onPlacementDocUpdate(doc: SongLyricsDoc) {
+  placementDraft.value = doc
+}
+
+function autoPlaceAll() {
+  if (!placementDraft.value || !song.value?.chordChart) return
+  let next = placementDraft.value
+  for (const block of next.blocks) {
+    next = autoPlaceBlock(next, block.id, song.value.chordChart)
+  }
+  placementDraft.value = next
+}
+
+async function savePlacement() {
+  if (!song.value || !placementDraft.value) return
+  placementBusy.value = true
+  try {
+    const input = songToInput(song.value)
+    input.lyricsDoc = placementDraft.value
+    input.lyrics = serializeLyricsDoc(placementDraft.value)
+    song.value = await updateSong(song.value.id, input)
+    placementEditing.value = false
+    placementDraft.value = null
+    toast.add({ severity: 'success', summary: t('common.saved'), life: 2000 })
+  } catch (e) {
+    toast.add({
+      severity: 'error',
+      summary: t('common.error'),
+      detail: e instanceof Error ? e.message : t('common.saveFailed'),
+      life: 4000,
+    })
+  } finally {
+    placementBusy.value = false
+  }
+}
 
 /** Если открыли песню из сет-листа — листаем соседние в фуллскрине. */
 const fromPath = computed(() => safeInternalPath(route.query.from, ''))
@@ -634,7 +744,30 @@ const { revealEditable } = useHeaderEditableTitle({
         </div>
       </section>
 
-      <AppSection v-if="displayChart" :title="t('song.fieldChords')">
+      <div
+        v-if="showViewModes"
+        class="song-view__modes"
+        role="radiogroup"
+        :aria-label="t('song.viewModeAria')"
+      >
+        <button
+          v-for="opt in viewModeOptions"
+          :key="opt.value"
+          type="button"
+          class="song-view__mode"
+          :class="{ 'song-view__mode--on': viewMode === opt.value }"
+          role="radio"
+          :aria-checked="viewMode === opt.value"
+          @click="setViewMode(opt.value)"
+        >
+          {{ opt.label }}
+        </button>
+      </div>
+
+      <AppSection
+        v-if="viewMode === 'chart' && displayChart"
+        :title="t('song.fieldChords')"
+      >
         <ChordStageView
           :chart="displayChart"
           :title="song.title"
@@ -647,7 +780,10 @@ const { revealEditable } = useHeaderEditableTitle({
           @next="goSetlistNeighbor('next')"
         />
       </AppSection>
-      <AppSection v-else-if="displayChords" :title="t('song.fieldChords')">
+      <AppSection
+        v-else-if="viewMode === 'chart' && displayChords"
+        :title="t('song.fieldChords')"
+      >
         <div v-if="libraryFactsVisible" class="app-fact-row song-view__library-facts" role="group">
           <span v-if="libraryTempo" class="app-fact app-fact--bpm">{{ libraryTempo }}</span>
           <span v-if="libraryMeter" class="app-fact app-fact--meter">{{ libraryMeter }}</span>
@@ -655,7 +791,54 @@ const { revealEditable } = useHeaderEditableTitle({
         <ChordSheet :text="displayChords" />
       </AppSection>
 
-      <AppSection v-if="song.lyrics" :title="t('song.extraLyrics')">
+      <AppSection
+        v-else-if="(viewMode === 'lyrics' || viewMode === 'lyricsChords') && activeLyricsDoc"
+        :title="viewMode === 'lyricsChords' ? t('song.viewLyricsChords') : t('song.extraLyrics')"
+      >
+        <div
+          v-if="showSongManage && viewMode === 'lyricsChords'"
+          class="song-view__lyrics-tools"
+        >
+          <button
+            v-if="!placementEditing"
+            type="button"
+            class="song-view__lyrics-btn"
+            @click="startPlacementEdit"
+          >
+            {{ t('lyrics.editPlacement') }}
+          </button>
+          <template v-else>
+            <button type="button" class="song-view__lyrics-btn" @click="autoPlaceAll">
+              {{ t('lyrics.autoPlace') }}
+            </button>
+            <button
+              type="button"
+              class="song-view__lyrics-btn song-view__lyrics-btn--primary"
+              :disabled="placementBusy"
+              @click="savePlacement"
+            >
+              {{ t('lyrics.savePlacement') }}
+            </button>
+            <button type="button" class="song-view__lyrics-btn" @click="cancelPlacementEdit">
+              {{ t('common.cancel') }}
+            </button>
+          </template>
+        </div>
+        <p v-if="placementEditing && viewMode === 'lyricsChords'" class="song-view__lyrics-hint">
+          {{ t('lyrics.placeHint') }}
+        </p>
+        <LyricChordView
+          :doc="activeLyricsDoc"
+          :chart="displayChart ?? song.chordChart"
+          :show-chords="viewMode === 'lyricsChords'"
+          :editable="placementEditing && viewMode === 'lyricsChords'"
+          @update:doc="onPlacementDocUpdate"
+        />
+      </AppSection>
+      <AppSection
+        v-else-if="(viewMode === 'lyrics' || viewMode === 'lyricsChords') && song.lyrics"
+        :title="t('song.extraLyrics')"
+      >
         <ChordSheet :text="song.lyrics" />
       </AppSection>
 
@@ -745,6 +928,75 @@ const { revealEditable } = useHeaderEditableTitle({
 </template>
 
 <style scoped>
+.song-view__modes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.28rem;
+  margin: 0.15rem 0 0.65rem;
+  padding: 0.22rem;
+  border-radius: var(--app-radius-lg);
+  background: var(--app-hover);
+}
+
+.song-view__mode {
+  min-height: 1.9rem;
+  padding: 0.2rem 0.2rem;
+  border: 0;
+  border-radius: var(--app-radius);
+  background: transparent;
+  color: var(--app-muted);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+  text-align: center;
+  white-space: normal;
+  cursor: pointer;
+}
+
+.song-view__mode--on {
+  background: var(--app-surface);
+  color: var(--app-ink);
+  box-shadow: var(--app-shadow-soft);
+}
+
+.song-view__lyrics-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.55rem;
+}
+
+.song-view__lyrics-btn {
+  appearance: none;
+  border: 1px solid color-mix(in srgb, var(--p-text-muted-color) 28%, transparent);
+  background: transparent;
+  color: var(--p-text-color);
+  border-radius: 999px;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.song-view__lyrics-btn--primary {
+  border-color: color-mix(in srgb, var(--p-primary-color) 40%, transparent);
+  background: color-mix(in srgb, var(--p-primary-color) 14%, transparent);
+}
+
+.song-view__lyrics-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.song-view__lyrics-hint {
+  margin: 0 0 0.65rem;
+  font-size: 0.78rem;
+  color: var(--p-text-muted-color);
+  line-height: 1.35;
+}
+
 .song-view__setlist-nav {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);

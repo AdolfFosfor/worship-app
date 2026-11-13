@@ -20,6 +20,7 @@ const form = ref<SongInput>({
   chords: null,
   chordChart: null,
   lyrics: '',
+  lyricsDoc: null,
   youtubeUrl: '',
 })
 const busy = ref(false)

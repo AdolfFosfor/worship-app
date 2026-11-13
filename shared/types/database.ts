@@ -49,6 +49,7 @@ export interface DbSong {
   chords: string | null
   chord_chart?: Json | null
   lyrics: string | null
+  lyrics_doc?: Json | null
   youtube_url: string | null
   created_by: string | null
   created_at: string
@@ -136,6 +137,7 @@ export interface Database {
           chords?: string | null
           chord_chart?: Json | null
           lyrics?: string | null
+          lyrics_doc?: Json | null
           youtube_url?: string | null
           created_by?: string | null
           created_at?: string
@@ -155,6 +157,7 @@ export interface Database {
           chords?: string | null
           chord_chart?: Json | null
           lyrics?: string | null
+          lyrics_doc?: Json | null
           youtube_url?: string | null
           created_by?: string | null
           created_at?: string

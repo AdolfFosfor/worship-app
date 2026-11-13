@@ -113,7 +113,8 @@ const draftChart = ref<ChordChart>(props.modelValue ?? createEmptyChart(initialC
 const chart = computed(() => props.modelValue ?? draftChart.value)
 const hasLegacy = computed(() => Boolean(props.legacyChords?.trim()))
 const showConvert = computed(() => hasLegacy.value && !props.modelValue)
-const showReconvert = computed(() => hasLegacy.value && Boolean(props.modelValue))
+/** Hidden while chart already exists; convertLegacy kept for a later UX pass. */
+const showReconvert = computed(() => false)
 
 const typeMenuCurrentType = computed(() => {
   const id = typeMenu.value?.sectionId
