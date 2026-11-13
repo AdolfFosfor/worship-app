@@ -157,6 +157,9 @@ function endDrag() {
   detachWindowDrag()
   drag.value = null
   rootEl.value?.classList.remove('lyric-chord--dragging')
+  if (import.meta.client) {
+    document.documentElement.classList.remove('app-drag-active')
+  }
 }
 
 function commitDrag() {
@@ -302,6 +305,7 @@ function onAnchorDown(
     ghostY: event.clientY,
   }
   rootEl.value?.classList.add('lyric-chord--dragging')
+  document.documentElement.classList.add('app-drag-active')
 
   // Capture on the original button — it stays mounted until pointerup
   try {

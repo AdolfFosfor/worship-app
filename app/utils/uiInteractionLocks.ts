@@ -25,6 +25,7 @@ const BLOCKING_SELECTOR = [
   '.sortable-chosen',
   '.sortable-ghost',
   '.chart-editor--dragging',
+  '.lyric-chord--dragging',
   '[data-app-dragging]',
 ].join(', ')
 

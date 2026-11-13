@@ -329,6 +329,11 @@ export function useEdgeSwipeBack(shellRef: Ref<HTMLElement | null>) {
       if (!active || settling || event.touches.length !== 1) {
         return
       }
+      // Drag аккорда / chart стартовал после touchstart у края — гасим свайп
+      if (hasBlockingOverlay()) {
+        reset(false)
+        return
+      }
       const touch = event.touches[0]
       if (!touch) {
         return
@@ -342,6 +347,10 @@ export function useEdgeSwipeBack(shellRef: Ref<HTMLElement | null>) {
           return
         }
         if (Math.abs(dy) > Math.abs(dx) || dx < 0) {
+          active = false
+          return
+        }
+        if (hasBlockingOverlay()) {
           active = false
           return
         }
