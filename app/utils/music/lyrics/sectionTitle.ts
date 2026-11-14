@@ -22,7 +22,10 @@ export function lyricsBlockDisplayTitle(
   const same = blocks.filter((b) => b.type === block.type)
   const index = same.findIndex((b) => b.id === blockId) + 1
   const numbered =
-    same.length > 1 || block.type === 'verse' || block.type === 'chorus'
+    same.length > 1 ||
+    block.type === 'verse' ||
+    block.type === 'prechorus' ||
+    block.type === 'chorus'
   return numbered ? `${label} ${index}` : label
 }
 
@@ -31,6 +34,5 @@ export function englishSectionTitle(type: SectionType, n?: string | number | nul
   const label = englishSectionLabel(type)
   const num = n == null || n === '' ? '' : String(n).trim()
   if (num) return `${label} ${num}`
-  if (type === 'verse' || type === 'chorus') return label
   return label
 }

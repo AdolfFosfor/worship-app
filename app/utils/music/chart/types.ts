@@ -22,6 +22,7 @@ export {
 export const SECTION_COLOR_VAR: Record<string, string> = {
   intro: 'var(--chart-section-intro)',
   verse: 'var(--chart-section-verse)',
+  prechorus: 'var(--chart-section-prechorus)',
   chorus: 'var(--chart-section-chorus)',
   bridge: 'var(--chart-section-bridge)',
   instrumental: 'var(--chart-section-instrumental)',
@@ -34,6 +35,7 @@ export const SECTION_COLOR_VAR: Record<string, string> = {
 export const SECTION_ACCENT_VAR: Record<string, string> = {
   intro: 'var(--chart-accent-intro)',
   verse: 'var(--chart-accent-verse)',
+  prechorus: 'var(--chart-accent-prechorus)',
   chorus: 'var(--chart-accent-chorus)',
   bridge: 'var(--chart-accent-bridge)',
   instrumental: 'var(--chart-accent-instrumental)',
@@ -71,7 +73,12 @@ export function sectionAutoTitle(
   const label = sectionTypeLabel(section.type, labelForType)
   const same = sections.filter((s) => s.type === section.type)
   const index = same.findIndex((s) => s.id === sectionId) + 1
-  return same.length > 1 || section.type === 'verse' || section.type === 'chorus'
+  return (
+    same.length > 1 ||
+    section.type === 'verse' ||
+    section.type === 'prechorus' ||
+    section.type === 'chorus'
+  )
     ? `${label} ${index}`
     : label
 }

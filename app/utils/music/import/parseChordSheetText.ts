@@ -3,6 +3,9 @@
  * Собираем по секциям: строки аккордов zip’ятся со строками текста (1 такт = 1 строка).
  */
 
+import { SECTION_LABELS } from '~~/shared/types'
+import { matchSectionHeader, SECTION_NAME_PATTERN } from '~/utils/music/sectionHeaders'
+
 export type ChordSheetImportMode = 'chordsOnly' | 'lyricsAndChords'
 
 export type ParsedChordSheet = {
@@ -10,16 +13,19 @@ export type ParsedChordSheet = {
   lyricsPlain: string
 }
 
-const SECTION_NAME =
-  '(?:intro|outro|ending|chorus|refrain|ref\\.?|припев|bridge|бридж|pre[-\\s]?chorus|pre[-\\s]?ch\\.?|предприпев|verse|куплет|vers\\.?|strofa|strofă|tag|solo|instrumental|inst\\.?|проигрыш|вступление|конец|refren)'
-
-const HEADER_RE = new RegExp(`^${SECTION_NAME}(?:\\s*\\d+)?\\s*[:.\\-–—]?\\s*$`, 'i')
-const NUMBERED_HEADER_RE = new RegExp(`^(\\d+)\\s*(${SECTION_NAME})\\s*[:.\\-–—]?\\s*$`, 'i')
-const CHORUS_RANGE_RE = new RegExp(
-  `^(${SECTION_NAME})\\s*[:.\\-–—]?\\s*(\\d+)(?:\\s*[&и,/]\\s*\\d+)?\\s*$`,
+const HEADER_RE = new RegExp(`^${SECTION_NAME_PATTERN}(?:\\s*\\d+)?\\s*[:.\\-–—]?\\s*$`, 'i')
+const NUMBERED_HEADER_RE = new RegExp(
+  `^(\\d+)\\s*(${SECTION_NAME_PATTERN})\\s*[:.\\-–—]?\\s*$`,
   'i',
 )
-const HEADER_INLINE_RE = new RegExp(`^(${SECTION_NAME}(?:\\s*\\d+)?)\\s*[-–—:]\\s*(.+)$`, 'i')
+const CHORUS_RANGE_RE = new RegExp(
+  `^(${SECTION_NAME_PATTERN})\\s*[:.\\-–—]?\\s*(\\d+)(?:\\s*[&и,/]\\s*\\d+)?\\s*$`,
+  'i',
+)
+const HEADER_INLINE_RE = new RegExp(
+  `^(${SECTION_NAME_PATTERN}(?:\\s*\\d+)?)\\s*[-–—:]\\s*(.+)$`,
+  'i',
+)
 
 const CHORD_TOKEN_RE =
   /^[A-H](?:#|b)?(?:maj|min|dim|aug|sus|add|m|M|°|ø)?\d*(?:sus\d+|add\d+|maj\d+|m\d+|dim|aug)?(?:\/[A-H](?:#|b)?)?$/i
@@ -92,47 +98,31 @@ export function isChordLine(line: string): boolean {
   return chordish.length >= Math.ceil(tokens.length * 0.5)
 }
 
-function titleFromSection(rawName: string, num: string): string {
-  const lower = rawName.toLowerCase().replace(/[:.\-–—]\s*$/, '').trim()
-  const n = num.trim()
-  if (/strofa|strofă|verse|куплет|vers\.?/i.test(lower)) return `Verse${n ? ` ${n}` : ''}`
-  if (/chorus|refrain|ref\.?|припев|refren/i.test(lower)) return `Chorus${n ? ` ${n}` : ''}`
-  if (/bridge|бридж/i.test(lower)) return 'Bridge'
-  if (/intro|вступление/i.test(lower)) return 'Intro'
-  if (/outro|ending|конец/i.test(lower)) return 'Outro'
-  if (/tag/i.test(lower)) return 'Tag'
-  if (/instrumental|inst\.?|solo|проигрыш/i.test(lower)) return 'Inst'
-  if (/pre[-\s]?chorus|предприпев/i.test(lower)) return 'Pre-Chorus'
-  return n ? `${rawName.trim()} ${n}` : rawName.trim()
+function titleFromMatch(type: keyof typeof SECTION_LABELS, num: string | null): string {
+  const label = SECTION_LABELS[type]
+  return num ? `${label} ${num}` : label
 }
 
 export function englishHeaderFrom(line: string): string | null {
   const t = normalizeLine(line)
   if (!t) return null
 
-  const numbered = t.match(NUMBERED_HEADER_RE)
-  if (numbered) return titleFromSection(numbered[2]!, numbered[1]!)
-
-  const range = t.match(CHORUS_RANGE_RE)
-  if (range) return titleFromSection(range[1]!, range[2]!)
-
-  if (HEADER_RE.test(t)) {
-    const head = t.replace(/[:.\-–—]\s*$/, '').trim()
-    const num = head.match(/(\d+)\s*$/)?.[1] ?? ''
-    const name = head.replace(/\s*\d+\s*$/, '').trim() || head
-    return titleFromSection(name, num)
-  }
-
+  // Inline «Verse: G C» — header only if body is chords/noise, not lyrics
   const inline = t.match(HEADER_INLINE_RE)
   if (inline) {
     const body = inline[2]!.trim()
     if (body && !isChordToken(body.split(/\s+/)[0] ?? '') && /[a-zăâîșțа-яё]{4,}/i.test(body)) {
       return null
     }
-    const head = inline[1]!.replace(/[:.\-–—]\s*$/, '').trim()
-    const num = head.match(/(\d+)\s*$/)?.[1] ?? ''
-    const name = head.replace(/\s*\d+\s*$/, '').trim() || head
-    return titleFromSection(name, num)
+  }
+
+  const hit = matchSectionHeader(t)
+  if (hit) return titleFromMatch(hit.type, hit.number)
+
+  // Range form already covered by matchSectionHeader number capture; keep regex fallbacks
+  if (NUMBERED_HEADER_RE.test(t) || HEADER_RE.test(t) || CHORUS_RANGE_RE.test(t)) {
+    const again = matchSectionHeader(t.replace(/\s*[&и,/]\s*\d+\s*$/, ''))
+    if (again) return titleFromMatch(again.type, again.number)
   }
 
   return null

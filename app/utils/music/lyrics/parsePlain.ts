@@ -1,4 +1,5 @@
 import type { ChordChart, LyricBlock, LyricLine, SectionType, SongLyricsDoc } from '~~/shared/types'
+import { matchSectionHeader } from '~/utils/music/sectionHeaders'
 import { lyricUid } from './ids'
 import { englishSectionTitle, lyricsBlockDisplayTitle } from './sectionTitle'
 
@@ -8,39 +9,30 @@ interface HeaderMatch {
 }
 
 function matchHeader(line: string): HeaderMatch | null {
-  const raw = line.trim().replace(/:+\s*$/, '')
-  if (!raw) return null
-
-  let m = raw.match(/^(?:STROFA|STROFĂ|VERSE|КУПЛЕТ)\s*(\d*)$/i)
-  if (m || /^(?:STROFA|STROFĂ|VERSE|КУПЛЕТ)\b/i.test(raw)) {
-    const n = (m?.[1] || raw.match(/(\d+)\s*$/)?.[1] || '').trim()
-    return { type: 'verse', title: englishSectionTitle('verse', n || null) }
+  const hit = matchSectionHeader(line)
+  if (!hit) return null
+  return {
+    type: hit.type,
+    title: englishSectionTitle(hit.type, hit.number),
   }
-
-  m = raw.match(/^(?:REFREN|REFRAIN|CHORUS|ПРИПЕВ)\s*(\d*)$/i)
-  if (m || /^(?:REFREN|REFRAIN|CHORUS|ПРИПЕВ)\b/i.test(raw)) {
-    const n = (m?.[1] || raw.match(/(\d+)\s*$/)?.[1] || '').trim()
-    return { type: 'chorus', title: englishSectionTitle('chorus', n || null) }
-  }
-
-  if (/^(?:TAG|ТЭГ|ТЕГ)$/i.test(raw)) return { type: 'tag', title: englishSectionTitle('tag') }
-  if (/^(?:BRIDGE|БРИДЖ|ПРОИГРЫШ)$/i.test(raw)) {
-    return { type: 'bridge', title: englishSectionTitle('bridge') }
-  }
-  if (/^(?:INTRO|ИНТРО)$/i.test(raw)) return { type: 'intro', title: englishSectionTitle('intro') }
-  if (/^(?:OUTRO|АУТРО)$/i.test(raw)) return { type: 'outro', title: englishSectionTitle('outro') }
-  if (/^(?:INST|INSTRUMENTAL|ИНСТР\.?)$/i.test(raw)) {
-    return { type: 'instrumental', title: englishSectionTitle('instrumental') }
-  }
-  return null
 }
 
-function firstChartSectionId(chart: ChordChart | null | undefined, type: SectionType): string | null {
-  return chart?.sections.find((s) => s.type === type)?.id ?? null
+function nextChartSectionId(
+  chart: ChordChart | null | undefined,
+  type: SectionType,
+  used: Set<string>,
+): string | null {
+  const match = chart?.sections.find((s) => s.type === type && !used.has(s.id))
+  if (match) used.add(match.id)
+  return match?.id ?? null
 }
 
 function emptyLine(): LyricLine {
   return { id: lyricUid('line'), text: '', anchors: [] }
+}
+
+function hasLyricText(block: LyricBlock): boolean {
+  return block.lines.some((l) => l.text.trim().length > 0)
 }
 
 /** Build lyrics_doc from plain text; optionally reuse anchors from previous doc by block+line index. */
@@ -54,13 +46,14 @@ export function parsePlainLyrics(
 
   const blocks: LyricBlock[] = []
   let current: LyricBlock | null = null
+  const usedSections = new Set<string>()
 
   function startBlock(type: SectionType, title: string) {
     current = {
       id: lyricUid('blk'),
       type,
       title,
-      chartSectionId: firstChartSectionId(chart, type),
+      chartSectionId: nextChartSectionId(chart, type, usedSections),
       lines: [],
     }
     blocks.push(current)
@@ -72,25 +65,30 @@ export function parsePlainLyrics(
       startBlock(header.type, header.title)
       continue
     }
-    if (!current) startBlock('custom', 'Section')
     // Канон: без пустых строк внутри блока и без крайних пробелов
     const text = raw.trim().replace(/[ \t]+/g, ' ')
     if (!text) continue
+    if (!current) startBlock('custom', 'Section')
     current.lines.push({ id: lyricUid('line'), text, anchors: [] })
   }
 
-  for (const block of blocks) {
+  // Drop empty custom leftovers (e.g. lone «Section:» from a previous serialize)
+  const kept = blocks.filter((b) => b.type !== 'custom' || hasLyricText(b))
+
+  for (const block of kept) {
     if (block.lines.length === 0) block.lines.push(emptyLine())
   }
 
+  if (!kept.length) return null
+
   // Normalize titles to English auto labels (Verse 1 / Chorus 2 / …)
-  for (const block of blocks) {
-    block.title = lyricsBlockDisplayTitle(blocks, block.id)
+  for (const block of kept) {
+    block.title = lyricsBlockDisplayTitle(kept, block.id)
   }
 
-  if (previous?.blocks.length) reuseAnchors(blocks, previous)
+  if (previous?.blocks.length) reuseAnchors(kept, previous)
 
-  return { v: 1, blocks }
+  return { v: 1, blocks: kept }
 }
 
 function reuseAnchors(next: LyricBlock[], previous: SongLyricsDoc) {
@@ -120,9 +118,17 @@ export function serializeLyricsDoc(doc: SongLyricsDoc | null | undefined): strin
   if (!doc?.blocks.length) return ''
   const parts: string[] = []
   for (const block of doc.blocks) {
+    // Skip empty custom noise
+    if (block.type === 'custom' && !block.lines.some((l) => l.text.trim())) continue
     const header = lyricsBlockDisplayTitle(doc.blocks, block.id)
     parts.push(`${header}:`)
-    for (const line of block.lines) parts.push(line.text)
+    for (const line of block.lines) {
+      const text = line.text.trim()
+      if (!text) continue
+      // Don't re-emit a lyric line that is only the same section header
+      if (matchSectionHeader(text)) continue
+      parts.push(line.text)
+    }
     parts.push('')
   }
   return parts.join('\n').trim()

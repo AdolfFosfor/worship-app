@@ -1,6 +1,6 @@
 import type { ChordChart, SongLyricsDoc } from '~~/shared/types'
 import { parseLegacyChords } from '~/utils/music/chart'
-import { autoPlaceBlock, parsePlainLyrics, serializeLyricsDoc } from '~/utils/music/lyrics'
+import { autoPlaceAllBlocks, parsePlainLyrics, serializeLyricsDoc } from '~/utils/music/lyrics'
 import { extractPdfPlainText } from './extractPdfText'
 import {
   normalizeChordAlphabet,
@@ -16,26 +16,6 @@ export type PdfChordSheetImportResult = {
   lyricsDoc: SongLyricsDoc | null
   lyricsPlain: string | null
   parsed: ParsedChordSheet
-}
-
-function rematchChartSections(doc: SongLyricsDoc, chart: ChordChart): SongLyricsDoc {
-  const used = new Set<string>()
-  const blocks = doc.blocks.map((block) => {
-    const byType = chart.sections.find((s) => s.type === block.type && !used.has(s.id))
-    const fallback = chart.sections.find((s) => !used.has(s.id))
-    const match = byType ?? fallback
-    if (match) used.add(match.id)
-    return { ...block, chartSectionId: match?.id ?? null }
-  })
-  return { ...doc, blocks }
-}
-
-function autoPlaceAll(doc: SongLyricsDoc, chart: ChordChart): SongLyricsDoc {
-  let next = doc
-  for (const block of next.blocks) {
-    next = autoPlaceBlock(next, block.id, chart)
-  }
-  return next
 }
 
 /**
@@ -61,8 +41,7 @@ export async function importPdfChordSheet(
   if (mode === 'chordsOnly') {
     let lyricsDoc = previousLyrics ?? null
     if (lyricsDoc?.blocks.length) {
-      lyricsDoc = rematchChartSections(lyricsDoc, chart)
-      lyricsDoc = autoPlaceAll(lyricsDoc, chart)
+      lyricsDoc = autoPlaceAllBlocks(lyricsDoc, chart)
     }
     return {
       chart,
@@ -80,8 +59,7 @@ export async function importPdfChordSheet(
   if (!lyricsDoc?.blocks.length) {
     throw new Error('PDF_NO_LYRICS')
   }
-  lyricsDoc = rematchChartSections(lyricsDoc, chart)
-  lyricsDoc = autoPlaceAll(lyricsDoc, chart)
+  lyricsDoc = autoPlaceAllBlocks(lyricsDoc, chart)
 
   return {
     chart,

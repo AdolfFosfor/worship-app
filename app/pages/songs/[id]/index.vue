@@ -7,7 +7,7 @@ import { normalizeLegacyChordsText, transposeChart } from '~/utils/music/chart'
 import { keyDistance, transposeKeyLabel } from '~/utils/music/keys'
 import { transposeText } from '~/utils/music/transpose'
 import {
-  autoPlaceBlock,
+  autoPlaceAllBlocks,
   parsePlainLyrics,
   readSongViewMode,
   resolveSongViewMode,
@@ -239,11 +239,7 @@ function onPlacementDocUpdate(doc: SongLyricsDoc) {
 
 function autoPlaceAll() {
   if (!placementDraft.value || !song.value?.chordChart) return
-  let next = placementDraft.value
-  for (const block of next.blocks) {
-    next = autoPlaceBlock(next, block.id, song.value.chordChart)
-  }
-  placementDraft.value = next
+  placementDraft.value = autoPlaceAllBlocks(placementDraft.value, song.value.chordChart)
 }
 
 async function savePlacement() {
@@ -331,11 +327,7 @@ async function confirmImportPdf() {
     if (result.lyricsDoc) {
       placementDraft.value = JSON.parse(JSON.stringify(result.lyricsDoc)) as SongLyricsDoc
     } else if (placementDraft.value && song.value.chordChart) {
-      let next = placementDraft.value
-      for (const block of next.blocks) {
-        next = autoPlaceBlock(next, block.id, song.value.chordChart)
-      }
-      placementDraft.value = next
+      placementDraft.value = autoPlaceAllBlocks(placementDraft.value, song.value.chordChart)
     }
     importSheetOpen.value = false
     importFile.value = null

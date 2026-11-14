@@ -21,6 +21,7 @@ export {
 export { isSongLyricsDoc, normalizeLyricsDoc } from './normalize'
 export { parsePlainLyrics, serializeLyricsDoc } from './parsePlain'
 export {
+  autoPlaceAllBlocks,
   autoPlaceBlock,
   moveAnchor,
   relocateAnchor,
@@ -28,6 +29,7 @@ export {
   updateLineInDoc,
   upsertAnchor,
 } from './place'
+export { rematchLyricChartSections } from './rematch'
 export {
   resolveLyricsDoc,
   sectionChordPalette,

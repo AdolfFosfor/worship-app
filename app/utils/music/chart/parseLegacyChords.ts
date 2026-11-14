@@ -6,27 +6,13 @@ import type {
   ChordChart,
   SectionType,
 } from '~~/shared/types'
+import { matchSectionHeader, SECTION_NAME_PATTERN } from '~/utils/music/sectionHeaders'
 import { createAnnotation, createBar, createChord, createEmptyChart, createSection } from './factory'
 
 const CHORD_TOKEN =
   /^([A-G](?:#|b)?)((?:maj|min|dim|aug|sus|add|m|M|°|ø)?\d*(?:sus\d+|add\d+|maj\d+|m\d+|dim|aug)?)?(?:\/([A-G](?:#|b)?))?$/i
 
-/** Section name only (+ optional number) — do not use \\b (breaks Cyrillic). */
-const SECTION_NAME =
-  '(?:intro|outro|ending|chorus|refrain|ref\\.?|припев|bridge|бридж|pre[-\\s]?chorus|pre[-\\s]?ch\\.?|предприпев|verse|куплет|vers\\.?|tag|solo|instrumental|inst\\.?|проигрыш|вступление|конец)'
-
-const SECTION_ALIASES: { pattern: RegExp; type: SectionType }[] = [
-  { pattern: /^(intro|вступление)(?=$|[\s.:\-–—])/i, type: 'intro' },
-  { pattern: /^(outro|ending|конец)(?=$|[\s.:\-–—])/i, type: 'outro' },
-  { pattern: /^(chorus|refrain|ref\.?|припев)(?=$|[\s.:\-–—])/i, type: 'chorus' },
-  { pattern: /^(bridge|бридж)(?=$|[\s.:\-–—])/i, type: 'bridge' },
-  { pattern: /^(instrumental|inst\.?|solo|проигрыш)(?=$|[\s.:\-–—])/i, type: 'instrumental' },
-  { pattern: /^(tag)(?=$|[\s.:\-–—])/i, type: 'tag' },
-  { pattern: /^(pre[-\s]?chorus|pre[-\s]?ch\.?|предприпев)(?=$|[\s.:\-–—])/i, type: 'custom' },
-  { pattern: /^(verse|куплет|vers\.?)(?=$|[\s.:\-–—|\d])/i, type: 'verse' },
-]
-
-const HEADER_PREFIX = new RegExp(`^${SECTION_NAME}(?=$|[\\s.:\\-–—|\\d])`, 'i')
+const HEADER_PREFIX = new RegExp(`^${SECTION_NAME_PATTERN}(?=$|[\\s.:\\-–—|\\d])`, 'i')
 
 const ANNOTATION_MAP: { pattern: RegExp; preset: AnnotationPreset; text: string }[] = [
   { pattern: /^[x×]2$/i, preset: 'x2', text: '×2' },
@@ -40,17 +26,15 @@ const ANNOTATION_MAP: { pattern: RegExp; preset: AnnotationPreset; text: string 
 const SKIP_TOKENS = new Set(['|', '/', '—', '–', '-', '·', '•', ''])
 
 function detectSectionType(title: string): SectionType {
-  const cleaned = title.trim()
-  for (const { pattern, type } of SECTION_ALIASES) {
-    if (pattern.test(cleaned)) return type
-  }
-  return 'custom'
+  return matchSectionHeader(title)?.type ?? 'custom'
 }
 
 function splitHeaderAndBody(line: string): { header: string | null; body: string } {
   // Only the section keyword (+ optional number) is the header.
   // Do NOT swallow the rest of the line — em-dashes in "Em G — A" must stay in the body.
-  const m = line.match(new RegExp(`^(${SECTION_NAME}(?:\\s*\\d+)?)\\s*[-–—:]\\s*(.+)$`, 'i'))
+  const m = line.match(
+    new RegExp(`^(${SECTION_NAME_PATTERN}(?:\\s*\\d+)?)\\s*[-–—:]\\s*(.+)$`, 'i'),
+  )
   if (m) return { header: m[1]!.trim(), body: m[2]!.trim() }
   return { header: null, body: line }
 }

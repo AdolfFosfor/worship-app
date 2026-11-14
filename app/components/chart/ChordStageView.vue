@@ -71,7 +71,7 @@ function autoSectionTitle(sectionId: string) {
   return sectionAutoTitle(props.chart.sections, sectionId, sectionLabel)
 }
 
-/** Повтор секций с тем же рядом аккордов на сцене не показываем */
+/** Повтор того же типа с тем же рядом аккордов на сцене не показываем */
 const stageSections = computed(() => collapseIdenticalSections(props.chart.sections))
 
 const showPlaylistNav = computed(

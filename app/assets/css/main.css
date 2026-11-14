@@ -117,6 +117,7 @@
   /* Chord chart — soft washes + accent marks (light) */
   --chart-section-intro: color-mix(in srgb, #64748b 5%, transparent);
   --chart-section-verse: color-mix(in srgb, #3b82f6 5%, transparent);
+  --chart-section-prechorus: color-mix(in srgb, #0ea5e9 5%, transparent);
   --chart-section-chorus: color-mix(in srgb, #10b981 6%, transparent);
   --chart-section-bridge: color-mix(in srgb, #8b5cf6 5%, transparent);
   --chart-section-instrumental: color-mix(in srgb, #06b6d4 5%, transparent);
@@ -125,6 +126,7 @@
   --chart-section-custom: color-mix(in srgb, #ec4899 5%, transparent);
   --chart-accent-intro: #64748b;
   --chart-accent-verse: #3b82f6;
+  --chart-accent-prechorus: #0ea5e9;
   --chart-accent-chorus: #10b981;
   --chart-accent-bridge: #8b5cf6;
   --chart-accent-instrumental: #06b6d4;
@@ -174,6 +176,7 @@
 
   --chart-section-intro: color-mix(in srgb, #94a3b8 8%, transparent);
   --chart-section-verse: color-mix(in srgb, #60a5fa 8%, transparent);
+  --chart-section-prechorus: color-mix(in srgb, #38bdf8 8%, transparent);
   --chart-section-chorus: color-mix(in srgb, #34d399 8%, transparent);
   --chart-section-bridge: color-mix(in srgb, #a78bfa 8%, transparent);
   --chart-section-instrumental: color-mix(in srgb, #22d3ee 8%, transparent);
@@ -182,6 +185,7 @@
   --chart-section-custom: color-mix(in srgb, #f472b6 8%, transparent);
   --chart-accent-intro: #94a3b8;
   --chart-accent-verse: #60a5fa;
+  --chart-accent-prechorus: #38bdf8;
   --chart-accent-chorus: #34d399;
   --chart-accent-bridge: #a78bfa;
   --chart-accent-instrumental: #22d3ee;
