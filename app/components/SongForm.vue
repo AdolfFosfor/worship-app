@@ -572,6 +572,7 @@ defineExpose({
       <ChordChartEditor
         :model-value="form.chordChart ?? null"
         :legacy-chords="form.chords"
+        :lyrics-doc="form.lyricsDoc ?? null"
         :title="t('song.fieldChords')"
         :time-signature="form.timeSignature ?? null"
         @update:model-value="onChartUpdate"

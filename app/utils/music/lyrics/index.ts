@@ -23,6 +23,7 @@ export { parsePlainLyrics, serializeLyricsDoc } from './parsePlain'
 export {
   autoPlaceAllBlocks,
   autoPlaceBlock,
+  isSongWideProgressionChart,
   moveAnchor,
   relocateAnchor,
   removeAnchor,

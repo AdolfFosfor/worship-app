@@ -83,7 +83,7 @@ function parseBarChunk(chunk: string): ChartBar {
   return createBar(items)
 }
 
-function parseBarsLine(line: string): ChartBar[] {
+export function parseBarsLine(line: string): ChartBar[] {
   const normalized = line
     .replace(/\s*\|\s*/g, ' | ')
     .replace(/\s+\/\s+/g, ' | ')

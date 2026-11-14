@@ -1,9 +1,11 @@
 import type {
   ChordChart,
+  ChartSection,
   LyricChordAnchor,
   LyricLine,
   SongLyricsDoc,
 } from '~~/shared/types'
+import { sectionChordFingerprint } from '~/utils/music/chart/collapseIdenticalSections'
 import { lyricUid } from './ids'
 import { rematchLyricChartSections } from './rematch'
 
@@ -91,8 +93,30 @@ function clearBlockAnchors(doc: SongLyricsDoc, blockId: string): SongLyricsDoc {
   }
 }
 
+/** Same short progression cloned across sections (C G Am F …). */
+export function isSongWideProgressionChart(chart: ChordChart): boolean {
+  if (chart.sections.length < 1) return false
+  const first = chart.sections[0]!
+  const fp = sectionChordFingerprint(first)
+  if (!fp) return false
+  if (!chart.sections.every((s) => sectionChordFingerprint(s) === fp)) return false
+  const chordCount = countSectionChords(first)
+  const barCount = first.bars.filter((b) =>
+    b.items.some((i) => i.kind === 'chord'),
+  ).length
+  return barCount <= 2 && chordCount >= 2 && chordCount <= 8
+}
+
+function countSectionChords(section: ChartSection): number {
+  return section.bars.reduce(
+    (n, bar) => n + bar.items.filter((i) => i.kind === 'chord').length,
+    0,
+  )
+}
+
 /**
  * Auto-layout by bars: one bar → one lyric line when possible.
+ * Song-wide progression → full chord sequence on every lyric line.
  * Fewer bars → split each bar's chords across its share of lines.
  * More bars → merge consecutive bars onto lines.
  */
@@ -100,6 +124,7 @@ export function autoPlaceBlock(
   doc: SongLyricsDoc,
   blockId: string,
   chart: ChordChart | null | undefined,
+  opts?: { progression?: boolean },
 ): SongLyricsDoc {
   const block = doc.blocks.find((b) => b.id === blockId)
   if (!block || !chart) return doc
@@ -119,7 +144,13 @@ export function autoPlaceBlock(
   const targets = block.lines.filter((l) => l.text.trim().length > 0)
   if (!targets.length) return clearBlockAnchors(doc, blockId)
 
-  const assigned = assignBarsToLines(bars, targets.length)
+  const progression =
+    opts?.progression === true ||
+    (opts?.progression !== false && isSongWideProgressionChart(chart))
+
+  const assigned = progression
+    ? assignProgressionToLines(bars, targets.length)
+    : assignBarsToLines(bars, targets.length)
   const perLine = new Map<string, LyricChordAnchor[]>()
   for (let i = 0; i < targets.length; i++) {
     const line = targets[i]!
@@ -141,16 +172,23 @@ export function autoPlaceBlock(
 export function autoPlaceAllBlocks(
   doc: SongLyricsDoc,
   chart: ChordChart | null | undefined,
+  opts?: { progression?: boolean },
 ): SongLyricsDoc {
   if (!chart) return doc
   let next = rematchLyricChartSections(doc, chart)
   for (const block of next.blocks) {
-    next = autoPlaceBlock(next, block.id, chart)
+    next = autoPlaceBlock(next, block.id, chart, opts)
   }
   return next
 }
 
 type ChordRef = { id: string; symbol: string }
+
+/** Full progression on every lyric line. */
+function assignProgressionToLines(bars: ChordRef[][], lineCount: number): ChordRef[][] {
+  const flat = bars.filter((b) => b.length > 0).flat()
+  return Array.from({ length: lineCount }, () => (flat.length ? [...flat] : []))
+}
 
 /**
  * Map bars onto lyric lines:
@@ -168,7 +206,6 @@ export function assignBarsToLines(bars: ChordRef[][], lineCount: number): ChordR
   }
 
   if (nonEmpty.length < lineCount) {
-    // How many lyric lines each bar should cover
     const linesPerBar = chunkCounts(lineCount, nonEmpty.length)
     const expanded: ChordRef[][] = []
     for (let bi = 0; bi < nonEmpty.length; bi++) {

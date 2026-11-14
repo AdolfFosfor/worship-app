@@ -3,7 +3,13 @@ import type { Setlist, SetlistWithItems, Song, SongLyricsDoc } from '~~/shared/t
 import type { StagePlaylistInfo } from '~/components/chart/ChordStageView.vue'
 import { icons } from '~/utils/icons'
 import { clampCapo, soundingKey } from '~/utils/music/capo'
-import { normalizeLegacyChordsText, transposeChart } from '~/utils/music/chart'
+import {
+  chartFromProgressionAndLyrics,
+  isPlainProgression,
+  isValidTimeSignature,
+  normalizeLegacyChordsText,
+  transposeChart,
+} from '~/utils/music/chart'
 import { keyDistance, transposeKeyLabel } from '~/utils/music/keys'
 import { transposeText } from '~/utils/music/transpose'
 import {
@@ -213,6 +219,51 @@ function setViewMode(mode: SongViewMode) {
 
 const showViewModes = computed(() => hasChartView.value && hasLyricsView.value)
 
+const canBuildFromProgression = computed(() => {
+  const s = song.value
+  if (!s || s.chordChart) return false
+  if (!isPlainProgression(s.chords)) return false
+  return Boolean(lyricsDoc.value?.blocks.length)
+})
+
+async function buildChartFromProgression(enterPlacement = false) {
+  if (!song.value || !lyricsDoc.value || !canBuildFromProgression.value) return
+  placementBusy.value = true
+  try {
+    const ts = isValidTimeSignature(song.value.timeSignature)
+      ? song.value.timeSignature
+      : '4/4'
+    const chart = chartFromProgressionAndLyrics(song.value.chords, lyricsDoc.value, ts)
+    const placed = autoPlaceAllBlocks(
+      JSON.parse(JSON.stringify(lyricsDoc.value)) as SongLyricsDoc,
+      chart,
+      { progression: true },
+    )
+    const input = songToInput(song.value)
+    input.chordChart = chart
+    input.lyricsDoc = placed
+    input.lyrics = serializeLyricsDoc(placed)
+    song.value = await updateSong(song.value.id, input)
+    toast.add({ severity: 'success', summary: t('lyrics.progressionBuilt'), life: 2200 })
+    if (enterPlacement) {
+      placementDraft.value = JSON.parse(JSON.stringify(placed)) as SongLyricsDoc
+      placementEditing.value = true
+      setViewMode('lyricsChords')
+    } else {
+      setViewMode('lyricsChords')
+    }
+  } catch (e) {
+    toast.add({
+      severity: 'error',
+      summary: t('common.error'),
+      detail: e instanceof Error ? e.message : t('common.saveFailed'),
+      life: 4000,
+    })
+  } finally {
+    placementBusy.value = false
+  }
+}
+
 async function startPlacementEdit() {
   if (!showSongManage.value) return
   try {
@@ -222,6 +273,10 @@ async function startPlacementEdit() {
     /* keep current song */
   }
   if (!lyricsDoc.value) return
+  if (canBuildFromProgression.value) {
+    await buildChartFromProgression(true)
+    return
+  }
   placementDraft.value = JSON.parse(JSON.stringify(lyricsDoc.value)) as SongLyricsDoc
   placementEditing.value = true
   setViewMode('lyricsChords')
@@ -904,7 +959,17 @@ const { revealEditable } = useHeaderEditableTitle({
         :title="viewMode === 'lyricsChords' ? t('song.viewLyricsChords') : t('song.extraLyrics')"
       >
         <button
-          v-if="showSongManage && viewMode === 'lyricsChords' && !placementEditing"
+          v-if="showSongManage && viewMode === 'lyricsChords' && !placementEditing && canBuildFromProgression"
+          type="button"
+          class="song-view__edit-chords"
+          :disabled="placementBusy"
+          @click="buildChartFromProgression(false)"
+        >
+          <AppIcon :name="icons.notes" size="1.05rem" />
+          {{ t('lyrics.buildFromProgression') }}
+        </button>
+        <button
+          v-else-if="showSongManage && viewMode === 'lyricsChords' && !placementEditing"
           type="button"
           class="song-view__edit-chords"
           @click="startPlacementEdit"

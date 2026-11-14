@@ -3,6 +3,7 @@ import type {
   AnnotationPreset,
   ChordChart,
   SectionType,
+  SongLyricsDoc,
   TimeSignature,
 } from '~~/shared/types'
 import { SECTION_TYPES } from '~~/shared/types'
@@ -10,10 +11,12 @@ import {
   ChartHistory,
   SECTION_ACCENT_VAR,
   SECTION_COLOR_VAR,
+  chartFromProgressionAndLyrics,
   createAnnotation,
   createChord,
   createEmptyChart,
   getMeter,
+  isPlainProgression,
   isValidTimeSignature,
   parseLegacyChords,
   sectionAutoTitle,
@@ -58,6 +61,8 @@ const props = withDefaults(
   defineProps<{
     modelValue: ChordChart | null
     legacyChords?: string | null
+    /** When set, plain progression expands into one chart section per lyrics block. */
+    lyricsDoc?: SongLyricsDoc | null
     /** Field label shown on one row with undo/redo. */
     title?: string | null
     /** Song meter. Known values update the chart; the editor has no own picker. */
@@ -65,6 +70,7 @@ const props = withDefaults(
   }>(),
   {
     legacyChords: null,
+    lyricsDoc: null,
     title: null,
     timeSignature: null,
   },
@@ -283,7 +289,12 @@ watch(chart, (live) => {
 })
 
 function convertLegacy() {
-  const parsed = parseLegacyChords(props.legacyChords)
+  const ts = isValidTimeSignature(props.timeSignature) ? props.timeSignature : '4/4'
+  const parsed =
+    isPlainProgression(props.legacyChords) && props.lyricsDoc?.blocks.length
+      ? chartFromProgressionAndLyrics(props.legacyChords, props.lyricsDoc, ts)
+      : parseLegacyChords(props.legacyChords)
+  if (isValidTimeSignature(ts)) parsed.timeSignature = ts
   history.clear()
   draftChart.value = parsed
   emit('update:modelValue', parsed)
