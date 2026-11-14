@@ -155,10 +155,10 @@ const importFile = ref<File | null>(null)
 const importBusy = ref(false)
 const importFileInput = ref<HTMLInputElement | null>(null)
 
-const importModes: { value: ChordSheetImportMode; labelKey: string }[] = [
-  { value: 'chordsOnly', labelKey: 'lyrics.importChordsOnly' },
-  { value: 'lyricsAndChords', labelKey: 'lyrics.importLyricsAndChords' },
-]
+const importModeOptions = computed(() => [
+  { value: 'chordsOnly' as const, label: t('lyrics.importChordsOnly') },
+  { value: 'lyricsAndChords' as const, label: t('lyrics.importLyricsAndChords') },
+])
 
 const importConfirmEnabled = computed(
   () => Boolean(importFile.value) && !importBusy.value,
@@ -863,25 +863,14 @@ const { revealEditable } = useHeaderEditableTitle({
         </div>
       </section>
 
-      <div
+      <AppSegmentedControl
         v-if="showViewModes"
         class="song-view__modes"
-        role="radiogroup"
+        :model-value="viewMode"
+        :options="viewModeOptions"
         :aria-label="t('song.viewModeAria')"
-      >
-        <button
-          v-for="opt in viewModeOptions"
-          :key="opt.value"
-          type="button"
-          class="song-view__mode"
-          :class="{ 'song-view__mode--on': viewMode === opt.value }"
-          role="radio"
-          :aria-checked="viewMode === opt.value"
-          @click="setViewMode(opt.value)"
-        >
-          {{ opt.label }}
-        </button>
-      </div>
+        @update:model-value="setViewMode"
+      />
 
       <AppSection
         v-if="viewMode === 'chart' && displayChart"
@@ -1021,20 +1010,13 @@ const { revealEditable } = useHeaderEditableTitle({
         @dismiss="closeImportSheet"
         @confirm="confirmImportPdf"
       >
-        <div class="song-view__import-modes" role="radiogroup" :aria-label="t('lyrics.importModeAria')">
-          <button
-            v-for="opt in importModes"
-            :key="opt.value"
-            type="button"
-            class="song-view__import-mode"
-            :class="{ 'song-view__import-mode--on': importMode === opt.value }"
-            role="radio"
-            :aria-checked="importMode === opt.value"
-            @click="importMode = opt.value"
-          >
-            {{ t(opt.labelKey) }}
-          </button>
-        </div>
+        <AppSegmentedControl
+          class="song-view__import-modes"
+          :model-value="importMode"
+          :options="importModeOptions"
+          :aria-label="t('lyrics.importModeAria')"
+          @update:model-value="importMode = $event"
+        />
 
         <input
           ref="importFileInput"
@@ -1114,36 +1096,7 @@ const { revealEditable } = useHeaderEditableTitle({
 
 <style scoped>
 .song-view__modes {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.28rem;
   margin: 0.15rem 0 0.65rem;
-  padding: 0.22rem;
-  border-radius: var(--app-radius-lg);
-  background: var(--app-hover);
-}
-
-.song-view__mode {
-  min-height: 1.9rem;
-  padding: 0.2rem 0.2rem;
-  border: 0;
-  border-radius: var(--app-radius);
-  background: transparent;
-  color: var(--app-muted);
-  font: inherit;
-  font-size: 0.72rem;
-  font-weight: 650;
-  letter-spacing: -0.015em;
-  line-height: 1.15;
-  text-align: center;
-  white-space: normal;
-  cursor: pointer;
-}
-
-.song-view__mode--on {
-  background: var(--app-surface);
-  color: var(--app-ink);
-  box-shadow: var(--app-shadow-soft);
 }
 
 .song-view--placing {
@@ -1213,34 +1166,8 @@ const { revealEditable } = useHeaderEditableTitle({
 }
 
 .song-view__import-modes {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--app-space-2);
   width: 100%;
-}
-
-.song-view__import-mode {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 2.75rem;
-  padding: 0.55rem 0.75rem;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-lg);
-  background: var(--app-bg);
-  color: var(--app-ink);
-  font: inherit;
-  font-size: var(--app-text-sm);
-  font-weight: 650;
-  text-align: center;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.song-view__import-mode--on {
-  border-color: transparent;
-  background: var(--app-accent);
-  color: var(--app-accent-contrast);
+  margin-bottom: var(--app-space-2);
 }
 
 .song-view__import-file-input {

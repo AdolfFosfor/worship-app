@@ -251,20 +251,12 @@ useAppHeader(() => ({
             </div>
           </div>
 
-          <div class="member-sheet__roles" role="radiogroup" :aria-label="t('members.roleGroupAria')">
-            <button
-              v-for="opt in roleOptions"
-              :key="opt.value"
-              type="button"
-              class="member-sheet__role"
-              :class="{ 'member-sheet__role--on': draftRole === opt.value }"
-              role="radio"
-              :aria-checked="draftRole === opt.value"
-              @click="draftRole = opt.value"
-            >
-              {{ opt.label }}
-            </button>
-          </div>
+          <AppSegmentedControl
+            v-model="draftRole"
+            class="member-sheet__roles"
+            :options="roleOptions"
+            :aria-label="t('members.roleGroupAria')"
+          />
 
           <label class="member-sheet__field">
             <span class="member-sheet__label">{{ t('members.displayAsLabel') }}</span>
@@ -557,33 +549,7 @@ useAppHeader(() => ({
 }
 
 .member-sheet__roles {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.35rem;
   margin-bottom: var(--app-space-4);
-  padding: 0.3rem;
-  border-radius: var(--app-radius-lg);
-  background: var(--app-hover);
-}
-
-.member-sheet__role {
-  min-height: 2.35rem;
-  padding: 0 0.35rem;
-  border: 0;
-  border-radius: var(--app-radius);
-  background: transparent;
-  color: var(--app-muted);
-  font: inherit;
-  font-size: var(--app-text-sm);
-  font-weight: 650;
-  letter-spacing: -0.01em;
-  cursor: pointer;
-}
-
-.member-sheet__role--on {
-  background: var(--app-surface);
-  color: var(--app-ink);
-  box-shadow: var(--app-shadow-soft);
 }
 
 .member-sheet__field {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ChordChart, SongInput } from '~~/shared/types'
+import type { ChordChart, SongInput, SongLyricsDoc } from '~~/shared/types'
 import { parsePlainLyrics, serializeLyricsDoc } from '~/utils/music/lyrics'
 import {
   SONG_METERS,
@@ -52,6 +52,69 @@ function patch<K extends keyof SongInput>(key: K, value: SongInput[K]) {
 
 function onChartUpdate(chart: ChordChart) {
   patch('chordChart', chart)
+}
+
+type FormContentMode = 'chart' | 'lyrics'
+const contentMode = ref<FormContentMode>('chart')
+
+const hasLyricsContent = computed(() => {
+  if (props.modelValue.lyricsDoc?.blocks.some((b) => b.lines.some((l) => l.text.trim()))) {
+    return true
+  }
+  return Boolean(props.modelValue.lyrics?.trim())
+})
+
+const showContentModes = computed(() => hasLyricsContent.value)
+
+const contentModeOptions = computed(() => [
+  { value: 'chart' as const, label: t('song.viewChart') },
+  { value: 'lyrics' as const, label: t('song.viewLyrics') },
+])
+
+const lyricsDocForEditor = computed<SongLyricsDoc | null>(() => {
+  if (props.modelValue.lyricsDoc?.blocks.length) return props.modelValue.lyricsDoc
+  const plain = props.modelValue.lyrics?.trim()
+  if (!plain) return null
+  return parsePlainLyrics(plain, props.modelValue.chordChart ?? null, null)
+})
+
+watch(hasLyricsContent, (has) => {
+  if (!has && contentMode.value === 'lyrics') contentMode.value = 'chart'
+})
+
+function onLyricsDocUpdate(doc: SongLyricsDoc) {
+  if (!doc.blocks.length) {
+    emit('update:modelValue', {
+      ...props.modelValue,
+      lyrics: null,
+      lyricsDoc: null,
+    })
+    contentMode.value = 'chart'
+    return
+  }
+  emit('update:modelValue', {
+    ...props.modelValue,
+    lyricsDoc: doc,
+    lyrics: serializeLyricsDoc(doc),
+  })
+}
+
+function ensureLyricsDoc(): SongLyricsDoc | null {
+  if (props.modelValue.lyricsDoc?.blocks.length) return props.modelValue.lyricsDoc
+  const plain = props.modelValue.lyrics?.trim()
+  if (!plain) return null
+  const doc = parsePlainLyrics(plain, props.modelValue.chordChart ?? null, null)
+  if (doc) onLyricsDocUpdate(doc)
+  return doc
+}
+
+function setContentMode(mode: FormContentMode) {
+  if (mode === 'lyrics') ensureLyricsDoc()
+  contentMode.value = mode
+}
+
+function openLyricsPlain() {
+  openExtra('lyrics')
 }
 
 const canSubmit = computed(
@@ -359,6 +422,7 @@ function confirmSheet() {
         lyrics: lyricsDoc ? serializeLyricsDoc(lyricsDoc) : value,
         lyricsDoc,
       })
+      contentMode.value = 'lyrics'
     }
   } else if (kind === 'youtube') {
     patch('youtubeUrl', value || null)
@@ -492,13 +556,38 @@ defineExpose({
       </button>
     </div>
 
-    <div class="song-form__field song-form__field--chart">
+    <AppSegmentedControl
+      v-if="showContentModes"
+      class="song-form__modes"
+      :model-value="contentMode"
+      :options="contentModeOptions"
+      :aria-label="t('song.viewModeAria')"
+      @update:model-value="setContentMode"
+    />
+
+    <div
+      v-show="!showContentModes || contentMode === 'chart'"
+      class="song-form__field song-form__field--chart"
+    >
       <ChordChartEditor
         :model-value="form.chordChart ?? null"
         :legacy-chords="form.chords"
         :title="t('song.fieldChords')"
         :time-signature="form.timeSignature ?? null"
         @update:model-value="onChartUpdate"
+      />
+    </div>
+
+    <div
+      v-if="showContentModes && contentMode === 'lyrics' && lyricsDocForEditor"
+      class="song-form__field song-form__field--lyrics"
+    >
+      <LyricsDocEditor
+        :model-value="lyricsDocForEditor"
+        :chart="form.chordChart ?? null"
+        :title="t('song.extraLyrics')"
+        @update:model-value="onLyricsDocUpdate"
+        @edit-plain="openLyricsPlain"
       />
     </div>
 
@@ -723,8 +812,13 @@ defineExpose({
   color: var(--app-section-header);
 }
 
-.song-form__field--chart {
+.song-form__field--chart,
+.song-form__field--lyrics {
   gap: var(--app-space-2);
+}
+
+.song-form__modes {
+  margin: 0.05rem 0 0.15rem;
 }
 
 .song-form__hint {

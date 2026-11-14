@@ -31,6 +31,17 @@ export {
 } from './place'
 export { rematchLyricChartSections } from './rematch'
 export {
+  addLyricBlock,
+  addLyricLine,
+  duplicateLyricBlock,
+  emptyLyricsDoc,
+  moveLyricBlock,
+  removeLyricBlock,
+  removeLyricLine,
+  setLyricBlockType,
+  setLyricLineText,
+} from './ops'
+export {
   resolveLyricsDoc,
   sectionChordPalette,
   type ResolvedLyricAnchor,
