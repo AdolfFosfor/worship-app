@@ -227,6 +227,8 @@ function onWindowPointerMove(event: PointerEvent) {
   }
 
   const sameAsSource = hit.lineId === d.sourceLineId
+  // Always sample along a text-ink Y. Finger sits on the chord band above the
+  // glyphs — raw clientY makes caret APIs snap to 0 or EOL.
   const y = sameAsSource ? d.rowClientY : event.clientY
   const offset = offsetAtClientPoint(hit.textEl, event.clientX, y)
   const moved =
@@ -235,16 +237,19 @@ function onWindowPointerMove(event: PointerEvent) {
     offset !== d.startOffset ||
     Math.hypot(event.clientX - d.startX, event.clientY - d.startY) > 8
 
-  const textRect = hit.textEl.getBoundingClientRect()
+  let rowClientY = d.rowClientY
+  if (!sameAsSource) {
+    const point = caretPointInElement(hit.textEl, hit.lineEl, offset)
+    const lineRect = hit.lineEl.getBoundingClientRect()
+    rowClientY = lineRect.top + point.top + point.height * 0.45
+  }
+
   drag.value = {
     ...d,
     targetLineId: hit.lineId,
     offset,
     moved,
-    // When previewing another line, unlock Y to that line's ink for next small moves
-    rowClientY: sameAsSource
-      ? d.rowClientY
-      : textRect.top + Math.min(8, textRect.height * 0.35),
+    rowClientY,
     ghostX: event.clientX,
     ghostY: event.clientY,
   }

@@ -78,44 +78,46 @@ export function caretLeftInElement(textEl: HTMLElement, offset: number): number 
   return caretPointInElement(textEl, textEl, offset).left
 }
 
-function clampIntoTextBox(textEl: HTMLElement, clientX: number, clientY: number) {
-  const rect = textEl.getBoundingClientRect()
-  if (rect.width <= 0 || rect.height <= 0) return { x: clientX, y: clientY }
-  return {
-    x: Math.max(rect.left, Math.min(rect.right - 0.5, clientX)),
-    // Keep Y inside the ink box — points in the chord padding above text
-    // make caret APIs snap to offset 0.
-    y: Math.max(rect.top + 0.5, Math.min(rect.bottom - 0.5, clientY)),
+/** Visual line boxes of the text node (wrap-aware), not the full-width <p>. */
+function textLineBoxes(textEl: HTMLElement): DOMRect[] {
+  const node = textNode(textEl)
+  if (!node?.length) {
+    const r = textEl.getBoundingClientRect()
+    return r.width || r.height ? [r] : []
+  }
+  const range = document.createRange()
+  try {
+    range.selectNodeContents(node)
+    return Array.from(range.getClientRects()).filter((r) => r.width > 0 || r.height > 0)
+  } catch {
+    const r = textEl.getBoundingClientRect()
+    return r.width || r.height ? [r] : []
+  } finally {
+    range.detach?.()
   }
 }
 
-/** Map pointer → nearest character offset (wrap-aware via clientY). */
-export function offsetAtClientPoint(textEl: HTMLElement, clientX: number, clientY: number): number {
+/** Ink line box nearest to clientY (for wrapped lyrics). */
+function lineBoxAtY(textEl: HTMLElement, clientY: number): DOMRect | null {
+  const boxes = textLineBoxes(textEl)
+  if (!boxes.length) return null
+  let best = boxes[0]!
+  let bestDist = Infinity
+  for (const box of boxes) {
+    const dist =
+      clientY < box.top ? box.top - clientY : clientY > box.bottom ? clientY - box.bottom : 0
+    if (dist < bestDist) {
+      bestDist = dist
+      best = box
+    }
+  }
+  return best
+}
+
+function nearestGlyphOffset(textEl: HTMLElement, clientX: number, clientY: number): number {
   const text = textEl.textContent ?? ''
-  if (!text.length) return 0
-
-  const { x, y } = clampIntoTextBox(textEl, clientX, clientY)
-
-  const doc = document as Document & {
-    caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null
-    caretRangeFromPoint?: (x: number, y: number) => Range | null
-  }
-  if (typeof doc.caretPositionFromPoint === 'function') {
-    const pos = doc.caretPositionFromPoint(x, y)
-    if (pos?.offsetNode && textEl.contains(pos.offsetNode)) {
-      return Math.max(0, Math.min(text.length, pos.offset))
-    }
-  }
-  if (typeof doc.caretRangeFromPoint === 'function') {
-    const range = doc.caretRangeFromPoint(x, y)
-    if (range && textEl.contains(range.startContainer)) {
-      return Math.max(0, Math.min(text.length, range.startOffset))
-    }
-  }
-
-  // Fallback: nearest glyph; weight X higher so vertical drift is forgiving
   const node = textNode(textEl)
-  if (!node) return 0
+  if (!node || !text.length) return 0
   let best = 0
   let bestDist = Infinity
   const range = document.createRange()
@@ -127,7 +129,8 @@ export function offsetAtClientPoint(textEl: HTMLElement, clientX: number, client
       if (!r.width && !r.height) continue
       const cx = r.left + r.width / 2
       const cy = r.top + r.height / 2
-      const d = (cx - x) ** 2 + (cy - y) ** 2 * 0.25
+      // Prefer X; Y is secondary so chord-band drift is forgiving
+      const d = (cx - clientX) ** 2 + (cy - clientY) ** 2 * 0.2
       if (d < bestDist) {
         bestDist = d
         best = i
@@ -137,6 +140,54 @@ export function offsetAtClientPoint(textEl: HTMLElement, clientX: number, client
     range.detach?.()
   }
   return best
+}
+
+/**
+ * Map pointer → character offset.
+ * Clamps to real glyph ink (not full-width block) so drags don't snap to EOL.
+ */
+export function offsetAtClientPoint(textEl: HTMLElement, clientX: number, clientY: number): number {
+  const text = textEl.textContent ?? ''
+  if (!text.length) return 0
+
+  const box = lineBoxAtY(textEl, clientY)
+  if (!box) return 0
+
+  // Clamp into this visual row's ink — <p> is often wider than the text
+  const x = Math.max(box.left + 0.5, Math.min(box.right - 0.5, clientX))
+  const y = (box.top + box.bottom) / 2
+
+  const doc = document as Document & {
+    caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null
+    caretRangeFromPoint?: (x: number, y: number) => Range | null
+  }
+
+  let fromCaret: number | null = null
+  if (typeof doc.caretPositionFromPoint === 'function') {
+    const pos = doc.caretPositionFromPoint(x, y)
+    if (pos?.offsetNode && textEl.contains(pos.offsetNode)) {
+      fromCaret = Math.max(0, Math.min(text.length, pos.offset))
+    }
+  } else if (typeof doc.caretRangeFromPoint === 'function') {
+    const range = doc.caretRangeFromPoint(x, y)
+    if (range && textEl.contains(range.startContainer)) {
+      fromCaret = Math.max(0, Math.min(text.length, range.startOffset))
+    }
+  }
+
+  if (fromCaret != null) {
+    // Caret APIs love returning text.length when X is near the right padding of a short line
+    if (fromCaret >= text.length) {
+      const nearEnd = x >= box.right - 3
+      if (!nearEnd) return nearestGlyphOffset(textEl, x, y)
+      // Truly at end of this visual row — place after last char of that row's content.
+      // Prefer last character index for left-aligned chord over "ghost" after EOL.
+      return Math.max(0, text.length - 1)
+    }
+    return fromCaret
+  }
+
+  return nearestGlyphOffset(textEl, x, y)
 }
 
 /** Horizontal drag on a locked visual row (Y fixed to glyph band). */
