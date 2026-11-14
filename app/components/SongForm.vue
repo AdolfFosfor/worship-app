@@ -255,6 +255,14 @@ const sheetTitle = computed(() => {
   return t('song.sheetLyrics')
 })
 
+const sheetConfirmLabel = computed(() => {
+  if (!sheetKind.value) return null
+  if (sheetKind.value === 'types' || sheetKind.value === 'themes' || sheetKind.value === 'meter') {
+    return t('common.done')
+  }
+  return t('common.save')
+})
+
 function sheetField(): HTMLInputElement | HTMLTextAreaElement | null {
   if (sheetKind.value === 'youtube') return youtubeInput.value
   if (sheetKind.value === 'bpm') return bpmInput.value
@@ -369,16 +377,6 @@ function confirmSheet() {
   closeSheet()
 }
 
-/** iOS/Android «Done» на KB обычно даёт blur — сохраняем черновик. */
-function onDraftFieldBlur() {
-  if (sheetKind.value !== 'lyrics' && sheetKind.value !== 'youtube') return
-  window.setTimeout(() => {
-    if (sheetKind.value === 'lyrics' || sheetKind.value === 'youtube') {
-      confirmSheet()
-    }
-  }, 0)
-}
-
 /**
  * KeepAlive оставляет Teleport в .app-shell после ухода со страницы —
  * снимаем shell-UI при deactivate. CTA только на маршрутах формы.
@@ -394,10 +392,6 @@ const formRouteActive = computed(() => {
 const showFormCta = computed(
   () => shellUiActive.value && formRouteActive.value && !sheetOpen.value,
 )
-
-const bpmAddEnabled = computed(() => parseBpmDraft(sheetDraft.value) != null)
-
-const meterAddEnabled = computed(() => Boolean(normalizeTimeSignature(meterDraft.value)))
 
 onActivated(() => {
   shellUiActive.value = true
@@ -560,7 +554,9 @@ defineExpose({
       :open="shellUiActive && formRouteActive && sheetOpen"
       :title="sheetTitle"
       :expanded="sheetChoices"
+      :confirm-label="sheetConfirmLabel"
       @dismiss="confirmSheet"
+      @confirm="confirmSheet"
       @after-enter="onSheetAfterEnter"
     >
       <!-- v-show: оба смонтированы — handoff фокуса после after-enter надёжнее -->
@@ -572,7 +568,6 @@ defineExpose({
         rows="8"
         :placeholder="t('song.lyricsPlaceholder')"
         enterkeyhint="enter"
-        @blur="onDraftFieldBlur"
         @keydown.meta.enter.prevent="confirmSheet"
         @keydown.ctrl.enter.prevent="confirmSheet"
       />
@@ -586,7 +581,6 @@ defineExpose({
         :placeholder="t('song.youtubePlaceholder')"
         enterkeyhint="done"
         autocomplete="off"
-        @blur="onDraftFieldBlur"
         @keydown.enter.prevent="confirmSheet"
       >
       <form
@@ -606,13 +600,6 @@ defineExpose({
           autocomplete="off"
           @input="onBpmDraftInput"
         >
-        <button
-          type="submit"
-          class="app-top-sheet__add"
-          :disabled="!bpmAddEnabled"
-        >
-          {{ t('common.add') }}
-        </button>
       </form>
       <div v-show="sheetKind === 'types'" class="app-top-sheet__choices">
         <div class="song-form__chips song-form__chips--grid">
@@ -693,14 +680,6 @@ defineExpose({
           @input="onMeterDraftInput"
           @keydown="onMeterKeydown"
         >
-        <button
-          type="button"
-          class="app-top-sheet__add"
-          :disabled="!meterAddEnabled"
-          @pointerdown.prevent="addCustomMeter"
-        >
-          {{ t('common.add') }}
-        </button>
       </div>
     </AppTopSheet>
   </form>

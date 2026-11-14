@@ -148,6 +148,7 @@ const sectionDragArmed = ref<{
 } | null>(null)
 const sectionDragSuppressClick = ref(false)
 const barGripSuppressClick = ref(false)
+const itemChipSuppressClick = ref(false)
 /** Grip: ждать сдвиг, иначе это клик → выбор такта */
 const barDragArmed = ref<{
   sectionId: string
@@ -156,6 +157,17 @@ const barDragArmed = ref<{
   y: number
   itemCount: number
 } | null>(null)
+/** Чип: ждать сдвиг / long-press, иначе клик → выбор аккорда */
+const itemDragArmed = ref<{
+  sectionId: string
+  barId: string
+  itemId: string
+  afterIndex: number
+  x: number
+  y: number
+} | null>(null)
+/** Точка pointerdown — не коммитить swap/move при почти-клике */
+const itemDragOrigin = ref<{ x: number; y: number } | null>(null)
 
 /** ⌥-copy для тактов и чипов */
 const isCopyDragActive = computed(
@@ -488,6 +500,14 @@ function selectItem(sectionId: string, barId: string, itemId: string, afterIndex
   revealSelection({ force: true })
 }
 
+function onItemChipClick(sectionId: string, barId: string, itemId: string, afterIndex: number) {
+  if (itemChipSuppressClick.value) {
+    itemChipSuppressClick.value = false
+    return
+  }
+  selectItem(sectionId, barId, itemId, afterIndex)
+}
+
 function onAddBar(sectionId: string, afterBarId?: string) {
   const next = addBar(currentChart(), sectionId, afterBarId)
   commit(next)
@@ -648,30 +668,75 @@ function updateItemDropHintAt(clientX: number, clientY: number) {
   dropHint.value = itemDropHintFromBar(bar, clientX, drag.value.itemId)
 }
 
-function startItemDrag(sectionId: string, barId: string, itemId: string, e: PointerEvent) {
-  e.preventDefault()
+function beginItemDrag(
+  sectionId: string,
+  barId: string,
+  itemId: string,
+  originX: number,
+  originY: number,
+) {
+  if (drag.value?.kind === 'item' && drag.value.itemId === itemId) return
+  itemDragArmed.value = null
+  itemDragOrigin.value = { x: originX, y: originY }
+  drag.value = {
+    kind: 'item',
+    sectionId,
+    barId,
+    itemId,
+    duplicate: dragWantsCopy.value,
+  }
+  haptics.grab()
+}
+
+function startItemDrag(
+  sectionId: string,
+  barId: string,
+  itemId: string,
+  afterIndex: number,
+  e: PointerEvent,
+) {
+  if (e.button != null && e.button !== 0) return
+  // Не preventDefault — иначе клик выбора не приходит (как у grip такта)
   clearLongPress()
   // Без setPointerCapture: ⌥+drag на macOS отменяет capture и рвёт pointer-поток
   resetDragCopyModifier()
   armDragCopyFromPointer(e)
-
-  const begin = () => {
-    if (drag.value?.kind === 'item' && drag.value.itemId === itemId) return
-    drag.value = {
-      kind: 'item',
-      sectionId,
-      barId,
-      itemId,
-      duplicate: dragWantsCopy.value,
-    }
-    haptics.grab()
+  itemChipSuppressClick.value = false
+  itemDragArmed.value = {
+    sectionId,
+    barId,
+    itemId,
+    afterIndex,
+    x: e.clientX,
+    y: e.clientY,
   }
 
+  // Touch: long-press → drag; мышь — только после сдвига ≥8px
   if (e.pointerType === 'touch') {
-    longPressTimer.value = setTimeout(begin, 320)
-  } else {
-    begin()
+    longPressTimer.value = setTimeout(() => {
+      beginItemDrag(sectionId, barId, itemId, e.clientX, e.clientY)
+    }, 320)
   }
+}
+
+function maybeStartArmedItemDrag(clientX: number, clientY: number) {
+  const armed = itemDragArmed.value
+  if (!armed || drag.value) return false
+  if (Math.hypot(clientX - armed.x, clientY - armed.y) < 8) return false
+  beginItemDrag(armed.sectionId, armed.barId, armed.itemId, armed.x, armed.y)
+  return true
+}
+
+/** Короткий тап по чипу без сдвига → выбрать аккорд */
+function finishArmedItemTap() {
+  const armed = itemDragArmed.value
+  clearLongPress()
+  itemDragArmed.value = null
+  itemDragOrigin.value = null
+  resetDragCopyModifier()
+  if (!armed) return
+  selectItem(armed.sectionId, armed.barId, armed.itemId, armed.afterIndex)
+  itemChipSuppressClick.value = true
 }
 
 function beginSectionDrag(sectionId: string) {
@@ -984,6 +1049,10 @@ function onPointerMove(e: PointerEvent) {
       beginSectionDrag(armed.sectionId)
     }
   }
+  if (itemDragArmed.value && !drag.value) {
+    armDragCopyFromPointer(e)
+    maybeStartArmedItemDrag(e.clientX, e.clientY)
+  }
   if (barDragArmed.value && !drag.value) {
     armDragCopyFromPointer(e)
     maybeStartArmedBarDrag(e.clientX, e.clientY)
@@ -1013,6 +1082,13 @@ function onPointerMove(e: PointerEvent) {
 let dragFinishLock = false
 
 function onPointerCancel(e: Event) {
+  if (itemDragArmed.value && !drag.value) {
+    clearLongPress()
+    itemDragArmed.value = null
+    itemDragOrigin.value = null
+    resetDragCopyModifier()
+    return
+  }
   // ⌥: cancel без цели — ждём mouseup; с целью — коммитим сразу
   if (
     (drag.value?.kind === 'item' || drag.value?.kind === 'bar') &&
@@ -1024,6 +1100,15 @@ function onPointerCancel(e: Event) {
 }
 
 function onMouseDragMove(e: MouseEvent) {
+  if (itemDragArmed.value && !drag.value) {
+    armDragCopyFromPointer({
+      altKey: e.altKey,
+      ctrlKey: e.ctrlKey,
+      shiftKey: e.shiftKey,
+      pointerType: 'mouse',
+    })
+    maybeStartArmedItemDrag(e.clientX, e.clientY)
+  }
   if (barDragArmed.value && !drag.value) {
     armDragCopyFromPointer({
       altKey: e.altKey,
@@ -1048,6 +1133,10 @@ function onMouseDragMove(e: MouseEvent) {
 }
 
 function onMouseDragUp(e: MouseEvent) {
+  if (itemDragArmed.value && !drag.value) {
+    finishArmedItemTap()
+    return
+  }
   if (barDragArmed.value && !drag.value) {
     finishArmedBarTap()
     return
@@ -1057,6 +1146,12 @@ function onMouseDragUp(e: MouseEvent) {
 }
 
 function onPointerUp(e?: Event) {
+  if (itemDragArmed.value && !drag.value) {
+    // Мышь: selection через mouseup/click; touch — здесь
+    if (e instanceof PointerEvent && e.pointerType === 'mouse') return
+    finishArmedItemTap()
+    return
+  }
   if (barDragArmed.value && !drag.value) {
     // Мышь: selection через mouseup/click; touch — здесь
     if (e instanceof PointerEvent && e.pointerType === 'mouse') return
@@ -1084,14 +1179,22 @@ function finishDrag(e?: Event) {
   clearLongPress()
   sectionDragArmed.value = null
   barDragArmed.value = null
+  itemDragArmed.value = null
 
   // Финальная точка + модификаторы с события отпускания
+  let itemDragDistance = Infinity
   if (
     (drag.value.kind === 'item' || drag.value.kind === 'bar') &&
     e &&
     'clientX' in e
   ) {
     const ev = e as PointerEvent | MouseEvent
+    if (drag.value.kind === 'item' && itemDragOrigin.value) {
+      itemDragDistance = Math.hypot(
+        ev.clientX - itemDragOrigin.value.x,
+        ev.clientY - itemDragOrigin.value.y,
+      )
+    }
     armDragCopyFromPointer({
       altKey: ev.altKey,
       ctrlKey: ev.ctrlKey,
@@ -1101,8 +1204,14 @@ function finishDrag(e?: Event) {
     if (dragWantsCopy.value) {
       drag.value = { ...drag.value, duplicate: true }
     }
-    if (drag.value.kind === 'item') updateItemDropHintAt(ev.clientX, ev.clientY)
-    else updateBarDropHintAt(ev.clientX, ev.clientY)
+    // Почти-клик после long-press: не пересчитывать drop → не swap
+    if (drag.value.kind === 'item' && itemDragDistance < 8) {
+      dropHint.value = null
+    } else if (drag.value.kind === 'item') {
+      updateItemDropHintAt(ev.clientX, ev.clientY)
+    } else {
+      updateBarDropHintAt(ev.clientX, ev.clientY)
+    }
   }
 
   let moved = false
@@ -1259,15 +1368,34 @@ function finishDrag(e?: Event) {
     }
   }
   const wasBarDrag = drag.value?.kind === 'bar'
+  const wasItemDrag = drag.value?.kind === 'item'
+  const itemPath =
+    wasItemDrag && drag.value.itemId && drag.value.barId
+      ? {
+          sectionId: drag.value.sectionId,
+          barId: drag.value.barId,
+          itemId: drag.value.itemId,
+        }
+      : null
   if (moved) {
     if (wasBarDrag) barGripSuppressClick.value = true
+    if (wasItemDrag) itemChipSuppressClick.value = true
     haptics.drop()
   } else if (wasBarDrag) {
     // Был drag (даже без move) — не дублировать select через click
     barGripSuppressClick.value = true
+  } else if (wasItemDrag && itemPath) {
+    // Long-press без сдвига / drop без изменений → выбрать чип
+    const bar = currentChart()
+      .sections.find((s) => s.id === itemPath.sectionId)
+      ?.bars.find((b) => b.id === itemPath.barId)
+    const idx = bar?.items.findIndex((i) => i.id === itemPath.itemId) ?? -1
+    if (idx >= 0) selectItem(itemPath.sectionId, itemPath.barId, itemPath.itemId, idx)
+    itemChipSuppressClick.value = true
   }
   drag.value = null
   dropHint.value = null
+  itemDragOrigin.value = null
   resetDragCopyModifier()
   queueMicrotask(() => {
     dragFinishLock = false
@@ -1599,9 +1727,9 @@ onBeforeUnmount(() => {
                   :data-section-id="section.id"
                   :data-bar-id="bar.id"
                   :data-item-index="itemIndex"
-                  @pointerdown.stop="startItemDrag(section.id, bar.id, item.id, $event)"
+                  @pointerdown.stop="startItemDrag(section.id, bar.id, item.id, itemIndex, $event)"
                   @dragstart.prevent
-                  @click.stop="selectItem(section.id, bar.id, item.id, itemIndex)"
+                  @click.stop="onItemChipClick(section.id, bar.id, item.id, itemIndex)"
                 >
                   <template v-if="item.kind === 'chord'">
                     {{ item.symbol }}

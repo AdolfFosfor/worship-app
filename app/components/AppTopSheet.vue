@@ -5,14 +5,20 @@ withDefaults(
   defineProps<{
     title: string
     expanded?: boolean
+    /** Подпись кнопки сохранения; null — без кнопки */
+    confirmLabel?: string | null
+    confirmDisabled?: boolean
   }>(),
   {
     expanded: false,
+    confirmLabel: null,
+    confirmDisabled: false,
   },
 )
 
 const emit = defineEmits<{
   dismiss: []
+  confirm: []
   'after-enter': []
 }>()
 
@@ -20,6 +26,10 @@ const { t } = useAppLocale()
 
 function onDismiss() {
   emit('dismiss')
+}
+
+function onConfirm() {
+  emit('confirm')
 }
 
 function onEscape(event: KeyboardEvent) {
@@ -64,6 +74,16 @@ onBeforeUnmount(() => {
           <div class="app-top-sheet__body">
             <slot />
           </div>
+          <footer v-if="confirmLabel" class="app-top-sheet__footer">
+            <button
+              type="button"
+              class="app-top-sheet__confirm"
+              :disabled="confirmDisabled"
+              @click="onConfirm"
+            >
+              {{ confirmLabel }}
+            </button>
+          </footer>
         </div>
       </div>
     </Transition>
@@ -149,9 +169,34 @@ onBeforeUnmount(() => {
   gap: var(--app-space-3);
   flex: 1;
   min-height: 0;
-  padding: var(--app-space-3) var(--app-page-inline) var(--app-space-4);
+  padding: var(--app-space-3) var(--app-page-inline) var(--app-space-3);
   overflow: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+.app-top-sheet__footer {
+  flex-shrink: 0;
+  padding: 0 var(--app-page-inline) var(--app-space-3);
+}
+
+.app-top-sheet__confirm {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0 0.85rem;
+  border: 0;
+  border-radius: var(--app-radius-pill);
+  background: var(--app-accent);
+  color: var(--app-accent-contrast);
+  font: inherit;
+  font-size: var(--app-text-sm);
+  font-weight: 750;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.app-top-sheet__confirm:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 /* :deep — поля/choices могут быть вложены в слот (не только top-level) */
@@ -197,32 +242,6 @@ onBeforeUnmount(() => {
   font-weight: 700;
   letter-spacing: -0.02em;
   text-align: center;
-}
-
-.app-top-sheet__body :deep(.app-top-sheet__add) {
-  width: 100%;
-  min-height: 2.75rem;
-  padding: 0 0.85rem;
-  border: 0;
-  border-radius: var(--app-radius-pill);
-  background: var(--app-accent);
-  color: var(--app-accent-contrast);
-  font: inherit;
-  font-size: var(--app-text-sm);
-  font-weight: 750;
-  cursor: pointer;
-}
-
-.app-top-sheet__body :deep(.app-top-sheet__add:disabled) {
-  opacity: 0.45;
-  cursor: default;
-}
-
-/* ПК: Enter / клик по маске — кнопка не нужна */
-@media (hover: hover) and (pointer: fine) {
-  .app-top-sheet__body :deep(.app-top-sheet__add) {
-    display: none;
-  }
 }
 
 .app-top-sheet-enter-active,

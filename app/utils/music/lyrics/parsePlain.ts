@@ -73,15 +73,13 @@ export function parsePlainLyrics(
       continue
     }
     if (!current) startBlock('custom', 'Section')
-    const text = raw.replace(/\s+$/, '')
-    if (!text && current.lines.length === 0) continue
+    // Канон: без пустых строк внутри блока и без крайних пробелов
+    const text = raw.trim().replace(/[ \t]+/g, ' ')
+    if (!text) continue
     current.lines.push({ id: lyricUid('line'), text, anchors: [] })
   }
 
   for (const block of blocks) {
-    while (block.lines.length && !block.lines[block.lines.length - 1]!.text.trim()) {
-      block.lines.pop()
-    }
     if (block.lines.length === 0) block.lines.push(emptyLine())
   }
 

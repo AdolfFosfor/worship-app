@@ -3,6 +3,7 @@ import type { ChordChart } from '~~/shared/types'
 import {
   SECTION_ACCENT_VAR,
   SECTION_COLOR_VAR,
+  collapseIdenticalSections,
   readStageChordSize,
   sectionAutoTitle,
   writeStageChordSize,
@@ -69,6 +70,9 @@ function sectionLabel(type: string) {
 function autoSectionTitle(sectionId: string) {
   return sectionAutoTitle(props.chart.sections, sectionId, sectionLabel)
 }
+
+/** Повтор секций с тем же рядом аккордов на сцене не показываем */
+const stageSections = computed(() => collapseIdenticalSections(props.chart.sections))
 
 const showPlaylistNav = computed(
   () => Boolean(props.playlist && props.playlist.total > 1),
@@ -235,7 +239,7 @@ onBeforeUnmount(() => {
 
     <div class="chord-stage__body">
       <section
-        v-for="section in chart.sections"
+        v-for="section in stageSections"
         :key="section.id"
         class="chord-stage__section"
         :style="{
@@ -356,7 +360,7 @@ onBeforeUnmount(() => {
 
       <div class="chord-stage__body">
         <section
-          v-for="section in chart.sections"
+          v-for="section in stageSections"
           :key="`fs-${section.id}`"
           class="chord-stage__section"
           :style="{

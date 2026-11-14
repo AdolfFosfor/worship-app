@@ -15,6 +15,10 @@ import {
   writeSongViewMode,
   type SongViewMode,
 } from '~/utils/music/lyrics'
+import {
+  importPdfChordSheet,
+  type ChordSheetImportMode,
+} from '~/utils/music/import'
 import { localTodayKey } from '~/utils/dates'
 import { songThemeMessageKey, songTypeMessageKey } from '~~/shared/songs/library'
 import { songToInput } from '~/utils/mappers'
@@ -145,6 +149,33 @@ const placementDraft = ref<SongLyricsDoc | null>(null)
 const placementEditing = ref(false)
 const placementBusy = ref(false)
 
+const importSheetOpen = ref(false)
+const importMode = ref<ChordSheetImportMode>('lyricsAndChords')
+const importFile = ref<File | null>(null)
+const importBusy = ref(false)
+const importFileInput = ref<HTMLInputElement | null>(null)
+
+const importModes: { value: ChordSheetImportMode; labelKey: string }[] = [
+  { value: 'chordsOnly', labelKey: 'lyrics.importChordsOnly' },
+  { value: 'lyricsAndChords', labelKey: 'lyrics.importLyricsAndChords' },
+]
+
+const importConfirmEnabled = computed(
+  () => Boolean(importFile.value) && !importBusy.value,
+)
+
+/** Конец имени (…pro.pdf) всегда виден; начало сжимается с ellipsis. */
+const importFileNameParts = computed(() => {
+  const name = importFile.value?.name?.trim()
+  if (!name) return null
+  const keepEnd = 22
+  if (name.length <= keepEnd + 8) return { head: name, tail: '' }
+  return {
+    head: name.slice(0, -keepEnd),
+    tail: name.slice(-keepEnd),
+  }
+})
+
 const activeLyricsDoc = computed(() => placementDraft.value ?? lyricsDoc.value)
 
 const viewModeOptions = computed(() => [
@@ -199,6 +230,7 @@ async function startPlacementEdit() {
 function cancelPlacementEdit() {
   placementEditing.value = false
   placementDraft.value = null
+  importSheetOpen.value = false
 }
 
 function onPlacementDocUpdate(doc: SongLyricsDoc) {
@@ -234,6 +266,91 @@ async function savePlacement() {
     })
   } finally {
     placementBusy.value = false
+  }
+}
+
+function openImportSheet() {
+  importMode.value = 'lyricsAndChords'
+  importFile.value = null
+  if (importFileInput.value) importFileInput.value.value = ''
+  importSheetOpen.value = true
+}
+
+function closeImportSheet() {
+  if (importBusy.value) return
+  importSheetOpen.value = false
+  importFile.value = null
+  if (importFileInput.value) importFileInput.value.value = ''
+}
+
+function onImportFileChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0] ?? null
+  if (file && file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+    toast.add({
+      severity: 'error',
+      summary: t('common.error'),
+      detail: t('lyrics.importFailed'),
+      life: 4000,
+    })
+    input.value = ''
+    importFile.value = null
+    return
+  }
+  importFile.value = file
+}
+
+function pickImportFile() {
+  importFileInput.value?.click()
+}
+
+function importErrorDetail(error: unknown): string {
+  const code = error instanceof Error ? error.message : ''
+  if (code === 'PDF_EMPTY') return t('lyrics.importEmpty')
+  if (code === 'PDF_NO_CHORDS') return t('lyrics.importNoChords')
+  if (code === 'PDF_NO_LYRICS') return t('lyrics.importNoLyrics')
+  return error instanceof Error ? error.message : t('lyrics.importFailed')
+}
+
+async function confirmImportPdf() {
+  if (!song.value || !importFile.value || importBusy.value) return
+  importBusy.value = true
+  try {
+    const result = await importPdfChordSheet(
+      importFile.value,
+      importMode.value,
+      placementDraft.value ?? lyricsDoc.value,
+    )
+    const input = songToInput(song.value)
+    input.chordChart = result.chart
+    if (result.lyricsDoc) {
+      input.lyricsDoc = result.lyricsDoc
+      input.lyrics = result.lyricsPlain
+    }
+    song.value = await updateSong(song.value.id, input)
+    if (result.lyricsDoc) {
+      placementDraft.value = JSON.parse(JSON.stringify(result.lyricsDoc)) as SongLyricsDoc
+    } else if (placementDraft.value && song.value.chordChart) {
+      let next = placementDraft.value
+      for (const block of next.blocks) {
+        next = autoPlaceBlock(next, block.id, song.value.chordChart)
+      }
+      placementDraft.value = next
+    }
+    importSheetOpen.value = false
+    importFile.value = null
+    if (importFileInput.value) importFileInput.value.value = ''
+    toast.add({ severity: 'success', summary: t('lyrics.importSuccess'), life: 2000 })
+    haptics.success()
+  } catch (e) {
+    toast.add({
+      severity: 'error',
+      summary: t('common.error'),
+      detail: importErrorDetail(e),
+      life: 4000,
+    })
+  } finally {
+    importBusy.value = false
   }
 }
 
@@ -814,9 +931,20 @@ const { revealEditable } = useHeaderEditableTitle({
           <AppIcon :name="icons.edit" size="1.05rem" />
           {{ t('lyrics.editPlacement') }}
         </button>
-        <p v-if="placementEditing && viewMode === 'lyricsChords'" class="song-view__lyrics-hint">
-          {{ t('lyrics.placeHint') }}
-        </p>
+        <template v-if="placementEditing && viewMode === 'lyricsChords'">
+          <p class="song-view__lyrics-hint">
+            {{ t('lyrics.placeHint') }}
+          </p>
+          <button
+            type="button"
+            class="song-view__import-pdf"
+            :disabled="importBusy || placementBusy"
+            @click="openImportSheet"
+          >
+            <AppIcon :name="icons.documentText" size="1.05rem" />
+            {{ t('lyrics.importPdf') }}
+          </button>
+        </template>
         <LyricChordView
           :doc="activeLyricsDoc"
           :chart="displayChart ?? song.chordChart"
@@ -892,6 +1020,57 @@ const { revealEditable } = useHeaderEditableTitle({
           </div>
         </div>
       </Teleport>
+
+      <AppTopSheet
+        v-model:open="importSheetOpen"
+        :title="t('lyrics.importSheetTitle')"
+        :confirm-label="t('lyrics.importConfirm')"
+        :confirm-disabled="!importConfirmEnabled"
+        @dismiss="closeImportSheet"
+        @confirm="confirmImportPdf"
+      >
+        <div class="song-view__import-modes" role="radiogroup" :aria-label="t('lyrics.importModeAria')">
+          <button
+            v-for="opt in importModes"
+            :key="opt.value"
+            type="button"
+            class="song-view__import-mode"
+            :class="{ 'song-view__import-mode--on': importMode === opt.value }"
+            role="radio"
+            :aria-checked="importMode === opt.value"
+            @click="importMode = opt.value"
+          >
+            {{ t(opt.labelKey) }}
+          </button>
+        </div>
+
+        <input
+          ref="importFileInput"
+          class="song-view__import-file-input"
+          type="file"
+          accept="application/pdf,.pdf"
+          @change="onImportFileChange"
+        >
+        <button
+          type="button"
+          class="song-view__import-pick"
+          :disabled="importBusy"
+          :title="importFile?.name"
+          @click="pickImportFile"
+        >
+          <AppIcon :name="icons.documentText" size="1.05rem" />
+          <span class="song-view__import-pick-label">
+            <template v-if="importFileNameParts">
+              <span class="song-view__import-pick-head">{{ importFileNameParts.head }}</span>
+              <span
+                v-if="importFileNameParts.tail"
+                class="song-view__import-pick-tail"
+              >{{ importFileNameParts.tail }}</span>
+            </template>
+            <template v-else>{{ t('lyrics.importPickFile') }}</template>
+          </span>
+        </button>
+      </AppTopSheet>
 
       <Dialog
         v-model:visible="pickerVisible"
@@ -1011,6 +1190,122 @@ const { revealEditable } = useHeaderEditableTitle({
   font-size: var(--app-text-sm);
   color: var(--app-muted);
   line-height: 1.35;
+}
+
+.song-view__import-pdf {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--app-space-2);
+  width: 100%;
+  min-height: 2.5rem;
+  margin-bottom: var(--app-space-3);
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-lg);
+  background: transparent;
+  color: var(--app-accent-text);
+  font: inherit;
+  font-size: var(--app-text-sm);
+  font-weight: 650;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.song-view__import-pdf:active {
+  background: var(--app-press);
+}
+
+.song-view__import-pdf:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.song-view__import-modes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--app-space-2);
+  width: 100%;
+}
+
+.song-view__import-mode {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-lg);
+  background: var(--app-bg);
+  color: var(--app-ink);
+  font: inherit;
+  font-size: var(--app-text-sm);
+  font-weight: 650;
+  text-align: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.song-view__import-mode--on {
+  border-color: transparent;
+  background: var(--app-accent);
+  color: var(--app-accent-contrast);
+}
+
+.song-view__import-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.song-view__import-pick {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--app-space-2);
+  width: 100%;
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: 0 0.85rem;
+  border: 1px dashed var(--app-border);
+  border-radius: var(--app-radius-lg);
+  background: var(--app-bg);
+  color: var(--app-ink);
+  font: inherit;
+  font-size: var(--app-text-sm);
+  font-weight: 650;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.song-view__import-pick :deep(svg) {
+  flex-shrink: 0;
+}
+
+.song-view__import-pick-label {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.song-view__import-pick-head {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.song-view__import-pick-tail {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.song-view__import-pick:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .song-view__place-cta {

@@ -19,13 +19,21 @@ function normalizeAnchor(raw: unknown): LyricChordAnchor | null {
 function normalizeLine(raw: unknown): LyricLine | null {
   if (!raw || typeof raw !== 'object') return null
   const o = raw as Record<string, unknown>
-  const text = typeof o.text === 'string' ? o.text : ''
+  const rawText = typeof o.text === 'string' ? o.text : ''
+  const leading = (rawText.match(/^[ \t]*/) ?? [''])[0]!.length
+  // Пустые строки выкидываем — blank в каноне только между секциями.
+  // Внутренние пробелы не трогаем (якоря аккордов).
+  const text = rawText.trim()
+  if (!text) return null
   const id = typeof o.id === 'string' && o.id ? o.id : lyricUid('line')
   const anchorsRaw = Array.isArray(o.anchors) ? o.anchors : []
   const anchors = anchorsRaw
     .map(normalizeAnchor)
     .filter((a): a is LyricChordAnchor => a != null)
-    .map((a) => ({ ...a, offset: Math.min(a.offset, text.length) }))
+    .map((a) => ({
+      ...a,
+      offset: Math.min(Math.max(0, a.offset - leading), text.length),
+    }))
     .sort((a, b) => a.offset - b.offset || a.id.localeCompare(b.id))
   return { id, text, anchors }
 }
@@ -40,6 +48,10 @@ function normalizeBlock(raw: unknown): LyricBlock | null {
     typeof o.chartSectionId === 'string' && o.chartSectionId ? o.chartSectionId : null
   const linesRaw = Array.isArray(o.lines) ? o.lines : []
   const lines = linesRaw.map(normalizeLine).filter((l): l is LyricLine => l != null)
+  // Пустая секция (intro/inst) — одна пустая строка-плейсхолдер
+  if (lines.length === 0) {
+    lines.push({ id: lyricUid('line'), text: '', anchors: [] })
+  }
   return { id, type: o.type, ...(title ? { title } : {}), chartSectionId, lines }
 }
 
