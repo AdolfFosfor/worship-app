@@ -3,6 +3,17 @@
  */
 export type DbMemberRole = 'administrator' | 'worship_leader' | 'musician'
 
+export type DbSetlistRsvpStatus = 'yes' | 'maybe' | 'no'
+
+export interface DbSetlistRsvp {
+  id: string
+  setlist_id: string
+  member_id: string
+  status: DbSetlistRsvpStatus
+  created_at: string
+  updated_at: string
+}
+
 export type Json =
   | string
   | number
@@ -205,6 +216,26 @@ export interface Database {
         }
         Relationships: []
       }
+      setlist_rsvps: {
+        Row: DbSetlistRsvp
+        Insert: {
+          id?: string
+          setlist_id: string
+          member_id: string
+          status: DbSetlistRsvpStatus
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          setlist_id?: string
+          member_id?: string
+          status?: DbSetlistRsvpStatus
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       telegram_accounts: {
         Row: {
           telegram_id: number
@@ -290,6 +321,7 @@ export interface Database {
     }
     Enums: {
       member_role: DbMemberRole
+      setlist_rsvp_status: DbSetlistRsvpStatus
     }
     CompositeTypes: Record<string, never>
   }

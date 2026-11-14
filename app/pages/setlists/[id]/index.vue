@@ -689,6 +689,8 @@ const { revealEditable } = useHeaderEditableTitle({
         </article>
       </div>
 
+      <SetlistParticipationBlock :setlist-id="setlist.id" />
+
       <div v-if="workspace.canEditSetlists" class="setlist-footer">
         <button
           type="button"

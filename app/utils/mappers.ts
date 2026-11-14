@@ -1,11 +1,13 @@
 import type {
   DbSetlist,
   DbSetlistItem,
+  DbSetlistRsvp,
   DbSong,
   DbWorkspace,
   DbWorkspaceMember,
   Setlist,
   SetlistItem,
+  SetlistRsvp,
   Song,
   SongInput,
   Workspace,
@@ -118,5 +120,16 @@ export function mapSetlistItem(row: DbSetlistItem): SetlistItem {
     songId: row.song_id,
     position: row.position,
     key: row.key,
+  }
+}
+
+export function mapSetlistRsvp(row: DbSetlistRsvp): SetlistRsvp {
+  return {
+    id: row.id,
+    setlistId: row.setlist_id,
+    memberId: row.member_id,
+    status: row.status,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
   }
 }

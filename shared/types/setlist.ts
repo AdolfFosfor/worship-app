@@ -32,3 +32,15 @@ export interface SetlistInput {
   title: string
   serviceDate: string
 }
+
+/** Ответ участника на служение: Да / Возможно / Нет */
+export type SetlistRsvpStatus = 'yes' | 'maybe' | 'no'
+
+export interface SetlistRsvp {
+  id: EntityId
+  setlistId: EntityId
+  memberId: EntityId
+  status: SetlistRsvpStatus
+  createdAt: string
+  updatedAt: string
+}
