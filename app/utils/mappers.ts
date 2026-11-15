@@ -3,6 +3,7 @@ import type {
   DbSetlistItem,
   DbSetlistRsvp,
   DbSong,
+  DbSongMemberNote,
   DbWorkspace,
   DbWorkspaceMember,
   Setlist,
@@ -10,6 +11,7 @@ import type {
   SetlistRsvp,
   Song,
   SongInput,
+  SongMemberNote,
   Workspace,
   WorkspaceMember,
 } from '~~/shared/types'
@@ -129,6 +131,28 @@ export function mapSetlistRsvp(row: DbSetlistRsvp): SetlistRsvp {
     setlistId: row.setlist_id,
     memberId: row.member_id,
     status: row.status,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
+}
+
+function mapSectionNotes(raw: DbSongMemberNote['section_notes']): Record<string, string> {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+  const out: Record<string, string> = {}
+  for (const [key, value] of Object.entries(raw)) {
+    if (typeof value === 'string' && value.trim()) out[key] = value.trim()
+  }
+  return out
+}
+
+export function mapSongMemberNote(row: DbSongMemberNote): SongMemberNote {
+  return {
+    id: row.id,
+    workspaceId: row.workspace_id,
+    songId: row.song_id,
+    memberId: row.member_id,
+    body: row.body ?? '',
+    sectionNotes: mapSectionNotes(row.section_notes),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }

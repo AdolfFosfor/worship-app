@@ -16,7 +16,9 @@ import {
   songThemeMessageKey,
   songTypeMessageKey,
 } from '~~/shared/songs/library'
-import { KEY_OPTIONS } from '~/utils/music/keys'
+import { KEY_OPTIONS, keyDistance } from '~/utils/music/keys'
+import { transposeChart } from '~/utils/music/chart'
+import { transposeText } from '~/utils/music/transpose'
 import { icons } from '~/utils/icons'
 
 const { t } = useAppLocale()
@@ -52,6 +54,25 @@ function patch<K extends keyof SongInput>(key: K, value: SongInput[K]) {
 
 function onChartUpdate(chart: ChordChart) {
   patch('chordChart', chart)
+}
+
+/** Смена тональности сразу транспонирует схему и legacy-текст аккордов. */
+function onKeyChange(nextKey: string) {
+  const prev = props.modelValue.key
+  if (!nextKey || nextKey === prev) {
+    patch('key', nextKey)
+    return
+  }
+  const steps = keyDistance(prev, nextKey)
+  const chart = props.modelValue.chordChart
+  emit('update:modelValue', {
+    ...props.modelValue,
+    key: nextKey,
+    chordChart: chart ? transposeChart(chart, steps) : chart,
+    chords: props.modelValue.chords
+      ? transposeText(props.modelValue.chords, steps)
+      : props.modelValue.chords,
+  })
 }
 
 type FormContentMode = 'chart' | 'lyrics'
@@ -498,7 +519,7 @@ defineExpose({
           option-label="label"
           option-value="value"
           class="w-full"
-          @update:model-value="patch('key', String($event))"
+          @update:model-value="onKeyChange(String($event))"
         />
       </label>
       <div class="song-form__field song-form__field--capo">

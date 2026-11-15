@@ -14,6 +14,17 @@ export interface DbSetlistRsvp {
   updated_at: string
 }
 
+export interface DbSongMemberNote {
+  id: string
+  workspace_id: string
+  song_id: string
+  member_id: string
+  body: string
+  section_notes?: Json | null
+  created_at: string
+  updated_at: string
+}
+
 export type Json =
   | string
   | number
@@ -231,6 +242,30 @@ export interface Database {
           setlist_id?: string
           member_id?: string
           status?: DbSetlistRsvpStatus
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      song_member_notes: {
+        Row: DbSongMemberNote
+        Insert: {
+          id?: string
+          workspace_id: string
+          song_id: string
+          member_id: string
+          body?: string
+          section_notes?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          workspace_id?: string
+          song_id?: string
+          member_id?: string
+          body?: string
+          section_notes?: Json | null
           created_at?: string
           updated_at?: string
         }

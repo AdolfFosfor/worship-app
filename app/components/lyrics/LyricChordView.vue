@@ -21,16 +21,41 @@ const props = withDefaults(
     chart: ChordChart | null
     showChords?: boolean
     editable?: boolean
+    /** Личные заметки к секциям (ключ = chartSectionId или lb:<blockId>) */
+    sectionNotes?: Record<string, string>
+    notesEditable?: boolean
   }>(),
   {
     showChords: true,
     editable: false,
+    sectionNotes: () => ({}),
+    notesEditable: false,
   },
 )
 
+const { t } = useAppLocale()
+
 const emit = defineEmits<{
   'update:doc': [doc: SongLyricsDoc]
+  'edit-section-note': [payload: { sectionId: string; label: string }]
 }>()
+
+function noteKeyForBlock(blockId: string) {
+  const block = props.doc.blocks.find((b) => b.id === blockId)
+  return block?.chartSectionId ?? `lb:${blockId}`
+}
+
+function sectionNoteText(blockId: string) {
+  return props.sectionNotes[noteKeyForBlock(blockId)]?.trim() || ''
+}
+
+function onEditSectionNote(blockId: string) {
+  if (!props.notesEditable) return
+  emit('edit-section-note', {
+    sectionId: noteKeyForBlock(blockId),
+    label: blockTitle(blockId),
+  })
+}
 
 const rootEl = ref<HTMLElement | null>(null)
 
@@ -374,7 +399,16 @@ const dropPreview = computed(() => {
         '--section-accent': SECTION_ACCENT_VAR[block.type] ?? SECTION_ACCENT_VAR.custom,
       }"
     >
-      <header class="lyric-chord__head">{{ blockTitle(block.id) }}</header>
+      <header class="lyric-chord__head">
+        <span class="lyric-chord__label">{{ blockTitle(block.id) }}</span>
+        <PersonalNoteCue
+          class="lyric-chord__note"
+          :text="sectionNoteText(block.id)"
+          :empty-label="t('song.personalNoteSectionEmpty')"
+          :interactive="notesEditable"
+          @edit="onEditSectionNote(block.id)"
+        />
+      </header>
 
       <LyricChordLine
         v-for="line in block.lines"
@@ -424,12 +458,25 @@ const dropPreview = computed(() => {
 }
 
 .lyric-chord__head {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  margin-bottom: 0.45rem;
+}
+
+.lyric-chord__label {
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--p-text-muted-color);
-  margin-bottom: 0.45rem;
+}
+
+.lyric-chord__note {
+  max-width: 100%;
+  text-transform: none;
+  letter-spacing: -0.01em;
 }
 
 .lyric-chord--editable :deep(.lyric-chord__line) {

@@ -12,6 +12,7 @@ const BLOCKING_SELECTOR = [
   /* Горизонтальный свайп уже захвачен / панель открыта */
   '.swipe-delete--dragging',
   '.swipe-delete--open',
+  '.p-toast-message--swiping',
   '.app-shell--swiping',
   '.app-shell--keyboard-open',
   '.app-shell--chord-kb-open',

@@ -20,18 +20,32 @@ export type StagePlaylistInfo = {
 
 const { t } = useAppLocale()
 
-const props = defineProps<{
-  chart: ChordChart
-  fullscreen?: boolean
-  /** Название текущей песни — в фуллскрине */
-  title?: string
-  /** BPM label справа от S/M/L */
-  tempo?: string | null
-  /** Meter справа от S/M/L */
-  meter?: string | null
-  /** Контекст сет-листа: позиция и возможность листания */
-  playlist?: StagePlaylistInfo | null
-}>()
+const props = withDefaults(
+  defineProps<{
+    chart: ChordChart
+    fullscreen?: boolean
+    /** Название текущей песни — в фуллскрине */
+    title?: string
+    /** BPM label справа от S/M/L */
+    tempo?: string | null
+    /** Meter справа от S/M/L */
+    meter?: string | null
+    /** Контекст сет-листа: позиция и возможность листания */
+    playlist?: StagePlaylistInfo | null
+    /** Личные заметки к секциям (ключ = ChartSection.id) */
+    sectionNotes?: Record<string, string>
+    /** Можно открывать редактирование личных заметок */
+    notesEditable?: boolean
+  }>(),
+  {
+    title: undefined,
+    tempo: undefined,
+    meter: undefined,
+    playlist: undefined,
+    sectionNotes: () => ({}),
+    notesEditable: false,
+  },
+)
 
 const factsVisible = computed(() => Boolean(props.tempo || props.meter))
 
@@ -39,7 +53,20 @@ const emit = defineEmits<{
   'update:fullscreen': [value: boolean]
   prev: []
   next: []
+  'edit-section-note': [payload: { sectionId: string; label: string }]
 }>()
+
+function sectionNoteText(sectionId: string) {
+  return props.sectionNotes[sectionId]?.trim() || ''
+}
+
+function onEditSectionNote(sectionId: string) {
+  if (!props.notesEditable) return
+  emit('edit-section-note', {
+    sectionId,
+    label: autoSectionTitle(sectionId),
+  })
+}
 
 const size = ref<StageChordSize>(readStageChordSize())
 const fsRoot = ref<HTMLElement | null>(null)
@@ -250,7 +277,14 @@ onBeforeUnmount(() => {
         }"
       >
         <header class="chord-stage__section-head">
-          {{ autoSectionTitle(section.id) }}
+          <span class="chord-stage__section-label">{{ autoSectionTitle(section.id) }}</span>
+          <PersonalNoteCue
+            class="chord-stage__section-note"
+            :text="sectionNoteText(section.id)"
+            :empty-label="t('song.personalNoteSectionEmpty')"
+            :interactive="notesEditable"
+            @edit="onEditSectionNote(section.id)"
+          />
         </header>
         <div class="chord-stage__bars">
           <div v-for="bar in section.bars" :key="bar.id" class="chord-stage__bar">
@@ -371,7 +405,14 @@ onBeforeUnmount(() => {
           }"
         >
           <header class="chord-stage__section-head">
-            {{ autoSectionTitle(section.id) }}
+            <span class="chord-stage__section-label">{{ autoSectionTitle(section.id) }}</span>
+            <PersonalNoteCue
+              class="chord-stage__section-note"
+              :text="sectionNoteText(section.id)"
+              :empty-label="t('song.personalNoteSectionEmpty')"
+              :interactive="notesEditable"
+              @edit="onEditSectionNote(section.id)"
+            />
           </header>
           <div class="chord-stage__bars">
             <div v-for="bar in section.bars" :key="`fs-${bar.id}`" class="chord-stage__bar">
@@ -580,12 +621,25 @@ onBeforeUnmount(() => {
 }
 
 .chord-stage__section-head {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
   margin-bottom: var(--app-space-2);
+}
+
+.chord-stage__section-label {
   font-size: var(--app-text-xs);
   font-weight: 750;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--app-section-header);
+}
+
+.chord-stage__section-note {
+  max-width: 100%;
+  text-transform: none;
+  letter-spacing: -0.01em;
 }
 
 /* Один такт = одна строка, ширина по чипам */

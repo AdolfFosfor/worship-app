@@ -6,6 +6,7 @@ const scrollRef = ref<HTMLElement | null>(null)
 const { swiping, progressing } = useEdgeSwipeBack(shellRef)
 useShellScrollMemory(scrollRef)
 useTelegramBackButton()
+useToastSwipeDismiss()
 const ptr = usePullToRefresh(scrollRef)
 
 const route = useRoute()
@@ -428,11 +429,24 @@ const confirmPt = {
   border: 1px solid var(--app-border) !important;
   color: var(--app-ink) !important;
   box-shadow: 0 8px 24px color-mix(in srgb, #000 35%, transparent);
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.p-toast .p-toast-message--swiping {
+  cursor: grabbing;
+  transition: none !important;
+}
+
+.p-toast .p-toast-message--swipe-out {
+  pointer-events: none;
 }
 
 .p-toast .p-toast-message-content {
   display: flex !important;
-  align-items: flex-start !important;
+  align-items: center !important;
   gap: 0.65rem !important;
   width: 100%;
   padding: 0.75rem 0.7rem 0.75rem 0.85rem !important;
@@ -442,7 +456,14 @@ const confirmPt = {
   flex-shrink: 0;
   width: 1.15rem !important;
   height: 1.15rem !important;
-  margin: 0.15rem 0 0 !important;
+  margin: 0 !important;
+}
+
+.p-toast [data-pc-section='buttoncontainer'] {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
 }
 
 .p-toast .p-toast-message-text {

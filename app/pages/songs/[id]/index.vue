@@ -45,6 +45,23 @@ const toast = useToast()
 const haptics = useHaptics()
 
 const id = computed(() => String(route.params.id))
+const {
+  trackBody: personalTrackNote,
+  sectionNotes: personalSectionNotes,
+  saving: personalNoteSaving,
+  fetchNote: fetchPersonalNote,
+  saveTrackNote,
+  saveSectionNote,
+} = useSongMemberNote(id)
+
+type PersonalNoteTarget =
+  | { kind: 'track' }
+  | { kind: 'section'; sectionId: string; label: string }
+
+const personalNoteOpen = ref(false)
+const personalNoteTarget = ref<PersonalNoteTarget>({ kind: 'track' })
+const personalNoteDraft = ref('')
+const personalNoteInput = ref<HTMLTextAreaElement | null>(null)
 const song = ref<Song | null>(peekSong(id.value))
 const loading = ref(!song.value)
 const error = ref<string | null>(null)
@@ -72,6 +89,14 @@ const stageFullscreen = useState('chord-stage-fullscreen', () => false)
 
 const showAddToSetlist = computed(() => workspace.canEditSetlists)
 const showSongManage = computed(() => workspace.canEditSongs)
+const showPersonalNote = computed(() => Boolean(workspace.membership?.id))
+
+const personalNoteSheetTitle = computed(() => {
+  if (personalNoteTarget.value.kind === 'section') {
+    return t('song.personalNoteSectionTitle', { section: personalNoteTarget.value.label })
+  }
+  return t('song.personalNoteTrackTitle')
+})
 
 const capoToggleAria = computed(() =>
   capoBadge.value
@@ -697,6 +722,45 @@ function formatSetlistDate(iso: string) {
   }
 }
 
+function openTrackNote() {
+  personalNoteTarget.value = { kind: 'track' }
+  personalNoteDraft.value = personalTrackNote.value
+  personalNoteOpen.value = true
+}
+
+function openSectionNote(payload: { sectionId: string; label: string }) {
+  personalNoteTarget.value = { kind: 'section', ...payload }
+  personalNoteDraft.value = personalSectionNotes.value[payload.sectionId] ?? ''
+  personalNoteOpen.value = true
+}
+
+function closePersonalNote() {
+  personalNoteOpen.value = false
+}
+
+async function confirmPersonalNote() {
+  try {
+    if (personalNoteTarget.value.kind === 'section') {
+      await saveSectionNote(personalNoteTarget.value.sectionId, personalNoteDraft.value)
+    } else {
+      await saveTrackNote(personalNoteDraft.value)
+    }
+    personalNoteOpen.value = false
+    toast.add({ severity: 'success', summary: t('common.saved'), life: 1800 })
+  } catch (e) {
+    toast.add({
+      severity: 'error',
+      summary: t('common.error'),
+      detail: e instanceof Error ? e.message : t('common.saveFailed'),
+      life: 4000,
+    })
+  }
+}
+
+function onPersonalNoteAfterEnter() {
+  personalNoteInput.value?.focus()
+}
+
 async function load(opts?: { quiet?: boolean }) {
   const cached = peekSong(id.value)
   if (cached) {
@@ -714,6 +778,7 @@ async function load(opts?: { quiet?: boolean }) {
     })
     syncViewFromSong(song.value)
     markSongsSynced()
+    if (showPersonalNote.value) void fetchPersonalNote().catch(() => undefined)
   } catch (e) {
     if (!song.value) error.value = e instanceof Error ? e.message : t('songs.notFound')
   } finally {
@@ -917,6 +982,15 @@ const { revealEditable } = useHeaderEditableTitle({
             {{ t('songs.shapesOnFretboard') }} <strong>{{ viewShapeKey }}</strong>
           </p>
         </div>
+
+        <PersonalNoteCue
+          v-if="showPersonalNote"
+          class="song-view__track-note"
+          :text="personalTrackNote || null"
+          :empty-label="t('song.personalNoteTrackEmpty')"
+          :interactive="true"
+          @edit="openTrackNote"
+        />
       </section>
 
       <AppSegmentedControl
@@ -939,9 +1013,12 @@ const { revealEditable } = useHeaderEditableTitle({
           :meter="libraryMeter"
           :playlist="stagePlaylist"
           :fullscreen="stageFullscreen"
+          :section-notes="personalSectionNotes"
+          :notes-editable="showPersonalNote"
           @update:fullscreen="stageFullscreen = $event"
           @prev="goSetlistNeighbor('prev')"
           @next="goSetlistNeighbor('next')"
+          @edit-section-note="openSectionNote"
         />
       </AppSection>
       <AppSection
@@ -997,7 +1074,10 @@ const { revealEditable } = useHeaderEditableTitle({
           :chart="displayChart ?? song.chordChart"
           :show-chords="viewMode === 'lyricsChords'"
           :editable="placementEditing && viewMode === 'lyricsChords'"
+          :section-notes="personalSectionNotes"
+          :notes-editable="showPersonalNote && !placementEditing"
           @update:doc="onPlacementDocUpdate"
+          @edit-section-note="openSectionNote"
         />
       </AppSection>
       <AppSection
@@ -1067,6 +1147,33 @@ const { revealEditable } = useHeaderEditableTitle({
           </div>
         </div>
       </Teleport>
+
+      <AppTopSheet
+        v-model:open="personalNoteOpen"
+        :title="personalNoteSheetTitle"
+        :confirm-label="t('common.save')"
+        :confirm-disabled="personalNoteSaving"
+        @dismiss="closePersonalNote"
+        @confirm="confirmPersonalNote"
+        @after-enter="onPersonalNoteAfterEnter"
+      >
+        <p class="song-view__note-hint">{{ t('song.personalNoteHint') }}</p>
+        <textarea
+          ref="personalNoteInput"
+          v-model="personalNoteDraft"
+          class="app-top-sheet__field app-top-sheet__field--area"
+          rows="6"
+          maxlength="2000"
+          :placeholder="
+            personalNoteTarget.kind === 'section'
+              ? t('song.personalNoteSectionPlaceholder')
+              : t('song.personalNotePlaceholder')
+          "
+          enterkeyhint="enter"
+          @keydown.meta.enter.prevent="confirmPersonalNote"
+          @keydown.ctrl.enter.prevent="confirmPersonalNote"
+        />
+      </AppTopSheet>
 
       <AppTopSheet
         v-model:open="importSheetOpen"
@@ -1592,6 +1699,20 @@ const { revealEditable } = useHeaderEditableTitle({
 .song-view__shapes strong {
   color: var(--app-accent-text);
   font-weight: 700;
+}
+
+.song-view__track-note {
+  margin-top: var(--app-space-3);
+  padding-top: var(--app-space-2);
+  border-top: var(--app-hairline) solid var(--app-border);
+}
+
+.song-view__note-hint {
+  margin: 0 0 var(--app-space-2);
+  font-size: var(--app-text-xs);
+  font-weight: 550;
+  color: var(--app-muted);
+  line-height: 1.35;
 }
 
 .song-view__yt {
