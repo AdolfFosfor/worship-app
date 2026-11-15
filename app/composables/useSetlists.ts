@@ -284,25 +284,25 @@ export function useSetlists() {
     bumpSetlistsRevision()
   }
 
+  /** Serialize concurrent DnD so two mid-flight updates cannot collide. */
+  let reorderQueue: Promise<void> = Promise.resolve()
+
   async function reorderItems(setlistId: string, orderedIds: string[]) {
-    const supabase = getSupabaseBrowserClient()
-    for (let i = 0; i < orderedIds.length; i++) {
-      const { error: e1 } = await supabase
-        .from('setlist_items')
-        .update({ position: 1000 + i })
-        .eq('id', orderedIds[i]!)
-        .eq('setlist_id', setlistId)
-      if (e1) throw e1
+    const run = async () => {
+      const supabase = getSupabaseBrowserClient()
+      const { error: rpcError } = await supabase.rpc('reorder_setlist_items', {
+        p_setlist_id: setlistId,
+        p_ordered_ids: orderedIds,
+      })
+      if (rpcError) throw rpcError
+      bumpSetlistsRevision()
     }
-    for (let i = 0; i < orderedIds.length; i++) {
-      const { error: e2 } = await supabase
-        .from('setlist_items')
-        .update({ position: i })
-        .eq('id', orderedIds[i]!)
-        .eq('setlist_id', setlistId)
-      if (e2) throw e2
-    }
-    bumpSetlistsRevision()
+    const next = reorderQueue.then(run, run)
+    reorderQueue = next.then(
+      () => undefined,
+      () => undefined,
+    )
+    await next
   }
 
   return {

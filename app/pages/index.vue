@@ -261,10 +261,11 @@ async function commitTitle() {
 <template>
   <div class="app-page">
     <AppHeaderPortal
-      v-if="revealEditable"
+      :active="revealEditable"
       to="[data-app-header-title]"
     >
       <h1
+        v-show="revealEditable"
         ref="titleEl"
         class="app-header-editable-title app-header-editable-title--editable"
         :class="{ 'is-editing': titleFocused }"

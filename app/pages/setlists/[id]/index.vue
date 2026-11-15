@@ -14,6 +14,7 @@ const {
   addSongToSetlist,
   removeItem,
   reorderItems,
+  upcoming,
 } = useSetlists()
 const { syncSetlistsOnActivate } = useSetlistsRevision()
 const { fetchSongs, songs } = useSongs()
@@ -436,11 +437,17 @@ async function persistOrder(orderedIds: string[]) {
   if (!setlist.value) return
   const byId = new Map(setlist.value.items.map((item) => [item.id, item]))
   const next = orderedIds
-    .map((itemId) => byId.get(itemId))
+    .map((itemId, index) => {
+      const item = byId.get(itemId)
+      return item ? { ...item, position: index } : null
+    })
     .filter((item): item is SetlistItemWithSong => Boolean(item))
   if (next.length !== setlist.value.items.length) return
 
-  setlist.value = { ...setlist.value, items: next }
+  const updated = { ...setlist.value, items: next }
+  setlist.value = updated
+  warmSetlistSession(updated)
+  if (upcoming.value?.id === updated.id) upcoming.value = updated
   try {
     await reorderItems(id.value, orderedIds)
   } catch (e) {
@@ -450,7 +457,7 @@ async function persistOrder(orderedIds: string[]) {
       detail: e instanceof Error ? e.message : t('setlist.reorderFailed'),
       life: 4000,
     })
-    await load()
+    await load({ quiet: true })
   }
 }
 
@@ -526,7 +533,17 @@ function setupSortable() {
 }
 
 watch(
-  [listEl, () => setlist.value?.items.map((i) => i.id).join(','), () => workspace.canEditSetlists],
+  [
+    listEl,
+    // Membership only — ignore DnD order so we don't destroy Sortable mid-drag.
+    () =>
+      setlist.value?.items
+        .map((i) => i.id)
+        .slice()
+        .sort()
+        .join(',') ?? '',
+    () => workspace.canEditSetlists,
+  ],
   async () => {
     await nextTick()
     setupSortable()
@@ -593,10 +610,11 @@ const { revealEditable } = useHeaderEditableTitle({
     <AppError v-else-if="error" :message="error" @retry="load" />
     <template v-else-if="setlist">
       <AppHeaderPortal
-        v-if="revealEditable"
+        :active="revealEditable"
         to="[data-app-header-title]"
       >
         <h1
+          v-show="revealEditable"
           ref="titleEl"
           class="app-header-editable-title app-header-editable-title--editable"
           :class="{ 'is-editing': titleFocused }"

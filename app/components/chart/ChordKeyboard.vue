@@ -29,7 +29,38 @@ const emit = defineEmits<{
   annotation: [text: string, preset?: AnnotationPreset]
   nextBar: []
   delete: []
+  caretMove: [delta: number]
 }>()
+
+/** iOS-style spacebar trackpad for caret. */
+const SPACE_STEP_PX = 18
+const spacePtrId = ref<number | null>(null)
+const spaceOriginX = ref(0)
+const spaceAcc = ref(0)
+
+function onSpacePointerDown(e: PointerEvent) {
+  if (e.button !== 0) return
+  spacePtrId.value = e.pointerId
+  spaceOriginX.value = e.clientX
+  spaceAcc.value = 0
+  ;(e.currentTarget as HTMLElement | null)?.setPointerCapture?.(e.pointerId)
+}
+
+function onSpacePointerMove(e: PointerEvent) {
+  if (spacePtrId.value !== e.pointerId) return
+  const dx = e.clientX - spaceOriginX.value
+  const steps = Math.trunc(dx / SPACE_STEP_PX) - Math.trunc(spaceAcc.value / SPACE_STEP_PX)
+  if (!steps) return
+  spaceAcc.value = dx
+  emit('caretMove', steps)
+}
+
+function onSpacePointerUp(e: PointerEvent) {
+  if (spacePtrId.value !== e.pointerId) return
+  ;(e.currentTarget as HTMLElement | null)?.releasePointerCapture?.(e.pointerId)
+  spacePtrId.value = null
+  spaceAcc.value = 0
+}
 
 const kb = useKeyboardInset()
 const kbOpen = kb.open
@@ -320,13 +351,12 @@ function expandQuick() {
           <div class="chord-kb__top">
             <button
               type="button"
-              class="chord-kb__delete"
-              :disabled="!canDelete"
-              :aria-label="t('chartKb.deleteItem')"
+              class="chord-kb__close"
+              :aria-label="t('common.close')"
               @pointerdown.stop
-              @click="emit('delete')"
+              @click="emit('close')"
             >
-              <AppIcon :name="icons.trash" size="1.05rem" />
+              <AppIcon :name="icons.close" size="1.05rem" />
             </button>
             <button
               type="button"
@@ -335,17 +365,17 @@ function expandQuick() {
               @pointerdown.stop
               @click="emit('nextBar')"
             >
-              <AppIcon :name="icons.plus" size="1rem" />
-              <span>{{ t('chart.addBarShort') }}</span>
+              {{ t('chart.addBar') }}
             </button>
             <button
               type="button"
-              class="chord-kb__close"
-              :aria-label="t('common.close')"
+              class="chord-kb__delete"
+              :disabled="!canDelete"
+              :aria-label="t('chartKb.deleteItem')"
               @pointerdown.stop
-              @click="emit('close')"
+              @click="emit('delete')"
             >
-              <AppIcon :name="icons.close" size="1.05rem" />
+              <AppIcon :name="icons.trash" size="1.05rem" />
             </button>
           </div>
           <div class="chord-kb__tabs" role="tablist" @pointerdown.stop>
@@ -565,6 +595,18 @@ function expandQuick() {
             </button>
           </div>
         </div>
+
+        <button
+          type="button"
+          class="chord-kb__space"
+          :aria-label="t('chartKb.spaceNav')"
+          @pointerdown.stop="onSpacePointerDown"
+          @pointermove="onSpacePointerMove"
+          @pointerup="onSpacePointerUp"
+          @pointercancel="onSpacePointerUp"
+        >
+          {{ t('chartKb.spaceNav') }}
+        </button>
       </div>
     </aside>
 
@@ -748,8 +790,25 @@ function expandQuick() {
   cursor: pointer;
 }
 
-.chord-kb__delete {
+.chord-kb__close {
   justify-self: start;
+  width: 1.7rem;
+  padding: 0;
+}
+
+.chord-kb__next {
+  justify-self: center;
+  min-width: 7.5rem;
+  min-height: 2rem;
+  padding: 0 1.1rem;
+  color: var(--app-accent-text);
+  font-size: var(--app-text-xs);
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.chord-kb__delete {
+  justify-self: end;
   width: 1.7rem;
   padding: 0;
   color: var(--app-destructive);
@@ -761,26 +820,31 @@ function expandQuick() {
   cursor: default;
 }
 
-.chord-kb__next {
-  justify-self: center;
-  gap: 0.4rem;
-  min-width: 7.5rem;
-  min-height: 2rem;
-  padding: 0 1.25rem;
-  color: var(--app-accent-text);
+.chord-kb__space {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 2.35rem;
+  margin-top: var(--app-space-2);
+  padding: 0 var(--app-space-3);
+  border: 0;
+  border-radius: var(--app-radius);
+  background: var(--app-hover);
+  color: var(--app-muted);
+  font: inherit;
   font-size: var(--app-text-xs);
-  font-weight: 750;
-  white-space: nowrap;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
 }
 
-.chord-kb__next :deep(.app-icon) {
-  flex-shrink: 0;
-}
-
-.chord-kb__close {
-  justify-self: end;
-  width: 1.7rem;
-  padding: 0;
+.chord-kb__space:active {
+  cursor: grabbing;
+  color: var(--app-ink);
+  background: color-mix(in srgb, var(--app-accent) 12%, var(--app-hover));
 }
 
 .chord-kb__body {

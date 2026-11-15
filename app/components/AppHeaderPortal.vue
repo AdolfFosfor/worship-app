@@ -1,20 +1,28 @@
 <script setup lang="ts">
 /**
  * Teleport в слот shell-header.
- * KeepAlive: disabled уводит контент со слота; сразу снимаем custom*,
- * иначе typed title остаётся v-show=false и хедер пустой.
+ * KeepAlive: disabled (не v-if) уводит контент со слота без orphan DOM.
+ * `active` — доп. флаг (reveal editable): тоже через disabled, иначе
+ * уничтожение Teleport при ещё enabled залипает title в layout.
  */
-const props = defineProps<{
-  to: '[data-app-header-title]' | '[data-app-header-subtitle]' | '[data-app-header-trailing]'
-}>()
+const props = withDefaults(
+  defineProps<{
+    to: '[data-app-header-title]' | '[data-app-header-subtitle]' | '[data-app-header-trailing]'
+    /** false → disabled Teleport (контент остаётся на странице, не в слоте). */
+    active?: boolean
+  }>(),
+  { active: true },
+)
 
 const pageActive = usePageActive()
 const { clearCustomSlots } = useAppHeader()
 
+const portalEnabled = computed(() => pageActive.value && props.active !== false)
+
 watch(
-  pageActive,
-  (active) => {
-    if (active) return
+  portalEnabled,
+  (enabled) => {
+    if (enabled) return
     if (props.to === '[data-app-header-title]') {
       clearCustomSlots({ title: true, subtitle: false })
     } else if (props.to === '[data-app-header-subtitle]') {
@@ -28,7 +36,7 @@ watch(
 <template>
   <Teleport
     defer
-    :disabled="!pageActive"
+    :disabled="!portalEnabled"
     :to="to"
   >
     <slot />

@@ -461,6 +461,7 @@ const ru: MessageDict = {
   'chartKb.customNotePlaceholder': 'Свой текст',
   'chartKb.noteSheetTitle': 'Своя заметка',
   'chartKb.accidentalNatural': 'Без знака',
+  'chartKb.spaceNav': 'Свайп каретки',
 
   'stage.ariaSize': 'Размер аккордов',
   'stage.ariaFullscreen': 'Полный экран',
@@ -931,6 +932,7 @@ const ro: MessageDict = {
   'chartKb.customNotePlaceholder': 'Text propriu',
   'chartKb.noteSheetTitle': 'Notă personală',
   'chartKb.accidentalNatural': 'Fără alterare',
+  'chartKb.spaceNav': 'Glisează cursorul',
 
   'stage.ariaSize': 'Mărimea acordurilor',
   'stage.ariaFullscreen': 'Ecran complet',
@@ -1401,6 +1403,7 @@ const en: MessageDict = {
   'chartKb.customNotePlaceholder': 'Custom text',
   'chartKb.noteSheetTitle': 'Custom note',
   'chartKb.accidentalNatural': 'Natural',
+  'chartKb.spaceNav': 'Swipe caret',
 
   'stage.ariaSize': 'Chord size',
   'stage.ariaFullscreen': 'Fullscreen',

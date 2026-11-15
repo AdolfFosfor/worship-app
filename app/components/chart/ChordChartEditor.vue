@@ -491,9 +491,40 @@ function selectInsert(sectionId: string, barId: string, insertIndex: number) {
 
 function selectBar(sectionId: string, barId: string, itemCount: number) {
   selected.value = { sectionId, barId, insertIndex: itemCount }
-  // Пока только выбор такта — меню отключено
-  // barMenuId.value = barMenuId.value === barId ? null : barId
-  revealSelection()
+  openKeyboard()
+  revealSelection({ force: true })
+}
+
+/** Move insert caret like iOS spacebar trackpad (±1 slot, across bars at edges). */
+function moveCaret(delta: number) {
+  const sel = selected.value
+  if (!sel || !delta) return
+  const section = currentChart().sections.find((s) => s.id === sel.sectionId)
+  if (!section) return
+  const barIdx = section.bars.findIndex((b) => b.id === sel.barId)
+  if (barIdx < 0) return
+  const bar = section.bars[barIdx]!
+  let index = sel.insertIndex + delta
+  let nextBarIdx = barIdx
+  let nextBar = bar
+
+  while (index < 0 && nextBarIdx > 0) {
+    nextBarIdx -= 1
+    nextBar = section.bars[nextBarIdx]!
+    index = nextBar.items.length + index + 1
+  }
+  while (index > nextBar.items.length && nextBarIdx < section.bars.length - 1) {
+    index -= nextBar.items.length + 1
+    nextBarIdx += 1
+    nextBar = section.bars[nextBarIdx]!
+  }
+  index = Math.max(0, Math.min(nextBar.items.length, index))
+  selected.value = {
+    sectionId: sel.sectionId,
+    barId: nextBar.id,
+    insertIndex: index,
+  }
+  revealSelection({ force: true })
 }
 
 function onBarGripClick(sectionId: string, barId: string, itemCount: number) {
@@ -517,20 +548,6 @@ function onItemChipClick(sectionId: string, barId: string, itemId: string, after
     return
   }
   selectItem(sectionId, barId, itemId, afterIndex)
-}
-
-function onAddBar(sectionId: string, afterBarId?: string) {
-  const next = addBar(currentChart(), sectionId, afterBarId)
-  commit(next)
-  const section = next.sections.find((s) => s.id === sectionId)
-  const newBar = afterBarId
-    ? section?.bars[section.bars.findIndex((b) => b.id === afterBarId) + 1]
-    : section?.bars[section.bars.length - 1]
-  if (newBar) {
-    selected.value = { sectionId, barId: newBar.id, insertIndex: 0 }
-    openKeyboard()
-    revealSelection({ force: true })
-  }
 }
 
 function onRemoveBar(sectionId: string, barId: string) {
@@ -1439,11 +1456,14 @@ function onKeydown(e: KeyboardEvent) {
 }
 
 function isInsertActive(sectionId: string, barId: string, index: number) {
+  const sel = selected.value
   return (
     keyboardOpen.value &&
-    selected.value?.sectionId === sectionId &&
-    selected.value?.barId === barId &&
-    selected.value.insertIndex === index
+    Boolean(sel) &&
+    !sel!.itemId &&
+    sel!.sectionId === sectionId &&
+    sel!.barId === barId &&
+    sel!.insertIndex === index
   )
 }
 
@@ -1699,23 +1719,20 @@ onBeforeUnmount(() => {
               <AppIcon :name="icons.grip" size="0.9rem" />
             </button>
 
-            <span class="chart-bar__pipe" aria-hidden="true">|</span>
+            <span class="chart-bar__pipe chart-bar__pipe--start" aria-hidden="true" />
 
             <div class="chart-bar__items" :class="{ 'chart-bar__items--dragging': drag?.kind === 'item' }">
               <button
-                v-if="!bar.items.length"
                 type="button"
-                class="chart-insert"
-                :class="{
-                  'chart-insert--on': isInsertActive(section.id, bar.id, 0),
-                }"
+                class="chart-caret-slot"
+                :class="{ 'chart-caret-slot--on': isInsertActive(section.id, bar.id, 0) }"
                 data-insert-slot
                 :data-bar-id="bar.id"
                 data-index="0"
                 :aria-label="t('chart.addChord')"
                 @click.stop="selectInsert(section.id, bar.id, 0)"
               >
-                +
+                <span v-if="isInsertActive(section.id, bar.id, 0)" class="chart-caret" aria-hidden="true" />
               </button>
 
               <template v-for="(item, itemIndex) in bar.items" :key="item.id">
@@ -1751,9 +1768,9 @@ onBeforeUnmount(() => {
 
                 <button
                   type="button"
-                  class="chart-insert"
+                  class="chart-caret-slot"
                   :class="{
-                    'chart-insert--on': isInsertActive(section.id, bar.id, itemIndex + 1),
+                    'chart-caret-slot--on': isInsertActive(section.id, bar.id, itemIndex + 1),
                   }"
                   data-insert-slot
                   :data-bar-id="bar.id"
@@ -1761,10 +1778,16 @@ onBeforeUnmount(() => {
                   :aria-label="t('chart.insertHere')"
                   @click.stop="selectInsert(section.id, bar.id, itemIndex + 1)"
                 >
-                  +
+                  <span
+                    v-if="isInsertActive(section.id, bar.id, itemIndex + 1)"
+                    class="chart-caret"
+                    aria-hidden="true"
+                  />
                 </button>
               </template>
             </div>
+
+            <span class="chart-bar__pipe chart-bar__pipe--end" aria-hidden="true" />
 
             <button
               v-if="isBarSelected(section.id, bar.id)"
@@ -1775,50 +1798,16 @@ onBeforeUnmount(() => {
             >
               <AppIcon :name="icons.trash" size="0.85rem" />
             </button>
-
-            <!-- Меню такта временно отключено — оставляем только выбор
-            <div
-              v-if="barMenuId === bar.id"
-              class="chart-bar__menu"
-              @click.stop
-            >
-              <button type="button" @click="selectInsert(section.id, bar.id, bar.items.length)">
-                {{ t('chart.addChordShort') }}
-              </button>
-              <button type="button" @click="onClearBar(section.id, bar.id); barMenuId = null">
-                {{ t('chart.clearBar') }}
-              </button>
-              <button
-                v-if="barIndex < section.bars.length - 1"
-                type="button"
-                @click="onMergeWithNext(section.id, bar.id); barMenuId = null"
-              >
-                {{ t('chart.mergeBars') }}
-              </button>
-              <button
-                type="button"
-                class="chart-bar__menu-danger"
-                @click="onRemoveBar(section.id, bar.id); barMenuId = null"
-              >
-                {{ t('common.delete') }}
-              </button>
-            </div>
-            -->
           </div>
 
-          <button
-            type="button"
-            class="chart-bar-add"
-            :class="{ 'chart-bar-add--drop-on': isSectionDrop(section.id) }"
+          <div
+            class="chart-section__drop-end"
+            :class="{ 'chart-section__drop-end--on': isSectionDrop(section.id) }"
             data-drop-section-end
             :data-section-id="section.id"
             :data-bar-index="section.bars.length"
-            :aria-label="t('chart.addBar')"
-            @click="onAddBar(section.id, section.bars[section.bars.length - 1]?.id)"
-          >
-            <AppIcon :name="icons.plus" size="1rem" />
-            <span>{{ t('chart.addBarShort') }}</span>
-          </button>
+            aria-hidden="true"
+          />
         </div>
         </section>
       </SwipeDeleteRow>
@@ -1839,6 +1828,7 @@ onBeforeUnmount(() => {
       @annotation="onAnnotation"
       @next-bar="onNextBar"
       @delete="onKeyboardDelete"
+      @caret-move="moveCaret"
     />
 
     <Teleport to="body">
@@ -2099,13 +2089,13 @@ onBeforeUnmount(() => {
 
 .chart-section__flow {
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 0.35rem;
+  flex-flow: row wrap;
+  align-items: center;
+  gap: 0.35rem 0.45rem;
 }
 
 .chart-bar-drop-start {
-  flex: none;
+  flex: 1 0 100%;
   width: 100%;
   height: 4px;
   min-height: 4px;
@@ -2124,15 +2114,17 @@ onBeforeUnmount(() => {
 
 .chart-bar {
   position: relative;
-  display: flex;
+  display: inline-flex;
+  flex: 0 0 auto;
   flex-wrap: nowrap;
   align-items: center;
-  gap: 0.2rem;
-  width: 100%;
+  gap: 0.15rem;
+  width: auto;
+  max-width: 100%;
   min-height: 2.6rem;
-  padding: 0.2rem 0.2rem;
+  padding: 0.15rem 0.15rem;
   border-radius: var(--app-radius);
-  cursor: pointer;
+  cursor: text;
   transition: background-color var(--app-duration) var(--app-ease);
 }
 
@@ -2219,58 +2211,87 @@ onBeforeUnmount(() => {
 
 .chart-bar__pipe {
   flex-shrink: 0;
-  color: var(--app-faint);
-  font-weight: 650;
-  font-size: var(--app-text-md);
+  align-self: stretch;
+  width: 2px;
+  margin-block: 0.35rem;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--app-ink) 55%, transparent);
   user-select: none;
 }
 
-.chart-bar__items {
-  display: flex;
-  flex: 1;
-  min-width: 0;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.25rem;
+.chart-bar--selected .chart-bar__pipe {
+  background: color-mix(in srgb, var(--app-accent) 75%, var(--app-ink));
 }
 
-/* Во время DnD плюсы не цели — приглушаем и клики сквозь к чипам */
-.chart-bar__items--dragging .chart-insert {
-  opacity: 0.2;
+.chart-bar__items {
+  display: inline-flex;
+  flex: 0 1 auto;
+  min-width: 0;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0;
+}
+
+.chart-bar--empty .chart-bar__items {
+  min-width: 1.1rem;
+}
+
+/* DnD: слоты каретки не перехватывают drop */
+.chart-bar__items--dragging .chart-caret-slot {
   pointer-events: none;
 }
 
-.chart-insert {
+.chart-caret-slot {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.7rem;
-  height: 1.7rem;
+  width: 0.55rem;
+  min-width: 0.55rem;
+  height: 2.1rem;
+  padding: 0;
   border: 0;
-  border-radius: 999px;
   background: transparent;
-  color: var(--app-faint);
-  font: inherit;
-  font-size: 1rem;
-  font-weight: 800;
-  line-height: 1;
-  cursor: pointer;
-  opacity: 0.55;
-  transition:
-    opacity var(--app-duration) var(--app-ease),
-    background-color var(--app-duration) var(--app-ease),
-    color var(--app-duration) var(--app-ease);
+  cursor: text;
+  flex-shrink: 0;
 }
 
-.chart-bar:hover .chart-insert,
-.chart-bar--selected .chart-insert {
-  opacity: 1;
+.chart-caret-slot--on {
+  width: 0.7rem;
+  min-width: 0.7rem;
 }
 
-.chart-insert--on {
-  opacity: 1;
+.chart-caret {
+  display: block;
+  width: 2px;
+  height: 1.45rem;
+  border-radius: 1px;
   background: var(--app-accent);
-  color: var(--app-accent-contrast);
+  animation: chart-caret-blink 1.05s steps(1) infinite;
+}
+
+@keyframes chart-caret-blink {
+  0%,
+  45% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.chart-section__drop-end {
+  flex: 1 1 1.5rem;
+  min-width: 1.5rem;
+  min-height: 2.2rem;
+  border-radius: var(--app-radius-sm);
+  background: transparent;
+}
+
+.chart-section__drop-end--on {
+  background: color-mix(in srgb, var(--app-accent) 18%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--app-accent) 40%, transparent);
 }
 
 .chart-bar__menu {

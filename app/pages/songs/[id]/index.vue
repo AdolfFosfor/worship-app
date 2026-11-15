@@ -808,10 +808,11 @@ const { revealEditable } = useHeaderEditableTitle({
     <AppError v-else-if="error" :message="error" @retry="load" />
     <template v-else-if="song">
       <AppHeaderPortal
-        v-if="revealEditable"
+        :active="revealEditable"
         to="[data-app-header-title]"
       >
         <h1
+          v-show="revealEditable"
           ref="titleEl"
           class="app-header-editable-title app-header-editable-title--editable"
           :class="{ 'is-editing': titleFocused }"
