@@ -4,7 +4,7 @@
  * Transform пишем в DOM напрямую — без Vue-реактивности на каждый touchmove (длинные списки).
  */
 
-import { hasUiInteractionLock } from '~/utils/uiInteractionLocks'
+import { hasShellGestureLock } from '~/utils/uiInteractionLocks'
 import { runAppPullRefresh } from '~/composables/useAppPullRefresh'
 
 const THRESHOLD = 68
@@ -119,7 +119,7 @@ export function usePullToRefresh(scrollRef: Ref<HTMLElement | null>) {
 
   async function commitRefresh() {
     if (refreshing.value) return
-    if (hasUiInteractionLock()) {
+    if (hasShellGestureLock()) {
       resetPull({ transition: true })
       return
     }
@@ -145,7 +145,7 @@ export function usePullToRefresh(scrollRef: Ref<HTMLElement | null>) {
 
   function begin(clientX: number, clientY: number, target: EventTarget | null) {
     const el = scrollEl()
-    if (!el || refreshing.value || hasUiInteractionLock()) return
+    if (!el || refreshing.value || hasShellGestureLock()) return
     if (el.scrollTop > 1) return
     if (clientX < EDGE_GUARD) return
     if (isPtrBlockedTarget(target)) {
@@ -161,7 +161,7 @@ export function usePullToRefresh(scrollRef: Ref<HTMLElement | null>) {
 
   function move(clientX: number, clientY: number): boolean {
     if (blockedTarget || !tracking || refreshing.value) return false
-    if (hasUiInteractionLock()) {
+    if (hasShellGestureLock()) {
       resetPull({ transition: true })
       return false
     }
@@ -178,7 +178,7 @@ export function usePullToRefresh(scrollRef: Ref<HTMLElement | null>) {
       }
       if (dy < ENGAGE_DY) return false
       const el = scrollEl()
-      if (!el || el.scrollTop > 1 || hasUiInteractionLock()) {
+      if (!el || el.scrollTop > 1 || hasShellGestureLock()) {
         tracking = false
         return false
       }
@@ -215,7 +215,7 @@ export function usePullToRefresh(scrollRef: Ref<HTMLElement | null>) {
     axis = null
     const el = scrollEl()
     el?.classList.remove('app-shell__content--ptr')
-    if (hasUiInteractionLock()) {
+    if (hasShellGestureLock()) {
       dragging.value = false
       armed.value = false
       setPull(0, { immediate: true, transition: true })
@@ -273,7 +273,7 @@ export function usePullToRefresh(scrollRef: Ref<HTMLElement | null>) {
   function onWheel(e: WheelEvent) {
     if (refreshing.value || e.ctrlKey || activeTouch) return
     const el = scrollEl()
-    if (!el || el.scrollTop > 1 || hasUiInteractionLock()) {
+    if (!el || el.scrollTop > 1 || hasShellGestureLock()) {
       if (wheelArmed || dragging.value) resetPull({ transition: true })
       return
     }

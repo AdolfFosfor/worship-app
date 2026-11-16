@@ -1,22 +1,7 @@
 import { backButton } from '@tma.js/sdk-vue'
 import { popAppNavStack, resetAppNavStack } from '~/composables/useAppNavStack'
+import { isAppNavRootPath } from '~/utils/appNavRoots'
 import { safeInternalPath } from '~/utils/safeInternalPath'
-
-/** Корневые вкладки и публичные экраны — без Telegram BackButton. */
-const ROOT_PATHS = new Set([
-  '/',
-  '/songs',
-  '/setlists',
-  '/account',
-  '/login',
-  '/onboarding',
-])
-
-function isRootPath(path: string): boolean {
-  if (ROOT_PATHS.has(path)) return true
-  if (path.startsWith('/auth')) return true
-  return false
-}
 
 function fallbackParent(path: string): string {
   if (path === '/songs/new' || path.startsWith('/songs/new/')) return '/songs'
@@ -60,7 +45,7 @@ export function navigateAppBack() {
   if (backInFlight) return
 
   const route = useRoute()
-  if (isRootPath(route.path)) {
+  if (isAppNavRootPath(route.path)) {
     backInFlight = false
     return
   }
@@ -123,7 +108,10 @@ export function navigateAppBack() {
 }
 
 /**
- * Нативный Telegram BackButton (fullscreen / header).
+ * Нативный Telegram BackButton:
+ * - корневые вкладки меню → hide → в шапке Close
+ * - внутренние экраны → show → Back
+ *
  * Вызывать один раз из layout — без дублирующих кнопок в UI.
  */
 export function useTelegramBackButton() {
@@ -136,7 +124,8 @@ export function useTelegramBackButton() {
       if (!backButton.isMounted()) {
         backButton.mount()
       }
-      if (isRootPath(route.path)) {
+      // Явно hide/show: после reload SDK может восстановить прошлую видимость.
+      if (isAppNavRootPath(route.path)) {
         backButton.hide()
       } else {
         backButton.show()
@@ -161,13 +150,13 @@ export function useTelegramBackButton() {
     }
   })
 
-  watch(() => route.fullPath, sync)
+  watch(() => route.fullPath, sync, { immediate: true })
 
   onBeforeUnmount(() => {
     // Layout обычно живёт весь сеанс — не снимаем onClick при HMR-ремоунте родителя
     // с другим инстансом. Скрытие кнопки на корне делает sync().
     try {
-      if (backButton.isSupported() && isRootPath(route.path)) {
+      if (backButton.isSupported() && isAppNavRootPath(route.path)) {
         backButton.hide()
       }
     } catch {

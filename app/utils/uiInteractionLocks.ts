@@ -1,6 +1,9 @@
 /**
  * Жесты shell (PTR, edge-swipe), которые нельзя начинать / продолжать
  * во время drag, sheet, диалога и т.п.
+ *
+ * Важно: `.app-shell--swiping` сюда НЕ входит — иначе edge-swipe гасит сам себя
+ * на следующем touchmove (класс вешает layout при старте жеста).
  */
 const BLOCKING_SELECTOR = [
   '.app-sheet',
@@ -13,7 +16,6 @@ const BLOCKING_SELECTOR = [
   '.swipe-delete--dragging',
   '.swipe-delete--open',
   '.p-toast-message--swiping',
-  '.app-shell--swiping',
   '.app-shell--keyboard-open',
   '.app-shell--chord-kb-open',
   '[data-no-edge-swipe]',
@@ -39,4 +41,11 @@ export function hasUiInteractionLock(): boolean {
     if (root.classList.contains(cls)) return true
   }
   return Boolean(document.querySelector(BLOCKING_SELECTOR))
+}
+
+/** PTR: блокируем и на время edge-swipe назад. */
+export function hasShellGestureLock(): boolean {
+  if (hasUiInteractionLock()) return true
+  if (!import.meta.client) return false
+  return Boolean(document.querySelector('.app-shell--swiping'))
 }

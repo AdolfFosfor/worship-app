@@ -3,21 +3,7 @@ import {
   trackAppNavForward,
 } from '~/composables/useAppNavStack'
 import { navigateAppBack } from '~/composables/useTelegramBackButton'
-
-const ROOT_PATHS = new Set([
-  '/',
-  '/songs',
-  '/setlists',
-  '/account',
-  '/login',
-  '/onboarding',
-])
-
-function isRootPath(path: string): boolean {
-  if (ROOT_PATHS.has(path)) return true
-  if (path.startsWith('/auth')) return true
-  return false
-}
+import { isAppNavRootPath } from '~/utils/appNavRoots'
 
 let popGuardInstalled = false
 let popHandling = false
@@ -43,7 +29,7 @@ export default defineNuxtPlugin({
         return
       }
       if (to.fullPath === from.fullPath) return
-      trackAppNavForward(to.fullPath, from.fullPath, isRootPath)
+      trackAppNavForward(to.fullPath, from.fullPath, isAppNavRootPath)
     })
   },
 })
@@ -75,7 +61,7 @@ function installTelegramHistoryGuard() {
 
     if (popHandling) return
     const path = useRoute().path
-    if (isRootPath(path)) return
+    if (isAppNavRootPath(path)) return
 
     popHandling = true
     try {

@@ -4,6 +4,7 @@
  * На ПК: трекпад (deltaX) и Shift+колёсико мыши как горизонтальный жест.
  */
 
+import { isAppNavRootPath } from '~/utils/appNavRoots'
 import { hasUiInteractionLock } from '~/utils/uiInteractionLocks'
 
 const EDGE_PX = 24
@@ -18,9 +19,6 @@ const UNDERLAY_PARALLAX = 0.22
 const SETTLE_MS = 320
 const COMMIT_MS = 280
 const EASE_OUT = 'cubic-bezier(0.32, 0.72, 0, 1)'
-
-/** Корневые вкладки — свайп назад не нужен. */
-const ROOT_PATHS = new Set(['/', '/songs', '/setlists', '/account'])
 
 function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) {
@@ -69,7 +67,7 @@ export function useEdgeSwipeBack(shellRef: Ref<HTMLElement | null>) {
 
   const canSwipeBack = computed(
     () =>
-      !ROOT_PATHS.has(route.path) &&
+      !isAppNavRootPath(route.path) &&
       !route.path.endsWith('/edit') &&
       !stageFullscreen.value,
   )
