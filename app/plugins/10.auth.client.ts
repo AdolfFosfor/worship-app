@@ -1,8 +1,10 @@
+import { isStaleAuthSessionMessage } from '~~/shared/auth/sessionErrors'
 import { useAuthStore } from '~/stores/auth'
 import { useWorkspaceStore } from '~/stores/workspace'
 import { useTelegramApp } from '~/composables/useTelegramApp'
 import { useInviteShare } from '~/composables/useInviteShare'
 import { DEV_MOCK_USER } from '~/utils/telegram/devMock'
+import { getSupabaseBrowserClient } from '~/utils/supabase/client'
 
 const DEV_EMAIL_KEY = 'worship-dev-email'
 
@@ -58,6 +60,29 @@ export default defineNuxtPlugin(async () => {
     )
   }
 
+  /** Local JWT can outlive deleted Auth session_id — remint or drop. */
+  async function recoverStaleLocalSession(): Promise<void> {
+    if (!auth.isAuthenticated || !auth.session?.access_token) return
+    const supabase = getSupabaseBrowserClient()
+    const { error } = await supabase.auth.getUser()
+    if (!error) return
+    if (!isStaleAuthSessionMessage(error.message)) return
+
+    if (telegram.isTelegramEnvironment.value) {
+      const ok = await tryTelegramSignIn()
+      if (ok) return
+    } else {
+      const ok = await trySavedDevSession()
+      if (ok) return
+    }
+
+    try {
+      await auth.signOut()
+    } catch {
+      // ignore
+    }
+  }
+
   // Real TMA: always refresh from initData.
   // Browser: never auto-login as mock TG user (id 10001 → empty onboarding).
   // Prefer saved Dev Login email instead.
@@ -73,6 +98,8 @@ export default defineNuxtPlugin(async () => {
         // ignore
       }
     }
+  } else {
+    await recoverStaleLocalSession()
   }
 
   syncLocaleFromTelegram()

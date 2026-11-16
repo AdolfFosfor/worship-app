@@ -662,6 +662,12 @@ async function doResendNotify() {
       life: 2200,
     })
   } catch (e: unknown) {
+    const status =
+      typeof e === 'object' && e && 'statusCode' in e
+        ? Number((e as { statusCode?: number }).statusCode)
+        : typeof e === 'object' && e && 'status' in e
+          ? Number((e as { status?: number }).status)
+          : 0
     const raw =
       typeof e === 'object' && e && 'data' in e
         ? String((e as { data?: { statusMessage?: string; message?: string } }).data?.statusMessage
@@ -673,7 +679,10 @@ async function doResendNotify() {
     toast.add({
       severity: 'error',
       summary: t('setlist.resendNotifyFailed'),
-      detail: raw || undefined,
+      detail:
+        status === 401
+          ? t('setlist.publishAuthRequired')
+          : raw || undefined,
       life: 5000,
     })
   } finally {

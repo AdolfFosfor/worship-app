@@ -1,3 +1,4 @@
+import { isStaleAuthSessionMessage } from '~~/shared/auth/sessionErrors'
 import {
   APP_LOCALE_STORAGE_KEY,
   isAppLocale,
@@ -17,12 +18,38 @@ function currentLocale(): AppLocale {
   return isAppLocale(lang) ? lang : 'en'
 }
 
+function extractRaw(error: unknown): string {
+  if (!error) return ''
+  if (typeof error === 'string') return error.trim()
+  if (error instanceof Error) return error.message || ''
+  if (typeof error === 'object') {
+    const obj = error as {
+      message?: string
+      statusMessage?: string
+      data?: { message?: string; statusMessage?: string }
+    }
+    return (
+      obj.data?.statusMessage
+      || obj.data?.message
+      || obj.statusMessage
+      || obj.message
+      || ''
+    ).trim()
+  }
+  return ''
+}
+
 /** Human-readable auth / API error for toasts. */
 export function authErrorMessage(error: unknown, fallbackKey = 'common.error'): string {
   const locale = currentLocale()
   const fallback = translate(locale, fallbackKey)
 
   if (!error) return fallback
+
+  const raw = extractRaw(error)
+  if (isStaleAuthSessionMessage(raw) || (typeof error === 'object' && error && 'statusCode' in error && Number((error as { statusCode?: number }).statusCode) === 401 && /invalid session/i.test(raw))) {
+    return translate(locale, 'auth.sessionExpired')
+  }
 
   if (typeof error === 'string' && error.trim()) return error
 
@@ -41,16 +68,16 @@ export function authErrorMessage(error: unknown, fallbackKey = 'common.error'): 
       data?: { message?: string; statusMessage?: string; code?: string }
       code?: string
     }
-    const raw =
+    const text =
       obj.data?.statusMessage ||
       obj.data?.message ||
       obj.statusMessage ||
       obj.message ||
       fallback
-    if (obj.code === 'over_email_send_rate_limit' || /rate.?limit/i.test(raw)) {
+    if (obj.code === 'over_email_send_rate_limit' || /rate.?limit/i.test(text)) {
       return translate(locale, 'auth.rateLimit')
     }
-    return raw
+    return text
   }
 
   return fallback

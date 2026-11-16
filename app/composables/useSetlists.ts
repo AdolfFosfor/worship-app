@@ -231,12 +231,29 @@ export function useSetlists() {
   async function reissueAccessToken(): Promise<string> {
     const auth = useAuthStore()
     const telegram = useTelegramApp()
-    // Browser mock uses telegram id 10001 (no workspace) — never swap identity there.
-    if (!telegram.isTelegramEnvironment.value) return ''
-    const initDataRaw = telegram.getInitDataRaw()
-    if (!initDataRaw) return ''
-    await auth.signInWithTelegram(initDataRaw)
-    return auth.session?.access_token || ''
+    if (telegram.isTelegramEnvironment.value) {
+      const initDataRaw = telegram.getInitDataRaw()
+      if (!initDataRaw) return ''
+      await auth.signInWithTelegram(initDataRaw)
+      return auth.session?.access_token || ''
+    }
+
+    // Browser / Dev Login: remint from saved email (zombie JWT otherwise sticks forever).
+    const config = useRuntimeConfig()
+    if (!config.public.allowTelegramDevMock) return ''
+    let email: string
+    try {
+      email = localStorage.getItem('worship-dev-email')?.trim() || ''
+    } catch {
+      return ''
+    }
+    if (!email) return ''
+    try {
+      await auth.signInWithDevSession(email)
+      return auth.session?.access_token || ''
+    } catch {
+      return ''
+    }
   }
 
   /** Publish draft → team Telegram DMs (server). */

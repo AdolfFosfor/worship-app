@@ -1,5 +1,6 @@
 import type { H3Event } from 'h3'
 import type { User } from '@supabase/supabase-js'
+import { isStaleAuthSessionMessage } from '~~/shared/auth/sessionErrors'
 import { createServiceClient } from './supabase'
 
 type AuthUserResponse = {
@@ -55,10 +56,15 @@ async function fetchAuthUser(accessToken: string): Promise<User> {
               || (err as { data?: { message?: string } }).data?.message
               || '',
           )
-        : ''
+        : err instanceof Error
+          ? err.message
+          : ''
+    const stale = isStaleAuthSessionMessage(message)
+    const mappedStatus = stale || statusCode === 403 ? 401 : statusCode || 401
     throw createError({
-      statusCode: statusCode === 403 ? 401 : statusCode || 401,
-      statusMessage: message || 'Invalid session',
+      statusCode: mappedStatus,
+      // Never leak raw Auth internals to the client toast.
+      statusMessage: mappedStatus === 401 ? 'Invalid session' : message || 'Invalid session',
     })
   }
 }

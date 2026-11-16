@@ -170,9 +170,8 @@ function songMetaLine(song: BotSongRow): string {
 
 /**
  * Setlist published — Rich Message HTML (`sendRichMessage`).
- * Compact composition (restored):
- * type → title → date · count → hr → numbered table (title | params) → author.
- * Only tweak vs original: «Новый сет-лист» is bold (more visible), not italic.
+ * Hierarchy: italic type → h2 title → date · count → bordered striped table → footer.
+ * @see https://core.telegram.org/bots/api/rich-messages
  */
 export function formatSetlistPublishedRichHtml(params: SetlistPublishedParams): string {
   const { languageCode, title: rawTitle, serviceDate, songs, authorName } = params
@@ -183,9 +182,9 @@ export function formatSetlistPublishedRichHtml(params: SetlistPublishedParams): 
   const author = authorName?.trim()
 
   const parts: string[] = [
-    `<p><b>${escapeHtml(botMessage('setlistPublishedTitle', languageCode))}</b></p>`,
-    `<p><b>${escapeHtml(displayTitle)}</b></p>`,
-    `<p>${escapeHtml(dateLabel)} · ${escapeHtml(songsMeta)}</p>`,
+    `<p><i>${escapeHtml(botMessage('setlistPublishedTitle', languageCode))}</i></p>`,
+    `<h2>${escapeHtml(displayTitle)}</h2>`,
+    `<p>${escapeHtml(dateLabel)} · <code>${escapeHtml(songsMeta)}</code></p>`,
     '<hr/>',
   ]
 
@@ -197,17 +196,16 @@ export function formatSetlistPublishedRichHtml(params: SetlistPublishedParams): 
     const rows = songs
       .map((song, index) => {
         const meta = songMetaLine(song)
-        const left = `${index + 1}\u2002<b>${escapeHtml(song.title)}</b>`
-        const right = meta ? `<code>${escapeHtml(meta)}</code>` : ''
         return (
           `<tr>`
-          + `<td align="left" valign="middle">${left}</td>`
-          + `<td align="right" valign="middle">${right}</td>`
+          + `<td align="right" valign="middle"><code>${index + 1}</code></td>`
+          + `<td align="left" valign="middle"><b>${escapeHtml(song.title)}</b></td>`
+          + `<td align="right" valign="middle">${meta ? `<code>${escapeHtml(meta)}</code>` : ''}</td>`
           + `</tr>`
         )
       })
       .join('')
-    parts.push(`<table compact>${rows}</table>`)
+    parts.push(`<table bordered striped compact>${rows}</table>`)
   }
 
   if (author) {
