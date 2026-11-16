@@ -8,6 +8,8 @@ type AppConfirmOptions = {
   acceptLabel?: string
   rejectLabel?: string
   accept: () => void | Promise<void>
+  /** Закрытие / Отмена — для async gate (route leave и т.п.) */
+  reject?: () => void | Promise<void>
 }
 
 /**
@@ -25,6 +27,15 @@ export function useAppConfirm() {
     if (opts.warningHaptic) haptics.warning()
     else haptics.tap()
 
+    /** Маска зовёт close() без reject — onHide добивает один settle. */
+    let settled = false
+    const settle = (kind: 'accept' | 'reject') => {
+      if (settled) return
+      settled = true
+      if (kind === 'accept') void options.accept()
+      else void options.reject?.()
+    }
+
     const payload: ConfirmationOptions = {
       position: 'bottom',
       header: options.title,
@@ -37,8 +48,10 @@ export function useAppConfirm() {
       appendTo: '.app-shell',
       accept: () => {
         haptics.impact(opts.warningHaptic ? 'heavy' : 'medium')
-        void options.accept()
+        settle('accept')
       },
+      reject: () => settle('reject'),
+      onHide: () => settle('reject'),
     }
     confirm.require(payload)
   }

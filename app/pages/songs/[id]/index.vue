@@ -43,6 +43,7 @@ const { fetchSetlists, songInSetlist, addSongToSetlist, getSetlist } = useSetlis
 const { rememberSetlist, peekSetlist } = useSetlistCache()
 const toast = useToast()
 const haptics = useHaptics()
+const { requireConfirm } = useAppConfirm()
 
 const id = computed(() => String(route.params.id))
 const {
@@ -177,8 +178,11 @@ const hasChartView = computed(() => Boolean(displayChart.value || displayChords.
 
 const viewMode = ref<SongViewMode>(readSongViewMode())
 const placementDraft = ref<SongLyricsDoc | null>(null)
+const placementBaseline = ref<string | null>(null)
 const placementEditing = ref(false)
 const placementBusy = ref(false)
+/** Пока открыт confirm сброса — не открываем второй и не пускаем route leave дважды. */
+let placementDiscardPending = false
 
 const importSheetOpen = ref(false)
 const importMode = ref<ChordSheetImportMode>('lyricsAndChords')
@@ -215,34 +219,145 @@ const viewModeOptions = computed(() => [
   { value: 'lyricsChords' as const, label: t('song.viewLyricsChords') },
 ])
 
+const isPlacementDirty = computed(() => {
+  if (!placementEditing.value || !placementDraft.value || placementBaseline.value == null) {
+    return false
+  }
+  return JSON.stringify(placementDraft.value) !== placementBaseline.value
+})
+
+const showViewModes = computed(() => hasChartView.value && hasLyricsView.value)
+
+const hasChartContent = computed(() => Boolean(displayChart.value || displayChords.value))
+const hasLyricsContent = computed(() =>
+  Boolean(activeLyricsDoc.value?.blocks.length || song.value?.lyrics),
+)
+
+const viewModeEmptyKey = computed(() => {
+  if (viewMode.value === 'chart' && !hasChartContent.value) return 'song.viewEmptyChart'
+  if (
+    (viewMode.value === 'lyrics' || viewMode.value === 'lyricsChords') &&
+    !hasLyricsContent.value
+  ) {
+    return 'song.viewEmptyLyrics'
+  }
+  return null
+})
+
+function discardPlacement() {
+  placementEditing.value = false
+  placementDraft.value = null
+  placementBaseline.value = null
+  importSheetOpen.value = false
+}
+
+function markPlacementBaseline(doc: SongLyricsDoc) {
+  placementBaseline.value = JSON.stringify(doc)
+}
+
+function beginPlacement(doc: SongLyricsDoc) {
+  const clone = JSON.parse(JSON.stringify(doc)) as SongLyricsDoc
+  placementDraft.value = clone
+  markPlacementBaseline(clone)
+  placementEditing.value = true
+  applyViewMode('lyricsChords')
+}
+
+function applyViewMode(mode: SongViewMode) {
+  viewMode.value = resolveSongViewMode(mode, hasChartView.value, hasLyricsView.value)
+}
+
+function requestDiscardPlacement(onProceed: () => void) {
+  if (!isPlacementDirty.value) {
+    discardPlacement()
+    onProceed()
+    return
+  }
+  if (placementDiscardPending) return
+  placementDiscardPending = true
+  requireConfirm({
+    title: t('lyrics.discardPlacementTitle'),
+    message: t('lyrics.discardPlacementMessage'),
+    acceptLabel: t('lyrics.discardPlacementAccept'),
+    accept: () => {
+      placementDiscardPending = false
+      discardPlacement()
+      onProceed()
+    },
+    reject: () => {
+      placementDiscardPending = false
+    },
+  })
+}
+
 watch(
-  [hasChartView, hasLyricsView, () => song.value?.id],
-  () => {
+  () => song.value?.id,
+  (nextId, prevId) => {
+    if (nextId === prevId) return
+    discardPlacement()
     viewMode.value = resolveSongViewMode(
       readSongViewMode(),
       hasChartView.value,
       hasLyricsView.value,
     )
-    placementEditing.value = false
-    placementDraft.value = null
+  },
+)
+
+watch(
+  [hasChartView, hasLyricsView],
+  () => {
+    const preferred = placementEditing.value ? 'lyricsChords' : readSongViewMode()
+    viewMode.value = resolveSongViewMode(
+      preferred,
+      hasChartView.value,
+      hasLyricsView.value,
+    )
   },
   { immediate: true },
 )
 
 watch(viewMode, (mode) => {
-  if (mode !== 'lyricsChords' && placementEditing.value) {
-    placementEditing.value = false
-    placementDraft.value = null
-  }
   if (!hasChartView.value || !hasLyricsView.value) return
   writeSongViewMode(mode)
 })
 
 function setViewMode(mode: SongViewMode) {
-  viewMode.value = resolveSongViewMode(mode, hasChartView.value, hasLyricsView.value)
+  const next = resolveSongViewMode(mode, hasChartView.value, hasLyricsView.value)
+  if (next === viewMode.value) return
+  const leavingPlacement = placementEditing.value && next !== 'lyricsChords'
+  if (leavingPlacement) {
+    requestDiscardPlacement(() => {
+      applyViewMode(next)
+    })
+    return
+  }
+  applyViewMode(next)
 }
 
-const showViewModes = computed(() => hasChartView.value && hasLyricsView.value)
+onBeforeRouteLeave(() => {
+  if (!isPlacementDirty.value) {
+    if (placementEditing.value) discardPlacement()
+    return true
+  }
+  if (placementDiscardPending) return false
+  return new Promise<boolean>((resolve) => {
+    placementDiscardPending = true
+    requireConfirm({
+      title: t('lyrics.discardPlacementTitle'),
+      message: t('lyrics.discardPlacementMessage'),
+      acceptLabel: t('lyrics.discardPlacementAccept'),
+      accept: () => {
+        placementDiscardPending = false
+        discardPlacement()
+        resolve(true)
+      },
+      reject: () => {
+        placementDiscardPending = false
+        resolve(false)
+      },
+    })
+  })
+})
 
 const canBuildFromProgression = computed(() => {
   const s = song.value
@@ -271,11 +386,9 @@ async function buildChartFromProgression(enterPlacement = false) {
     song.value = await updateSong(song.value.id, input)
     toast.add({ severity: 'success', summary: t('lyrics.progressionBuilt'), life: 2200 })
     if (enterPlacement) {
-      placementDraft.value = JSON.parse(JSON.stringify(placed)) as SongLyricsDoc
-      placementEditing.value = true
-      setViewMode('lyricsChords')
+      beginPlacement(placed)
     } else {
-      setViewMode('lyricsChords')
+      applyViewMode('lyricsChords')
     }
   } catch (e) {
     toast.add({
@@ -302,15 +415,11 @@ async function startPlacementEdit() {
     await buildChartFromProgression(true)
     return
   }
-  placementDraft.value = JSON.parse(JSON.stringify(lyricsDoc.value)) as SongLyricsDoc
-  placementEditing.value = true
-  setViewMode('lyricsChords')
+  beginPlacement(lyricsDoc.value)
 }
 
 function cancelPlacementEdit() {
-  placementEditing.value = false
-  placementDraft.value = null
-  importSheetOpen.value = false
+  requestDiscardPlacement(() => {})
 }
 
 function onPlacementDocUpdate(doc: SongLyricsDoc) {
@@ -330,8 +439,7 @@ async function savePlacement() {
     input.lyricsDoc = placementDraft.value
     input.lyrics = serializeLyricsDoc(placementDraft.value)
     song.value = await updateSong(song.value.id, input)
-    placementEditing.value = false
-    placementDraft.value = null
+    discardPlacement()
     toast.add({ severity: 'success', summary: t('common.saved'), life: 2000 })
   } catch (e) {
     toast.add({
@@ -405,8 +513,12 @@ async function confirmImportPdf() {
     }
     song.value = await updateSong(song.value.id, input)
     if (result.lyricsDoc) {
-      placementDraft.value = JSON.parse(JSON.stringify(result.lyricsDoc)) as SongLyricsDoc
+      const next = JSON.parse(JSON.stringify(result.lyricsDoc)) as SongLyricsDoc
+      placementDraft.value = next
+      markPlacementBaseline(next)
+      placementEditing.value = true
     } else if (placementDraft.value && song.value.chordChart) {
+      // Chart сохранён, lyricsDoc на сервере нет — auto-place остаётся dirty до Save.
       placementDraft.value = autoPlaceAllBlocks(placementDraft.value, song.value.chordChart)
     }
     importSheetOpen.value = false
@@ -508,7 +620,7 @@ function setlistNeighbor(dir: 'prev' | 'next') {
 
 let setlistNavBusy = false
 
-async function goSetlistNeighbor(dir: 'prev' | 'next') {
+async function navigateSetlistNeighbor(dir: 'prev' | 'next') {
   if (setlistNavBusy) return
   const neighbor = setlistNeighbor(dir)
   if (!neighbor) return
@@ -530,6 +642,18 @@ async function goSetlistNeighbor(dir: 'prev' | 'next') {
   } finally {
     setlistNavBusy = false
   }
+}
+
+function goSetlistNeighbor(dir: 'prev' | 'next') {
+  if (!setlistNeighbor(dir)) return
+  if (!isPlacementDirty.value) {
+    if (placementEditing.value) discardPlacement()
+    void navigateSetlistNeighbor(dir)
+    return
+  }
+  requestDiscardPlacement(() => {
+    void navigateSetlistNeighbor(dir)
+  })
 }
 
 function syncViewFromSong(next: Song) {
@@ -1033,7 +1157,10 @@ const { revealEditable } = useHeaderEditableTitle({
       </AppSection>
 
       <AppSection
-        v-else-if="(viewMode === 'lyrics' || viewMode === 'lyricsChords') && activeLyricsDoc"
+        v-else-if="
+          (viewMode === 'lyrics' || viewMode === 'lyricsChords') &&
+          activeLyricsDoc?.blocks.length
+        "
         :title="viewMode === 'lyricsChords' ? t('song.viewLyricsChords') : t('song.extraLyrics')"
       >
         <button
@@ -1085,6 +1212,18 @@ const { revealEditable } = useHeaderEditableTitle({
         :title="t('song.extraLyrics')"
       >
         <ChordSheet :text="song.lyrics" />
+      </AppSection>
+      <AppSection
+        v-else-if="viewModeEmptyKey"
+        :title="
+          viewMode === 'chart'
+            ? t('song.fieldChords')
+            : viewMode === 'lyricsChords'
+              ? t('song.viewLyricsChords')
+              : t('song.extraLyrics')
+        "
+      >
+        <p class="song-view__mode-empty">{{ t(viewModeEmptyKey) }}</p>
       </AppSection>
 
       <a
@@ -1308,6 +1447,15 @@ const { revealEditable } = useHeaderEditableTitle({
   font-size: var(--app-text-sm);
   color: var(--app-muted);
   line-height: 1.35;
+}
+
+.song-view__mode-empty {
+  margin: 0;
+  padding: var(--app-space-3) 0;
+  font-size: var(--app-text-sm);
+  color: var(--app-muted);
+  line-height: 1.4;
+  text-align: center;
 }
 
 .song-view__import-pdf {
@@ -1703,8 +1851,6 @@ const { revealEditable } = useHeaderEditableTitle({
 
 .song-view__track-note {
   margin-top: var(--app-space-3);
-  padding-top: var(--app-space-2);
-  border-top: var(--app-hairline) solid var(--app-border);
 }
 
 .song-view__note-hint {
