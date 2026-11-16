@@ -1,4 +1,4 @@
-import { botMessage } from '../../../shared/i18n/botMessages'
+import { botMessage, formatStartHtml } from '../../../shared/i18n/botMessages'
 import { sendWebAppOpenMessage, TelegramBotApiError } from '../../utils/telegramBotApi'
 import {
   resolveTelegramMiniAppUrl,
@@ -105,7 +105,6 @@ export default defineEventHandler(async (event) => {
 
   const languageCode = message.from.language_code ?? null
   const openLabel = botMessage('open', languageCode)
-  const startText = botMessage('start', languageCode)
   const isStart = isStartCommand(message.text)
 
   try {
@@ -123,7 +122,7 @@ export default defineEventHandler(async (event) => {
       await sendWebAppOpenMessage({
         botToken,
         chatId: message.chat.id,
-        text: startText,
+        text: formatStartHtml(languageCode),
         buttonText: openLabel,
         webAppUrl,
       })

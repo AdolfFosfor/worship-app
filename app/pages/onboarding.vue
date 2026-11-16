@@ -4,6 +4,9 @@ definePageMeta({
 })
 
 const workspace = useWorkspaceStore()
+const auth = useAuthStore()
+const telegram = useTelegramApp()
+const config = useRuntimeConfig()
 const toast = useToast()
 const { t } = useAppLocale()
 
@@ -11,6 +14,46 @@ const mode = ref<'create' | 'join'>('create')
 const name = ref('')
 const inviteCode = ref('')
 const busy = ref(false)
+const recoveringDev = ref(false)
+
+/** Browser + dev mock: mock TG user has no team — offer Dev Login. */
+const showDevEscape = computed(
+  () =>
+    Boolean(config.public.allowTelegramDevMock)
+    && !telegram.isTelegramEnvironment.value,
+)
+
+async function goDevLogin() {
+  recoveringDev.value = true
+  try {
+    let email = ''
+    try {
+      email = localStorage.getItem('worship-dev-email')?.trim() || ''
+    } catch {
+      /* ignore */
+    }
+    if (email) {
+      await auth.signInWithDevSession(email)
+      await workspace.loadCurrent()
+      if (workspace.hasWorkspace) {
+        await navigateTo('/')
+        return
+      }
+    }
+    await auth.signOut()
+    await navigateTo('/login')
+  } catch {
+    await navigateTo('/login')
+  } finally {
+    recoveringDev.value = false
+  }
+}
+
+onMounted(() => {
+  if (showDevEscape.value && !workspace.hasWorkspace) {
+    void goDevLogin()
+  }
+})
 
 const nameInput = ref<{ $el?: HTMLElement } | null>(null)
 const inviteInput = ref<{ $el?: HTMLElement } | null>(null)
@@ -90,6 +133,17 @@ useAppHeader(() => ({
       autocomplete="off"
     >
 
+    <p v-if="showDevEscape" class="onboarding__dev">
+      <button
+        type="button"
+        class="app-cta app-cta--ghost onboarding__dev-btn"
+        :disabled="recoveringDev"
+        @click="goDevLogin"
+      >
+        {{ recoveringDev ? t('common.loading') : t('auth.devLogin') }}
+      </button>
+    </p>
+
     <div class="onboarding__tabs">
       <button
         type="button"
@@ -162,6 +216,14 @@ useAppHeader(() => ({
   padding: 0;
   margin: 0;
   pointer-events: none;
+}
+
+.onboarding__dev {
+  margin: 0 0 var(--app-space-3);
+}
+
+.onboarding__dev-btn {
+  width: 100%;
 }
 
 .onboarding__tabs {

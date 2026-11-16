@@ -1,11 +1,16 @@
 import type { EntityId, Timestamps } from './common'
 import type { Song, SongKey } from './song'
 
+export type SetlistStatus = 'draft' | 'published'
+
 export interface Setlist extends Timestamps {
   id: EntityId
   workspaceId: EntityId
   title: string
   serviceDate: string
+  status: SetlistStatus
+  publishedAt: string | null
+  publishedBy: EntityId | null
   createdBy: EntityId | null
   /** Число песен в сете (если загружено через count). */
   itemCount?: number

@@ -245,7 +245,13 @@ useAppHeader(() => ({
               <div class="setlists-row__main">
                 <div class="setlists-row__title-line">
                   <span class="setlists-row__title">{{ sessionTitle(item.title) }}</span>
-                  <span v-if="isEvent(item)" class="setlists-row__event">
+                  <span
+                    v-if="item.status === 'draft'"
+                    class="setlists-row__event setlists-row__event--draft"
+                  >
+                    {{ t('setlists.draftBadge') }}
+                  </span>
+                  <span v-else-if="isEvent(item)" class="setlists-row__event">
                     {{ t('setlists.eventBadge') }}
                   </span>
                 </div>
@@ -377,6 +383,11 @@ useAppHeader(() => ({
   font-weight: 700;
   letter-spacing: 0.01em;
   line-height: 1.2;
+}
+
+.setlists-row__event--draft {
+  background: color-mix(in srgb, var(--app-muted) 18%, transparent);
+  color: var(--app-muted);
 }
 
 .setlists-row__meta {

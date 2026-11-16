@@ -78,11 +78,16 @@ export interface DbSong {
   updated_at: string
 }
 
+export type DbSetlistStatus = 'draft' | 'published'
+
 export interface DbSetlist {
   id: string
   workspace_id: string
   title: string
   service_date: string
+  status: DbSetlistStatus
+  published_at: string | null
+  published_by: string | null
   created_by: string | null
   created_at: string
   updated_at: string
@@ -194,6 +199,9 @@ export interface Database {
           workspace_id: string
           title: string
           service_date: string
+          status?: DbSetlistStatus
+          published_at?: string | null
+          published_by?: string | null
           created_by?: string | null
           created_at?: string
           updated_at?: string
@@ -203,6 +211,9 @@ export interface Database {
           workspace_id?: string
           title?: string
           service_date?: string
+          status?: DbSetlistStatus
+          published_at?: string | null
+          published_by?: string | null
           created_by?: string | null
           created_at?: string
           updated_at?: string

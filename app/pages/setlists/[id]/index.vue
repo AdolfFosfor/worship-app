@@ -11,6 +11,8 @@ const { t, sessionTitle, locale } = useAppLocale()
 const {
   getSetlist,
   updateSetlist,
+  publishSetlist,
+  resendSetlistNotify,
   addSongToSetlist,
   removeItem,
   reorderItems,
@@ -19,7 +21,7 @@ const {
 const { syncSetlistsOnActivate } = useSetlistsRevision()
 const { fetchSongs, songs } = useSongs()
 const toast = useToast()
-const { requireDanger } = useAppConfirm()
+const { requireDanger, requireConfirm } = useAppConfirm()
 const haptics = useHaptics()
 
 const id = computed(() => String(route.params.id))
@@ -30,8 +32,19 @@ const error = ref<string | null>(null)
 const pickerVisible = ref(false)
 const pickerQuery = ref('')
 const busy = ref(false)
+const publishing = ref(false)
+const resending = ref(false)
 const listEl = ref<HTMLElement | null>(null)
 const sorting = ref(false)
+const isDev = import.meta.dev
+
+const isDraft = computed(() => setlist.value?.status === 'draft')
+const canPublish = computed(
+  () => Boolean(workspace.canEditSetlists && isDraft.value && setlist.value),
+)
+const canResendNotify = computed(
+  () => Boolean(isDev && workspace.canEditSetlists && setlist.value),
+)
 
 /** Long-press → визуальный «набор» + freeze скролла, затем Sortable drag */
 const DRAG_DELAY_MS = 400
@@ -152,9 +165,9 @@ async function load(opts?: { quiet?: boolean }) {
   }
   error.value = null
   try {
-    setlist.value = await getSetlist(id.value, {
-      force: Boolean(opts?.quiet) || !cached,
-    })
+    // Always revalidate — status (draft/published) can change on the server
+    // while a stale cache still shows «Опубликовать».
+    setlist.value = await getSetlist(id.value, { force: true })
     markSetlistsSynced()
   } catch (e) {
     if (!setlist.value) error.value = e instanceof Error ? e.message : t('common.notFound')
@@ -580,6 +593,94 @@ function confirmRemove(item: SetlistItemWithSong) {
   })
 }
 
+async function doPublish() {
+  if (!setlist.value || publishing.value) return
+  publishing.value = true
+  try {
+    const result = await publishSetlist(setlist.value.id)
+    const updated = {
+      ...setlist.value,
+      status: 'published' as const,
+      publishedAt: result.publishedAt,
+      publishedBy: result.publishedBy,
+    }
+    setlist.value = updated
+    warmSetlistSession(updated)
+    toast.add({
+      severity: 'success',
+      summary: t('setlist.published'),
+      life: 2200,
+    })
+  } catch (e: unknown) {
+    const status =
+      typeof e === 'object' && e && 'statusCode' in e
+        ? Number((e as { statusCode?: number }).statusCode)
+        : typeof e === 'object' && e && 'status' in e
+          ? Number((e as { status?: number }).status)
+          : 0
+    const raw =
+      typeof e === 'object' && e && 'data' in e
+        ? String((e as { data?: { statusMessage?: string; message?: string } }).data?.statusMessage
+          || (e as { data?: { message?: string } }).data?.message
+          || '')
+        : e instanceof Error
+          ? e.message
+          : ''
+    toast.add({
+      severity: 'error',
+      summary: t('setlist.publishFailed'),
+      detail:
+        status === 401
+          ? t('setlist.publishAuthRequired')
+          : raw || undefined,
+      life: 5000,
+    })
+  } finally {
+    publishing.value = false
+  }
+}
+
+function confirmPublish() {
+  if (!canPublish.value) return
+  requireConfirm({
+    title: t('setlist.publishConfirmTitle'),
+    message: t('setlist.publishConfirmMessage'),
+    acceptLabel: t('setlist.publishConfirmAccept'),
+    accept: () => doPublish(),
+  })
+}
+
+async function doResendNotify() {
+  if (!setlist.value || !canResendNotify.value || resending.value) return
+  resending.value = true
+  try {
+    const result = await resendSetlistNotify(setlist.value.id)
+    toast.add({
+      severity: 'success',
+      summary: t('setlist.resendNotifyDone'),
+      detail: `${result.notified}/${result.notified + result.failed}`,
+      life: 2200,
+    })
+  } catch (e: unknown) {
+    const raw =
+      typeof e === 'object' && e && 'data' in e
+        ? String((e as { data?: { statusMessage?: string; message?: string } }).data?.statusMessage
+          || (e as { data?: { message?: string } }).data?.message
+          || '')
+        : e instanceof Error
+          ? e.message
+          : ''
+    toast.add({
+      severity: 'error',
+      summary: t('setlist.resendNotifyFailed'),
+      detail: raw || undefined,
+      life: 5000,
+    })
+  } finally {
+    resending.value = false
+  }
+}
+
 const availableSongs = computed(() => {
   const used = new Set(setlist.value?.items.map((i) => i.songId) ?? [])
   return songs.value.filter((s) => !used.has(s.id))
@@ -648,6 +749,12 @@ const { revealEditable } = useHeaderEditableTitle({
             {{ formatDate(setlist.serviceDate) }}
           </button>
           <p v-else class="setlist-header__subtitle">{{ formatDate(setlist.serviceDate) }}</p>
+          <span
+            v-if="isDraft"
+            class="setlist-header__draft"
+          >
+            {{ t('setlists.draftBadge') }}
+          </span>
           <DatePicker
             v-if="canEditMeta"
             ref="datePicker"
@@ -711,9 +818,29 @@ const { revealEditable } = useHeaderEditableTitle({
 
       <div v-if="workspace.canEditSetlists" class="setlist-footer">
         <button
+          v-if="canPublish"
           type="button"
           class="app-cta setlist-footer__cta"
-          :disabled="busy"
+          :disabled="busy || publishing || resending"
+          @click="confirmPublish"
+        >
+          {{ t('setlist.publish') }}
+        </button>
+        <button
+          v-if="canResendNotify"
+          type="button"
+          class="app-cta app-cta--ghost setlist-footer__cta"
+          :disabled="busy || publishing || resending"
+          :aria-label="t('setlist.resendNotify')"
+          @click="doResendNotify"
+        >
+          {{ t('setlist.resendNotify') }}
+        </button>
+        <button
+          type="button"
+          class="app-cta setlist-footer__cta"
+          :class="{ 'app-cta--ghost': canPublish || canResendNotify }"
+          :disabled="busy || publishing || resending"
           :aria-label="t('setlist.addSong')"
           @click="openPicker"
         >
@@ -1024,9 +1151,25 @@ const { revealEditable } = useHeaderEditableTitle({
 
 .setlist-header__date-wrap {
   position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
   margin-top: 0.15rem;
   width: fit-content;
   max-width: 100%;
+}
+
+.setlist-header__draft {
+  flex-shrink: 0;
+  padding: 0.12rem 0.4rem;
+  border-radius: var(--app-radius-pill);
+  background: color-mix(in srgb, var(--app-muted) 18%, transparent);
+  color: var(--app-muted);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
 }
 
 .setlist-header__subtitle {

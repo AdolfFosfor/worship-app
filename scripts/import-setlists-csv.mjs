@@ -234,6 +234,8 @@ for (const row of setlists) {
       workspace_id: workspaceId,
       title: row.title,
       service_date: row.serviceDate,
+      status: 'published',
+      published_at: new Date().toISOString(),
       created_by: user.id,
     })
     .select('id')

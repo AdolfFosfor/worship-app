@@ -111,6 +111,7 @@ export function useSetlists() {
       .from('setlists')
       .select('*, setlist_items(*, songs(*))')
       .eq('workspace_id', workspace.workspace.id)
+      .eq('status', 'published')
       .gte('service_date', today)
       .order('service_date', { ascending: true })
       .limit(1)
@@ -176,6 +177,7 @@ export function useSetlists() {
         workspace_id: workspace.workspace.id,
         title: input.title.trim(),
         service_date: input.serviceDate,
+        status: 'draft',
         created_by: auth.user.id,
       })
       .select('*')
@@ -215,6 +217,138 @@ export function useSetlists() {
     const stageSetlist = useState<SetlistWithItems | null>('chord-stage-setlist', () => null)
     if (stageSetlist.value?.id === id) stageSetlist.value = null
     bumpSetlistsRevision()
+  }
+
+  async function resolveAccessToken(): Promise<string> {
+    const auth = useAuthStore()
+    const supabase = getSupabaseBrowserClient()
+    // Never refreshSession here — a stale refresh_token deletes the Auth session.
+    const { data: current } = await supabase.auth.getSession()
+    if (current.session) auth.session = current.session
+    return current.session?.access_token || auth.session?.access_token || ''
+  }
+
+  async function reissueAccessToken(): Promise<string> {
+    const auth = useAuthStore()
+    const telegram = useTelegramApp()
+    // Browser mock uses telegram id 10001 (no workspace) — never swap identity there.
+    if (!telegram.isTelegramEnvironment.value) return ''
+    const initDataRaw = telegram.getInitDataRaw()
+    if (!initDataRaw) return ''
+    await auth.signInWithTelegram(initDataRaw)
+    return auth.session?.access_token || ''
+  }
+
+  /** Publish draft → team Telegram DMs (server). */
+  async function publishSetlist(id: string) {
+    let accessToken = await resolveAccessToken()
+    if (!accessToken) {
+      accessToken = await reissueAccessToken()
+    }
+    if (!accessToken) throw new Error('Нет активной сессии')
+
+    type PublishResult = {
+      published: boolean
+      status: 'published'
+      publishedAt: string
+      publishedBy: string
+      notified: number
+      failed: number
+    }
+
+    async function postPublish(token: string) {
+      return $fetch<PublishResult>(`/api/setlists/${id}/publish`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+    }
+
+    let result: PublishResult
+    try {
+      result = await postPublish(accessToken)
+    } catch (err: unknown) {
+      const status =
+        typeof err === 'object' && err && 'statusCode' in err
+          ? Number((err as { statusCode?: number }).statusCode)
+          : typeof err === 'object' && err && 'status' in err
+            ? Number((err as { status?: number }).status)
+            : 0
+      if (status === 409) {
+        // Already published (e.g. previous attempt updated DB but failed on notify).
+        const nowIso = new Date().toISOString()
+        result = {
+          published: true,
+          status: 'published',
+          publishedAt: nowIso,
+          publishedBy: '',
+          notified: 0,
+          failed: 0,
+        }
+      } else if (status === 401) {
+        const fresh = await reissueAccessToken()
+        if (!fresh) throw err
+        result = await postPublish(fresh)
+      } else {
+        throw err
+      }
+    }
+
+    const patch = {
+      status: 'published' as const,
+      publishedAt: result.publishedAt,
+      publishedBy: result.publishedBy || undefined,
+    }
+    setlists.value = setlists.value.map((s) =>
+      s.id === id ? { ...s, ...patch } : s,
+    )
+    if (upcoming.value?.id === id) {
+      upcoming.value = { ...upcoming.value, ...patch }
+    }
+    const cached = peekSetlist(id)
+    if (cached) warmSetlistSession({ ...cached, ...patch })
+    bumpSetlistsRevision()
+    return result
+  }
+
+  /** Dev-only: re-send publish Telegram DMs (no status change). */
+  async function resendSetlistNotify(id: string) {
+    let accessToken = await resolveAccessToken()
+    if (!accessToken) {
+      accessToken = await reissueAccessToken()
+    }
+    if (!accessToken) throw new Error('Нет активной сессии')
+
+    type ResendResult = {
+      resent: boolean
+      notified: number
+      failed: number
+    }
+
+    async function postResend(token: string) {
+      return $fetch<ResendResult>(`/api/setlists/${id}/notify-resend`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+    }
+
+    try {
+      return await postResend(accessToken)
+    } catch (err: unknown) {
+      const status =
+        typeof err === 'object' && err && 'statusCode' in err
+          ? Number((err as { statusCode?: number }).statusCode)
+          : typeof err === 'object' && err && 'status' in err
+            ? Number((err as { status?: number }).status)
+            : 0
+      if (status !== 401) throw err
+      const fresh = await reissueAccessToken()
+      if (!fresh) throw err
+      return postResend(fresh)
+    }
   }
 
   async function songInSetlist(setlistId: string, songId: string) {
@@ -317,6 +451,8 @@ export function useSetlists() {
     createSetlist,
     updateSetlist,
     deleteSetlist,
+    publishSetlist,
+    resendSetlistNotify,
     songInSetlist,
     addSongToSetlist,
     updateItemKey,

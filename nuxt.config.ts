@@ -100,6 +100,8 @@ export default defineNuxtConfig({
     telegramWebhookSecret: process.env.NUXT_TELEGRAM_WEBHOOK_SECRET || '',
     // HTTPS Mini App URL for web_app buttons; falls back to request origin
     telegramMiniAppUrl: process.env.NUXT_TELEGRAM_MINI_APP_URL || '',
+    // Comma-separated telegram ids for notify allowlist (empty = all members)
+    telegramNotifyAllowlist: process.env.NUXT_TELEGRAM_NOTIFY_ALLOWLIST || '',
     public: {
       supabaseUrl:
         process.env.NUXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '',

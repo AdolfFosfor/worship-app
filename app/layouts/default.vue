@@ -76,7 +76,8 @@ const confirmPt = {
               <div class="app-confirm__actions">
                 <button
                   type="button"
-                  class="app-confirm__btn app-confirm__btn--danger"
+                  class="app-confirm__btn"
+                  :class="message.acceptClass || 'app-confirm__btn--danger'"
                   @click="acceptCallback"
                 >
                   {{ message.acceptLabel || t('common.delete') }}
@@ -771,6 +772,15 @@ const confirmPt = {
 
 .app-confirm__btn--danger:active {
   background: color-mix(in srgb, var(--app-destructive) 24%, var(--app-surface));
+}
+
+.app-confirm__btn--accent {
+  background: var(--app-accent);
+  color: var(--app-accent-contrast, #fff);
+}
+
+.app-confirm__btn--accent:active {
+  filter: brightness(0.94);
 }
 
 .app-confirm__btn--cancel {
