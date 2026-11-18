@@ -62,21 +62,46 @@ function toBotSongRows(
   return rows
 }
 
+async function resolveUserLanguageCodes(
+  supabase: SupabaseClient,
+  userIds: string[],
+): Promise<Map<string, string | null>> {
+  const out = new Map<string, string | null>()
+  const unique = [...new Set(userIds.filter(Boolean))]
+  await Promise.all(
+    unique.map(async (userId) => {
+      try {
+        const { data, error } = await supabase.auth.admin.getUserById(userId)
+        if (error || !data.user) {
+          out.set(userId, null)
+          return
+        }
+        const code = data.user.user_metadata?.language_code
+        out.set(userId, typeof code === 'string' && code.trim() ? code.trim() : null)
+      } catch {
+        out.set(userId, null)
+      }
+    }),
+  )
+  return out
+}
+
 /** Best-effort Telegram DMs for a published (or preview) setlist. */
 export async function notifySetlistPublished(params: {
   event: H3Event
   supabase: SupabaseClient
   setlist: SetlistNotifyRow
-  languageCode: string | null | undefined
   botToken: string
+  /** Fallback, если у получателя нет language_code в metadata. */
+  fallbackLanguageCode?: string | null
   logPrefix?: string
 }): Promise<{ notified: number; failed: number }> {
   const {
     event,
     supabase,
     setlist,
-    languageCode,
     botToken,
+    fallbackLanguageCode = null,
     logPrefix = '[setlists/notify]',
   } = params
 
@@ -105,7 +130,8 @@ export async function notifySetlistPublished(params: {
         ? memberRows.find((m) => m.user_id === setlist.created_by)?.display_name
         : null)?.trim() || null
 
-    let telegramIds: number[] = []
+    type Recipient = { chatId: number; userId: string }
+    let accountRows: Recipient[] = []
     if (userIds.length) {
       const { data: accounts, error: accountsError } = await supabase
         .from('telegram_accounts')
@@ -114,9 +140,12 @@ export async function notifySetlistPublished(params: {
       if (accountsError) {
         console.error(logPrefix, 'telegram_accounts', accountsError.message)
       } else {
-        telegramIds = (accounts ?? [])
-          .map((a) => Number(a.telegram_id))
-          .filter((id) => Number.isFinite(id) && id > 0)
+        accountRows = (accounts ?? [])
+          .map((a) => ({
+            chatId: Number(a.telegram_id),
+            userId: String(a.user_id),
+          }))
+          .filter((a) => Number.isFinite(a.chatId) && a.chatId > 0 && a.userId)
       }
     }
 
@@ -126,7 +155,13 @@ export async function notifySetlistPublished(params: {
         process.env.NUXT_TELEGRAM_NOTIFY_ALLOWLIST ??
         '',
     )
-    const recipients = filterTelegramNotifyRecipients(telegramIds, allowlist)
+    const allowedChatIds = new Set(
+      filterTelegramNotifyRecipients(
+        accountRows.map((a) => a.chatId),
+        allowlist,
+      ),
+    )
+    const recipients = accountRows.filter((a) => allowedChatIds.has(a.chatId))
     const songs = toBotSongRows(setlist.setlist_items ?? [])
 
     const webAppUrl = resolveTelegramMiniAppUrl(
@@ -134,23 +169,30 @@ export async function notifySetlistPublished(params: {
       getRequestURL(event).origin,
     )
     const setlistUrl = `${webAppUrl}/setlists/${setlist.id}`
-    const buttonText = botMessage('open', languageCode)
-    const richHtml = formatSetlistPublishedRichHtml({
-      languageCode,
-      title: setlist.title,
-      serviceDate: setlist.service_date,
-      songs,
-      authorName,
-    })
-    const fallbackHtml = formatSetlistPublishedHtml({
-      languageCode,
-      title: setlist.title,
-      serviceDate: setlist.service_date,
-      songs,
-      authorName,
-    })
 
-    for (const chatId of recipients) {
+    const languageByUser = await resolveUserLanguageCodes(
+      supabase,
+      recipients.map((r) => r.userId),
+    )
+
+    for (const { chatId, userId } of recipients) {
+      const languageCode = languageByUser.get(userId) ?? fallbackLanguageCode
+      const buttonText = botMessage('open', languageCode)
+      const richHtml = formatSetlistPublishedRichHtml({
+        languageCode,
+        title: setlist.title,
+        serviceDate: setlist.service_date,
+        songs,
+        authorName,
+      })
+      const fallbackHtml = formatSetlistPublishedHtml({
+        languageCode,
+        title: setlist.title,
+        serviceDate: setlist.service_date,
+        songs,
+        authorName,
+      })
+
       try {
         await sendSetlistPublishedMessage({
           botToken,

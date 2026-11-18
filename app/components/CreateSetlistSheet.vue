@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ComponentPublicInstance } from 'vue'
+import { canonicalizeSessionTitle } from '~~/shared/i18n/messages'
 import { localDayKey } from '~/utils/dates'
 import { icons } from '~/utils/icons'
 
@@ -90,7 +91,7 @@ async function save() {
   busy.value = true
   try {
     const setlist = await createSetlist({
-      title: title.value.trim(),
+      title: canonicalizeSessionTitle(title.value.trim()),
       serviceDate: localDayKey(serviceDate.value),
     })
     toast.add({ severity: 'success', summary: t('common.created'), life: 2000 })

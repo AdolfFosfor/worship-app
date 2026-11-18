@@ -1532,3 +1532,16 @@ export function isDefaultSessionTitle(title: string): boolean {
   }
   return false
 }
+
+/**
+ * В БД храним один канон дефолтного названия (ru),
+ * чтобы UI/бот у каждого показывали свою локаль через localizeSessionTitle.
+ */
+export function canonicalizeSessionTitle(title: string): string {
+  const trimmed = title.trim()
+  if (!trimmed) return trimmed
+  if (isDefaultSessionTitle(trimmed)) {
+    return messages.ru['setlists.defaultTitle']
+  }
+  return trimmed
+}

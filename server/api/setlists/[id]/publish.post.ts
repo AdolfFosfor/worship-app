@@ -87,15 +87,13 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 409, statusMessage: 'Already published' })
   }
 
-  const languageCode =
-    (user.user_metadata?.language_code as string | undefined) ?? null
-
   const { notified, failed } = await notifySetlistPublished({
     event,
     supabase,
     setlist: row,
-    languageCode,
     botToken,
+    fallbackLanguageCode:
+      (user.user_metadata?.language_code as string | undefined) ?? null,
     logPrefix: '[setlists/publish]',
   })
 

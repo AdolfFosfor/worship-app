@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import Sortable from 'sortablejs'
 import type { SetlistItemWithSong, SetlistWithItems, Song } from '~~/shared/types'
+import {
+  canonicalizeSessionTitle,
+  isDefaultSessionTitle,
+} from '~~/shared/i18n/messages'
 import { localDayKey } from '~/utils/dates'
 import { icons } from '~/utils/icons'
 import { soundingKey } from '~/utils/music/capo'
@@ -223,21 +227,25 @@ const titleEl = ref<HTMLElement | null>(null)
 const datePicker = ref<{ $el?: HTMLElement } | null>(null)
 const metaBusy = ref(false)
 
+function displaySessionTitle(raw: string) {
+  return sessionTitle(raw)
+}
+
 async function syncTitleEl(raw?: string | null) {
   await nextTick()
   if (!titleEl.value || titleFocused.value) return
   const value = raw ?? setlist.value?.title
   if (value == null) return
-  // Только сырой title — без sessionTitle, иначе focus перезаписывает DOM и каретка в конец
-  if (titleEl.value.textContent !== value) {
-    titleEl.value.textContent = value
+  const display = displaySessionTitle(value)
+  if (titleEl.value.textContent !== display) {
+    titleEl.value.textContent = display
   }
 }
 
 watch(
-  () => setlist.value?.title,
-  (next) => {
-    void syncTitleEl(next)
+  () => [setlist.value?.title, locale.value] as const,
+  () => {
+    void syncTitleEl()
   },
 )
 
@@ -268,13 +276,22 @@ function placeTitleCaretAtEnd() {
   sel?.addRange(range)
 }
 
+function beginTitleEdit() {
+  if (!setlist.value || !titleEl.value) return
+  titleFocused.value = true
+  // В режиме правки — вариант текущей локали (не сырой ro/en из БД)
+  if (isDefaultSessionTitle(setlist.value.title)) {
+    titleEl.value.textContent = t('setlists.defaultTitle')
+  }
+}
+
 function onTitlePointerDown(event: PointerEvent) {
   // preventDefault — браузер не ставит каретку в точку клика (без вспышки)
   event.preventDefault()
   const el = titleEl.value
   if (!el || !setlist.value) return
   if (!titleFocused.value) {
-    titleFocused.value = true
+    beginTitleEdit()
     haptics.tap()
   }
   el.focus({ preventScroll: true })
@@ -283,7 +300,8 @@ function onTitlePointerDown(event: PointerEvent) {
 
 function onTitleFocus() {
   if (!setlist.value) return
-  titleFocused.value = true
+  if (!titleFocused.value) beginTitleEdit()
+  else titleFocused.value = true
   placeTitleCaretAtEnd()
 }
 
@@ -296,7 +314,7 @@ function onTitleKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape') {
     event.preventDefault()
     if (setlist.value && titleEl.value) {
-      titleEl.value.textContent = setlist.value.title
+      titleEl.value.textContent = displaySessionTitle(setlist.value.title)
     }
     titleEl.value?.blur()
   }
@@ -332,12 +350,15 @@ function onTitlePaste(event: ClipboardEvent) {
 async function commitTitle() {
   titleFocused.value = false
   if (!setlist.value || metaBusy.value) return
-  const next = readTitleText().slice(0, TITLE_MAX_LEN)
-  if (!next) {
-    if (titleEl.value) titleEl.value.textContent = setlist.value.title
+  const typed = readTitleText().slice(0, TITLE_MAX_LEN)
+  if (!typed) {
+    if (titleEl.value) {
+      titleEl.value.textContent = displaySessionTitle(setlist.value.title)
+    }
     return
   }
-  if (titleEl.value) titleEl.value.textContent = next
+  const next = canonicalizeSessionTitle(typed)
+  if (titleEl.value) titleEl.value.textContent = displaySessionTitle(next)
   if (next === setlist.value.title) return
 
   metaBusy.value = true
@@ -350,7 +371,7 @@ async function commitTitle() {
     })
   } catch (e) {
     setlist.value = { ...setlist.value, title: prev }
-    if (titleEl.value) titleEl.value.textContent = prev
+    if (titleEl.value) titleEl.value.textContent = displaySessionTitle(prev)
     toast.add({
       severity: 'error',
       summary: t('common.error'),
